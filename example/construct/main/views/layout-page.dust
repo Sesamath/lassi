@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>{head|s}</head>
+<body>
+  <div id="header">
+    <div class="wrapper">
+      {>header/}
+    </div>
+  </div>
+  <div id="body" class="wrapper">
+    <div id="sidebar">
+      {#sidebar}{.|s}{/sidebar}
+    </div>
+    <div id="content">
+      {#content}{.|s}{/content}
+    </div>
+  </div>
+</body>
+</html>
+
+

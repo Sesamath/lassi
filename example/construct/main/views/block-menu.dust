@@ -1,0 +1,7 @@
+<div class="block rich-text">
+<ul>
+{#actions}
+  <li>{.|s}</li>
+{/actions}
+</ul>
+</div>

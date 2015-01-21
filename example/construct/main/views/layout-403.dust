@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>{head|s}</head>
+<body>
+  <div id="header">
+    <div class="wrapper">
+      {>header/}
+    </div>
+  </div>
+  <div id="body" class="wrapper error">
+    <div id="sidebar">
+      {#sidebar}{.|s}{/sidebar}
+    </div>
+    <div id="content">
+      403 !!!!! {message}
+      {#content}{.|s}{/content}
+    </div>
+  </div>
+</body>
+</html>
+
+

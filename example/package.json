@@ -1,0 +1,39 @@
+{
+  "name": "MyLassiApplication",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start": "node ./bin/www"
+  },
+  "dependencies": {
+    "mysql": "^2.5.4",
+    "seq": "^0.3.5",
+    "underscore": "^1.6.0"
+  },
+  "devDependencies": {
+    "gulp": "*",
+    "gulp-sass": "^0.7.2",
+    "gulp-util": "^3.0.0"
+  },
+  "jshintConfig": {
+    "asi": true,
+    "boss": true,
+    "jquery": true,
+    "node": true,
+    "strict": true,
+    "maxlen": 256,
+    "newcap": false,
+    "undef": true,
+    "unused": true,
+    "onecase": true,
+    "lastsemic": true,
+    "indent": 2,
+    "loopfunc": false,
+    "validthis": false,
+    "globals": {
+      "jQuery": false,
+      "lassi": false,
+      "lfw": false
+    }
+  }
+}

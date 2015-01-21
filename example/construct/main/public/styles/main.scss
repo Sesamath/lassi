@@ -1,0 +1,59 @@
+@import "libraries/_reset";
+@import "libraries/_artools";
+@import "layout/header";
+@import "layout/sidebar";
+@import "widgets/form";
+@import "widgets/richtext";
+
+body {
+  background-color:#42413D;
+  font-family: Ubuntu, sans-serif;
+}
+
+a {
+  color: back;
+  text-decoration: none;
+  &:hover {
+    color: black;
+    text-decoration: none;
+  }
+}
+
+
+#body {
+  background-color:#F6F2E3;
+  overflow:hidden;
+  min-height: 600px;
+  &.error {
+    background-color:#E9C9AB;
+  }
+}
+
+// Écrans larges
+$ld-width:1024px;
+$ld-sidebar-width:200px;
+$ld-header-height: 60px;
+
+.wrapper {
+  width:$ld-width;
+  margin: 0 auto;
+}
+
+#header {
+  height: $ld-header-height;
+}
+#body {
+  margin-top: $ld-header-height;
+
+  #sidebar {
+    width: $ld-sidebar-width;
+    padding: 10px;
+    float:right;
+  }
+
+  #content{
+    width: $ld-width - $ld-sidebar-width;
+    padding: 10px;
+  }
+}
+
