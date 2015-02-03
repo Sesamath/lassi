@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "1.7.25",
+  "version": "1.8.0",
   "private": true,
   "bin": {
     "lassi": "./bin/lassi.js"

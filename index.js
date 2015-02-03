@@ -19,15 +19,8 @@ lassi.Decorator   = function(name, definition) {
   }
 }
 
-lassi.Controller  = function(name, definition) {
-  if ('undefined' === typeof definition) {
-    return new lfw.framework.Controller(name);
-  } else {
-    definition.extend = definition.extend || lfw.framework.Controller;
-    var controllerClass = lassi.Class(name, definition);
-    var controllerInstance = new controllerClass();
-    return controllerInstance;
-  }
+lassi.Controller  = function(path) {
+  return new lfw.framework.Controller(path);
 }
 // NOTE: name est unique car la table est unique, donc on oublie les
 // sesamath.truc.machin.entity sauf à vouloit inclure le path

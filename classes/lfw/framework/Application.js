@@ -91,8 +91,11 @@ lassi.Class('lfw.framework.Application', {
     this.on('afterRailUse', function(name, settings, object) {
       var tmp = [];
       for(var key in settings) {
-        if (key!='mountPoint' || settings[key] !== '/')
+        if (typeof settings[key] === 'function') {
+          tmp.push(key.green+':'+'function'.cyan);
+        } else if (key!='mountPoint' || settings[key] !== '/') {
           tmp.push(key.green+':'+settings[key].toString());
+        }
       }
       lassi.log.info("Rail ❭ ".grey+name+' {'.blue+tmp.join(', ')+'}'.blue);
       if (name == 'Controllers') {
@@ -349,7 +352,7 @@ lassi.Class('lfw.framework.Application', {
         lassi.assert.not.empty(controller.actions, 'No action defined in '+assertName);
         for(var i in controller.actions) {
           var action = controller.actions[i];
-          lassi.log.info('  ➠ '.grey+action.methods.join(',').blue+' '+action.path.yellow);
+          lassi.log.info('  ➠ '.grey+action.methods.join(',').toLowerCase().blue+' '+action.path.yellow);
         }
       });
       next();
@@ -509,12 +512,22 @@ lassi.Class('lfw.framework.Application', {
       return require('cookie-parser')(settings.key)
     }, railConfig.cookie);
 
-    railUse(
-        'body-parser',
-        function(settings) {
-          return require('body-parser').urlencoded(settings);
-        },
-        railConfig.bodyParser || {}
+    var bodyParser = require('body-parser');
+    var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+    railUse('body-parser',
+      function(settings) {
+        return bodyParser(settings);
+      },
+      railConfig.bodyParser || {
+        reviver: function (key, value) {
+          if (typeof value === 'string') {
+            if (dateRegExp.exec(value)) {
+              return new Date(value);
+            }
+          }
+          return value;
+        }
+      }
     );
 
     railUse('session', function(settings) {

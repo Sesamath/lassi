@@ -76,12 +76,14 @@ lassi.Class('lfw.framework.Action', {
   bless : function(controller) {
     this.controller = controller;
     this.component = controller.component;
+
     if (_.isUndefined(this.path) || this.path.charAt(0)!=='/') {
       var parts = [];
       if (!_.isUndefined(this.path)) parts.unshift (this.path);
       if (controller.path) parts.unshift(controller.path);
       this.path = '/' + parts.join('/');
     }
+
     /**
      * ???
      * @type {RegExp}

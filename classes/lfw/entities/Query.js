@@ -52,6 +52,10 @@ lassi.Class('lfw.entities.Query', {
     return this.alterLastMatch({value: value,  operator: '='});
   },
 
+  like: function(value) {
+    return this.alterLastMatch({value: value,  operator: 'like'});
+  },
+
   /**
    * Fait correspondre les enregistrement dont la valeur est vraie.
    *

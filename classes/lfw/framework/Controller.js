@@ -54,30 +54,34 @@ lassi.Class('lfw.framework.Controller', {
   put: function(path, cb) {
     if (typeof path === 'function') {
       cb = path;
-      path = '/';
+      path = undefined;
     }
-    return this.on(path).via('put').do(cb);
+    this.on(path).via('put').do(cb);
+    return this;
   },
   post: function(path, cb) {
     if (typeof path === 'function') {
       cb = path;
-      path = '/';
+      path = undefined;
     }
-    return this.on(path).via('post').do(cb);
+    this.on(path).via('post').do(cb);
+    return this;
   },
   get: function(path, cb) {
     if (typeof path === 'function') {
       cb = path;
-      path = '/';
+      path = undefined;
     }
-    return this.on(path).via('get').do(cb);
+    this.on(path).via('get').do(cb);
+    return this;
   },
   delete: function(path, cb) {
     if (typeof path === 'function') {
       cb = path;
-      path = '/';
+      path = undefined;
     }
-    return this.on(path).via('delete').do(cb);
+    this.on(path).via('delete').do(cb);
+    return this;
   },
 
   bless : function(file, component) {
@@ -89,7 +93,7 @@ lassi.Class('lfw.framework.Controller', {
       action.bless(_this);
     });
 
-    if (_.isEmpty(this.responses)) this.respond('html');
+    if (_.isEmpty(this.responses)) this.respond('json');
     for(var format in this.responses) {
       var response = this.responses[format];
       if (response.format=='html') {
