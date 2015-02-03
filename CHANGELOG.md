@@ -6,3 +6,9 @@ Version 1.8.0
   - Controller : l'absence de chemin (undefined) => / (racine)
   - Application : Ajout du parsing BODY/JSON et d'un reviver d'objet Date
 
+Version 1.8.1
+=============
+  - Suppression des CORS, à gérer par l'appli
+  - Ajout d'une méthode "use" à l'application pour injecter ses propres middleware (voir
+    l'usage de railUse pour plus d'info.
+

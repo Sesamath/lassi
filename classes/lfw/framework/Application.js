@@ -464,6 +464,7 @@ lassi.Class('lfw.framework.Application', {
        */
       _this.emit('afterRailUse', name, settings, middleware);
     }
+    this.use = railUse;
 
     var railConfig = this.settings.rail;
 
@@ -473,14 +474,6 @@ lassi.Class('lfw.framework.Application', {
         return express.static(settings.path);
       }, {path: path, mountPoint: mountPoint});
     }
-
-    railUse('cors', function() {
-      return function(req, res, next) {
-        res.header('Access-Control-Allow-Origin', '*');
-        res.header("Access-Control-Allow-Headers", "X-Requested-With");
-        next();
-      }
-    }, railConfig.cors);
 
     railUse('compression', function() {
       return require('compression')();
