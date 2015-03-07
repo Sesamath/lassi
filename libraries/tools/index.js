@@ -25,44 +25,6 @@
 var _ = require('underscore')._;
 var sanitizeHtml = require('sanitize-html');
 var Tools = module.exports;
-/**
- * Fonction fauchée ici : http://forbeslindesay.github.io/express-route-tester/
- * car le module https://github.com/component/path-to-regexp marche finalement
- * moins bien...
- */
-Tools.pathtoRegexp = function pathtoRegexp(path, keys, options) {
-    options = options || {};
-    var sensitive = options.sensitive;
-    var strict = options.strict;
-    keys = keys || [];
-
-    if (path instanceof RegExp) return path;
-    if (path instanceof Array) path = '(' + path.join('|') + ')';
-
-    path = path
-      .concat(strict ? '' : '/?')
-      .replace(/\/\(/g, '(?:/')
-      .replace(/\+/g, '__plus__')
-      .replace(/(\/)?(\.)?:(\w+)(?:(\(.*?\)))?(\?)?/g, function(_, slash, format, key, capture, optional){
-        keys.push({ name: key, optional: !! optional });
-        slash = slash || '';
-        return ''
-          + (optional ? '' : slash)
-          + '(?:'
-          + (optional ? slash : '')
-          + (format || '') + (capture || (format && '([^/.]+?)' || '([^/]+?)')) + ')'
-          + (optional || '');
-      })
-      .replace(/([\/.])/g, '\\$1')
-      .replace(/__plus__/g, '(.+)')
-      .replace(/\*/g, '(.*)');
-
-    return new RegExp('^' + path + '$', sensitive ? '' : 'i');
-  }
-
-Tools.toCamelCase = function(string){
-	return string.replace(/(\-[a-z])/g, function($1){return $1.toUpperCase().replace('-','');});
-}
 
 Tools.underscoreToCamelCase = function(string){
 	return string.replace(/(_[a-z])/g, function($1){return $1.toUpperCase().replace('_','');});
@@ -74,14 +36,6 @@ Tools.toUnderscore = function(string, separator){
 	return (string[0].toLowerCase()+string.substr(1)).replace(/([A-Z])/g, function($1){return separator+$1.toLowerCase();});
 };
 
-Tools.update = function(object, from) {
-  Object.getOwnPropertyNames(from).forEach(function(property) {
-      Object.defineProperty(
-        object, property,
-        Object.getOwnPropertyDescriptor(from, property));
-  });
-  return object;
-}
 
 /**
  * Fusionne les nouvelles valeurs avec les propriétés de l'objet (en profondeur)
@@ -108,12 +62,6 @@ Tools.merge = function(object, newValues) {
     })
   }
   mergeObj(object, newValues);
-}
-
-Tools.clone = function(object) {
-  var copy = Object.create(Object.getPrototypeOf(object));
-  Tools.update(copy, object);
-  return copy;
 }
 
 Tools.stripTags = function (source) {
@@ -170,15 +118,6 @@ Tools.removeDiacritics = function(source) {
   return source.replace(/([^(\x20-\x7F)]|\(|\)|\[|^])/, '');
 }
 
-/**
- * Vire les espaces et les caractères de contrôle d'une chaine
- * @see http://unicode-table.com/en/
- * @param {string} source La chaîne à nettoyer
- * @returns {string} La chaîne nettoyée
- */
-Tools.sanitizeHashKey = function(source) {
-  return source.replace(/\x00-\x20\x7F-\xA0]/, '');
-}
 
 var noNesting = {li:'li', p:'p'};
 var singleUse = {
@@ -316,3 +255,5 @@ Tools.register = function(path, ressource) {
   }
   return ressource;
 }
+
+

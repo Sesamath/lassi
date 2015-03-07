@@ -23,10 +23,26 @@
  */
 
 // Récupération du module lassi
-require('../../index.js');
+require('../../index.js')(__dirname+'/..');
 
-lassi.cache.addEngine(new lfw.cache.MemcacheEngine('127.0.0.1:11211'));
 
-// Construction de l'application
-lassi.Application().boot();
+GLOBAL.app = lassi.component('exemple');
+
+app.config(function($cache) {
+  $cache.addEngine('', 'memcache', '127.0.0.1:11211');
+  lassi.transports.html.on('metas', function(metas) {
+    console.log('******************');
+    metas.addCss('styles/main.css');
+    metas.addJs('vendors/jquery.min.js');
+  });
+
+})
+
+.controller(function() {
+  this.serve(__dirname+'/public');
+})
+
+require('./pages');
+
+lassi.boot();
 

@@ -3,7 +3,7 @@ module.exports = {
   application : {
     name: 'Bang Lassi',
     mail: 'dev.lassi@arnumeral.fr',
-    staging: lassi.Staging.development
+    staging: 'dev'
   },
   entities : {
     database : {
@@ -15,11 +15,6 @@ module.exports = {
         database: "app"
       }
     },
-
-  },
-  layout : {
-    data: __dirname+'/../data',
-    cache: __dirname+'/../data/cache'
   },
 
   renderer : {
