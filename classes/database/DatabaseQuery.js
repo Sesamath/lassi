@@ -20,22 +20,20 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
+var util = require('util');
 
-lassi.Class('lfw.database.pgsql.Client', {
-  extend: lfw.database.Client,
+function DatabaseQuery() {
+  this._buffer = [];
+}
 
-  construct: function(settings) {
-    var connectionString = "postgres://";
-    if (settings.user) connectionString += settings.user;
-    if (settings.password) connectionString += ':'+settings.password;
-    if (settings.user || settings.password) connectionString += '@';
-    connectionString += settings.host?settings.host:'localhost';
-    connectionString += '/'+settings.database;
-    settings.connectionString = connectionString;
-    this.parent(settings);
-  },
+DatabaseQuery.prototype.push = function(text) {
+  text = util.format.apply(this, Array.prototype.slice.call(arguments));
+  this._buffer.push(text);
+}
 
-  createConnection: function() {
-    return new lfw.database.pgsql.Connection(this);
-  }
-})
+DatabaseQuery.prototype.toString = function(separator) {
+  separator = separator || "\n";
+  return this._buffer.join(separator);
+}
+
+module.exports = DatabaseQuery;

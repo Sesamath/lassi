@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Class: Lassi</title>
+    <title>Class: DatabaseManager</title>
     
     
     
@@ -425,7 +425,7 @@
     </ul>
 </div>
     <div class="main">
-        <h1 class="page-title" data-filename="Lassi.html">Class: Lassi</h1>
+        <h1 class="page-title" data-filename="DatabaseManager.html">Class: DatabaseManager</h1>
         
 
 
@@ -434,7 +434,7 @@
     
 <header>
     <h2>
-    Lassi
+    DatabaseManager
     </h2>
     
 </header>  
@@ -447,14 +447,14 @@
         
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="Lassi">
+        <h4 class="name" id="DatabaseManager">
             
-            new Lassi<span class="signature">(<span class="optional">root</span>)</span>
+            new DatabaseManager<span class="signature">()</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 51
+            database/index.js, line 30
         </div>
         
     </div>
@@ -465,9 +465,7 @@
     
     
     <div class="description">
-        <p>Constructeur de l'application. Effectue les
-initialisation par défaut.
-Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
+        <p>Classe de gestion des bases de données.</p>
     </div>
     
 
@@ -475,58 +473,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>root</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                    
-                        <span class="optional">optional</span>
-                    
-                    
-                        
-                    
-                
-                <p>La racine du projet. Par défaut il s'agit du dossier d'exécution du script.</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
     
     
     
@@ -571,12 +517,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     </div>
     
-    
-        <h3 class="subsection-title">Extends</h3>
-        
-        <ul>
-            <li>Emitter</li>
-        </ul>
     
     
     
@@ -596,14 +536,14 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="component">
+        <h4 class="name" id=".instance">
             
-            component<span class="signature">(name, dependencies)</span>
+            <span class="type-signature static">static</span>DatabaseManager.instance<span class="signature">()</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 194
+            database/index.js, line 36
         </div>
         
     </div>
@@ -614,7 +554,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     <div class="description">
-        <p>Enregistre un <a href="Component.html">Component</a> dans le système.</p>
+        <p>Récupération de l'instance du manager.</p>
     </div>
     
 
@@ -622,74 +562,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du component</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>dependencies</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">array</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Une liste de composant en dépendance</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
     
     
     
@@ -735,14 +607,14 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="shutdown">
+        <h4 class="name" id="createClient">
             
-            shutdown<span class="signature">()</span>
+            createClient<span class="signature">(settings)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="DatabaseClient.html">DatabaseClient</a>}</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 315
+            database/index.js, line 48
         </div>
         
     </div>
@@ -753,91 +625,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     <div class="description">
-        <p>Arrêt de l'application.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-    <h5>Fires:</h5>
-    <ul>
-        <li><a href="Lassi.html#event:shutdown">Lassi#event:shutdown</a></li>
-    </ul>
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        </dl>
-    
-    
-    
-    
-    
-        <h3 class="subsection-title">Events</h3>
-        
-        <dl>
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
-            
-            beforeRailUse
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 247
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement déclenché après chargement d'un middleware.</p>
+        <p>Création d'un client.</p>
     </div>
     
 
@@ -864,29 +652,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	</thead>
 	
 	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
 	
 	
         <tr>
@@ -897,7 +662,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             <td class="type">
             
                 
-<span class="param-type">Object</span>
+<span class="param-type">object</span>
 
 
             
@@ -907,7 +672,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
             <td class="description last">
                 
-                <p>Les réglages qui ont été appliqués au middleware</p></td>
+                <p>le record d'établissement de la connexion.</p></td>
         </tr>
 	
 	
@@ -952,291 +717,22 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
-            
-            beforeRailUse
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 235
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement déclenché avant chargement d'un middleware.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
 
 
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
+<h5>Returns:</h5>
+client.
+<br />
 
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Les réglages qui seront appliqués au middleware</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:bootstrap">
-            
-            bootstrap
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 138
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré une fois que l'application est en écoute du port.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:shutdown">
-            
-            shutdown
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 317
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré lorsque l'application est arrêtée par
-la méthode shutdown.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
     
     
     
 </dd>
 
         </dl>
+    
+    
+    
+    
     
 </article>
 

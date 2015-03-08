@@ -21,64 +21,18 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
+var _ = require('underscore')._;
 
 // constructeur
 function JsonTransport(application) {
   this.application = application;
 }
-JsonTransport.prototype.process = function(context, next) {
-  var action = context.action;
-  var _this = this;
-  if (action.constructor.name == 'Action') {
-    action.execute(context, function(error, data) {
-      if (error) return next(error);
-      _this.send(context, data)
-      next();
-    });
-  } else {
-    next(new Error('why do I have to process '+action.constructor.name+'['+action.name+'] in a JSON transport ?'))
-  }
-}
-
-/**
- * Prend en charge une erreur survenue au cours du traitement de l'action.
- */
-JsonTransport.prototype.manageError = function() {
-  return false;
-}
-
-/**
- * Helper pour la réponse, envoie du json, ou du js (jsonp) si on trouve un param callback ou jsonp en get
- * @param context
- * @param data
- */
-JsonTransport.prototype.send = function (context, data) {
-  if(context.status) {
-    context.response
-      .status(context.status)
-      .send({ok:false, message: context.message});
-    return;
-  }
-  var callbackName = context.get.callback || context.get.jsonp
-  var isJsonP = !!callbackName
-  var jsonString
-  try {
-    console.log('ici');
-    if (context.application.staging == lassi.Staging.development)
-      // en dev on aère un peu la sortie pour la rendre lisible
-      jsonString = JSON.stringify(data, null, 2)
-      else jsonString = JSON.stringify(data)
-  } catch (error) {
-    jsonString = "{error:" +error.toString() +"}";
-  }
-
-  if (isJsonP) {
-    context.response.set('Content-Type', 'application/javascript; charset=utf-8');
-    context.response.send(callbackName + '(' + jsonString + ')');
-  } else {
-    context.response.set('Content-Type', 'text/html' /* à cause de chrome... application/json'*/);
-    context.response.send(jsonString);
-  }
+JsonTransport.prototype.process = function(data, next) {
+  var result = {};
+  _.each(data, function(v,k) {
+    if (k.charAt(0)!=='$') result[k] = v;
+  })
+  next(null, result);
 }
 
 module.exports = JsonTransport;

@@ -25,9 +25,16 @@
 var _ = require('underscore')._;
 
 /**
+ * Callback d'une action.
+ * @callback Action~callback
+ * @param {Context} context
+ */
+
+/**
  * Constructeur de l'action.
  * @param {string} path le chemin (ou la partie de chemin) associée à l'action
  * @constructor
+ * @private
  */
 function Action(path, fsPath) {
   this.path     = path;
@@ -39,6 +46,7 @@ function Action(path, fsPath) {
     var express = require('express');
     this.middleware = express.static(fsPath);
   }
+
 }
 /**
  * Affecte la liste des méthodes http autorisées (à la place du GET par défaut)
@@ -47,16 +55,6 @@ function Action(path, fsPath) {
 Action.prototype.via = function() {
   this.methods = Array.prototype.slice.call(arguments)
     .map(function(a){return a.toUpperCase()});
-  return this;
-}
-
-/**
- * Affecte la vue à utiliser (sinon c'est celle du même nom que l'action)
- * @param {String} view
- * @returns {Action}
- */
-Action.prototype.renderWith = function(view) {
-  this.view = view;
   return this;
 }
 

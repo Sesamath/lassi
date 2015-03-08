@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Class: Lassi</title>
+    <title>Class: Entity</title>
     
     
     
@@ -425,7 +425,7 @@
     </ul>
 </div>
     <div class="main">
-        <h1 class="page-title" data-filename="Lassi.html">Class: Lassi</h1>
+        <h1 class="page-title" data-filename="Entity.html">Class: Entity</h1>
         
 
 
@@ -434,7 +434,7 @@
     
 <header>
     <h2>
-    Lassi
+    Entity
     </h2>
     
 </header>  
@@ -447,14 +447,14 @@
         
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="Lassi">
+        <h4 class="name" id="Entity">
             
-            new Lassi<span class="signature">(<span class="optional">root</span>)</span>
+            new Entity<span class="signature">(settings)</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 51
+            entities/Entity.js, line 34
         </div>
         
     </div>
@@ -465,9 +465,7 @@
     
     
     <div class="description">
-        <p>Constructeur de l'application. Effectue les
-initialisation par défaut.
-Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
+        <p>Construction d'une entité. Passez par la méthode <a href="EntityDefinition.html#create">EntityDefinition#create</a> pour créer une entité.</p>
     </div>
     
 
@@ -498,13 +496,13 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	
         <tr>
             
-                <td class="name"><code>root</code></td>
+                <td class="name"><code>settings</code></td>
             
             
             <td class="type">
             
                 
-<span class="param-type">String</span>
+<span class="param-type">Object</span>
 
 
             
@@ -514,14 +512,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
             <td class="description last">
                 
-                    
-                        <span class="optional">optional</span>
-                    
-                    
-                        
-                    
-                
-                <p>La racine du projet. Par défaut il s'agit du dossier d'exécution du script.</p></td>
+                </td>
         </tr>
 	
 	
@@ -571,12 +562,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     </div>
     
-    
-        <h3 class="subsection-title">Extends</h3>
-        
-        <ul>
-            <li>Emitter</li>
-        </ul>
     
     
     
@@ -596,14 +581,14 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="component">
+        <h4 class="name" id="delete">
             
-            component<span class="signature">(name, dependencies)</span>
+            delete<span class="signature">(callback)</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 194
+            entities/Entity.js, line 207
         </div>
         
     </div>
@@ -614,7 +599,8 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     <div class="description">
-        <p>Enregistre un <a href="Component.html">Component</a> dans le système.</p>
+        <p>Efface cette instance d'entité en base (et ses index) puis appelle callback
+sans argument (ou l'argument &quot;Delete failed&quot; si c'est le cas)</p>
     </div>
     
 
@@ -645,13 +631,13 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	
         <tr>
             
-                <td class="name"><code>name</code></td>
+                <td class="name"><code>callback</code></td>
             
             
             <td class="type">
             
                 
-<span class="param-type">String</span>
+<span class="param-type"><a href="global.html#SimpleCallback">SimpleCallback</a></span>
 
 
             
@@ -661,30 +647,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
             <td class="description last">
                 
-                <p>Le nom du component</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>dependencies</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">array</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Une liste de composant en dépendance</p></td>
+                <p>La callback d'exécution</p></td>
         </tr>
 	
 	
@@ -735,14 +698,14 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="shutdown">
+        <h4 class="name" id="isNew">
             
-            shutdown<span class="signature">()</span>
+            isNew<span class="signature">()</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{boolean}</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 315
+            entities/Entity.js, line 44
         </div>
         
     </div>
@@ -753,7 +716,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     <div class="description">
-        <p>Arrêt de l'application.</p>
+        <p>Répond true si l'instance de cette Entity n'a jamais été insérée en base de donnée</p>
     </div>
     
 
@@ -790,11 +753,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 
     
     
-    <h5>Fires:</h5>
-    <ul>
-        <li><a href="Lassi.html#event:shutdown">Lassi#event:shutdown</a></li>
-    </ul>
-    
 
     
 
@@ -802,31 +760,32 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
+    
+    
+    
+
+
+<h5>Returns:</h5>
+si l'instance n'a jamais été sauvegardée
+<br />
+
     
     
     
 </dd>
 
-        </dl>
-    
-    
-    
-    
-    
-        <h3 class="subsection-title">Events</h3>
         
-        <dl>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
+        <h4 class="name" id="store">
             
-            beforeRailUse
+            store<span class="signature">(<span class="optional">options</span>)</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 247
+            entities/Entity.js, line 65
         </div>
         
     </div>
@@ -837,7 +796,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     <div class="description">
-        <p>Évènement déclenché après chargement d'un middleware.</p>
+        <p>Stockage d'une instance d'entité.</p>
     </div>
     
 
@@ -868,30 +827,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	
         <tr>
             
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
+                <td class="name"><code>options</code></td>
             
             
             <td class="type">
@@ -907,294 +843,26 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
             <td class="description last">
                 
-                <p>Les réglages qui ont été appliqués au middleware</p></td>
+                    
+                        <span class="optional">optional</span>
+                    
+                    
+                        
+                    
+                
+                <p>Spécification des options de stockage. Les options par défaut sont :</p>
+<ul>
+<li><code>options.object = true</code> : insertion ou mise à jour de l'objet ,</li>
+<li><code>options.index = true</code> : mise à jour des indexes.</li>
+</ul>
+<p>Attention: Ce paramètre est <strong>surtout utilisé</strong> à des fins d'optimisations (notamment
+dans la commande de reindexation). Dans 99% des cas ce paramètre peut (et
+doit) être omis.</p></td>
         </tr>
 	
 	
 	</tbody>
 </table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
-            
-            beforeRailUse
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 235
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement déclenché avant chargement d'un middleware.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Les réglages qui seront appliqués au middleware</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:bootstrap">
-            
-            bootstrap
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 138
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré une fois que l'application est en écoute du port.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:shutdown">
-            
-            shutdown
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 317
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré lorsque l'application est arrêtée par
-la méthode shutdown.</p>
-    </div>
-    
-
-    
-    
-    
-    
     
     
     
@@ -1237,6 +905,10 @@ la méthode shutdown.</p>
 </dd>
 
         </dl>
+    
+    
+    
+    
     
 </article>
 

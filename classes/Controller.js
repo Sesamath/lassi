@@ -27,14 +27,13 @@ var Action       = require('./Action');
 var util         = require('util');
 var EventEmitter = require('events').EventEmitter
 
-function Controller(path, respond) {
+/**
+ * Cette classe est instanciée par {@link Component#controller}
+ * @constructor
+ */
+function Controller(path) {
   this.path = path;
   this.actions = [];
-  this.responses = {};
-  if (respond) this.respond(respond);
-
-  // Backward compatibility
-  this.Action = this.on;
 }
 util.inherits(Controller, EventEmitter)
 
@@ -44,6 +43,21 @@ Controller.prototype.on = function(path) {
   return action;
 }
 
+/**
+ * Évènement généré avant l'expédition des données
+ * sur la couche de transport et avant que la couche
+ * de transport ne soit déterminée via data.$contentTYpe
+ * @event Controller#beforeTransport
+ * @param {Object} data les données modifiables
+ */
+
+/**
+ * Réponse à une méthode PUT
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {Action~callback} cb La callback
+ * @fires Controller#beforeTransport
+ * @return {Controller} Chaînable
+ */
 Controller.prototype.put = function(path, cb) {
   if (typeof path === 'function') {
     cb = path;
@@ -52,6 +66,14 @@ Controller.prototype.put = function(path, cb) {
   this.on(path).via('put').do(cb);
   return this;
 }
+
+/**
+ * Réponse à une méthode POST
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {Action~callback} cb La callback
+ * @fires Controller#beforeTransport
+ * @return {Controller} Chaînable
+ */
 Controller.prototype.post = function(path, cb) {
   if (typeof path === 'function') {
     cb = path;
@@ -60,6 +82,14 @@ Controller.prototype.post = function(path, cb) {
   this.on(path).via('post').do(cb);
   return this;
 }
+
+/**
+ * Réponse à une méthode GET
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {Action~callback} cb La callback
+ * @fires Controller#beforeTransport
+ * @return {Controller} Chaînable
+ */
 Controller.prototype.get = function(path, cb) {
   if (typeof path === 'function') {
     cb = path;
@@ -68,6 +98,14 @@ Controller.prototype.get = function(path, cb) {
   this.on(path).via('get').do(cb);
   return this;
 }
+
+/**
+ * Réponse à une méthode DELETE
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {Action~callback} cb La callback
+ * @fires Controller#beforeTransport
+ * @return {Controller} Chaînable
+ */
 Controller.prototype.delete = function(path, cb) {
   if (typeof path === 'function') {
     cb = path;
@@ -77,6 +115,12 @@ Controller.prototype.delete = function(path, cb) {
   return this;
 }
 
+/**
+ * Publie l'ensemble des fichiers d'un dossier physique. 
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {String} fsPath Le chemin physique
+ * @return {Controller} Chaînable
+ */
 Controller.prototype.serve = function(path, fsPath) {
   if (typeof fsPath==='undefined') {
     fsPath = path;
@@ -103,6 +147,20 @@ Controller.prototype.bless = function(component) {
   return this;
 }
 
+/**
+ * Affecte les options de rendu, principalement dans le cas
+ * du transport HTML. 
+ * @param {Object} options Les options à affecter aux données
+ * @return {Controller} Chaînable
+ * 
+ * ~~~
+ * this.renderAs({
+ *   $contentType: 'text/html',
+ *   $layout: 'layout-page',
+ *   $views: __dirname+'/../views'
+ * });
+ * ~~~
+ */
 Controller.prototype.renderAs = function(options) {
   this._renderAs = options;
   return this;

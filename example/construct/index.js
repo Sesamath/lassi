@@ -25,24 +25,26 @@
 // Récupération du module lassi
 require('../../index.js')(__dirname+'/..');
 
+require('./html');
+require('./json');
+require('./entities');
 
-GLOBAL.app = lassi.component('exemple');
+lassi.component('exemple', ['example-html', 'example-entities', 'example-json'])
 
-app.config(function($cache) {
+.config(function($cache) {
   $cache.addEngine('', 'memcache', '127.0.0.1:11211');
   lassi.transports.html.on('metas', function(metas) {
-    console.log('******************');
     metas.addCss('styles/main.css');
     metas.addJs('vendors/jquery.min.js');
   });
-
+  lassi.controllers.on('beforeTransport', function(data) {
+    if (data.$status && data.$status > 400 && data.$status < 500) {
+      data.$layout = 'layout-'+data.$status;
+      data.$contentType = 'text/html';
+      data.content = {$view: 'error', message: data.content};
+    }
+  });
 })
 
-.controller(function() {
-  this.serve(__dirname+'/public');
-})
-
-require('./pages');
-
-lassi.boot();
+.bootstrap();
 

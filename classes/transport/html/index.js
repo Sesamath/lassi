@@ -62,8 +62,6 @@ util.inherits(HtmlTransport, EventEmitter)
 * @private
 */
 HtmlTransport.prototype.process = function(data, next) {
-  console.log(data);
-
   var self = this;
   var sections = _.filter(_.keys(data), function(i) { return i.charAt(0)!=='$' });
   var metas = new Metas(data.$metas || {});

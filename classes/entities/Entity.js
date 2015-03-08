@@ -24,7 +24,13 @@
 var _ = require('underscore')._;
 var flow = require('seq');
 var util = require('util');
+var DatabaseQuery = require('../database/DatabaseQuery');
 
+/**
+ * Construction d'une entité. Passez par la méthode {@link EntityDefinition#create} pour créer une entité.
+ * @constructor
+ * @param {Object} settings
+ */
 function Entity() { }
 
 Entity.prototype.setDefinition = function(entity) {
@@ -55,9 +61,6 @@ Entity.prototype.isNew = function() {
  * Attention: Ce paramètre est **surtout utilisé** à des fins d'optimisations (notamment
  * dans la commande de reindexation). Dans 99% des cas ce paramètre peut (et
  * doit) être omis.
- * @param {EntityInstance~StoreCallback} callback La callback
- * @fires EntityInstance#beforeStore
- * @fires EntityInstance#afterStore
  */
 Entity.prototype.store = function(options, callback) {
   if (_.isFunction(options)) {
@@ -79,7 +82,7 @@ Entity.prototype.store = function(options, callback) {
       return v;
     });
 
-    var query = new lfw.lang.StringBuffer();
+    var query = new DatabaseQuery();
     if (instance.oid) {
       query.push('UPDATE %s', instance.definition.table);
       query.push("SET data=?");
@@ -99,7 +102,7 @@ Entity.prototype.store = function(options, callback) {
   function cleanIndexes(next) {
     if (!instance.oid) return next();
     if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
-    var query = new lfw.lang.StringBuffer();
+    var query = new DatabaseQuery();
     query.push('DELETE FROM %s WHERE oid=%d', indexTable, instance.oid);
     transaction.query(query, next);
   }
@@ -172,20 +175,12 @@ Entity.prototype.store = function(options, callback) {
         _next();
       });
     })
-    /**
-     * Évènement déclenché avant la sauvegarde d'une entité
-     * @event EntityInstance#beforeStore
-     */
-    .seq(function()        { instance.emit('beforeStore', this); } )
+    .seq(function()        { entity._beforeStore.call(instance, this); } )
     .seq(function()        { cleanIndexes(this) } )
     .seq(function()        { if (options.object) updateObject(this);  else this(); } )
     .seq(function()        { buildIndexes(this) } )
     .seq(function()        { if (options.index)  storeIndexes(this); else this(); } )
-    /**
-     * Évènement déclenché après la sauvegarde d'une entité
-     * @event EntityInstance#afterStore
-     */
-    .seq(function()        { instance.emit('afterStore', this); } )
+    .seq(function()        { entity._afterStore.call(instance, this); } )
     .seq(function()        {
       transaction.commit(function() {
         transaction.release();
@@ -203,14 +198,6 @@ Entity.prototype.store = function(options, callback) {
       }
     });
 }
-
-/**
- * Mise à jour de l'indexation de l'entité.
- * @param {Transaction} transaction La transaction sur laquelle on travaille
- * @param {EntityInstance~StoreCallback} callback La callback
- * @private
- */
-
 
 /**
  * Efface cette instance d'entité en base (et ses index) puis appelle callback
@@ -234,41 +221,6 @@ Entity.prototype.delete = function(callback) {
     }).
     seq(function() {callback()}).
     catch(callback)
-}
-
-/**
- * Exécute un évènement sur une entité.
- * @param {String} event Nom de l'évènement
- * @param {SimpleCallback} callback Callback
- */
-Entity.prototype.emit = function (event, callback) {
-  var listeners = this.definition.listeners[event];
-  if (!listeners) return callback();
-  this.definition.listeners[event].execute(this, callback);
-}
-
-/**
- * Retourne la définition de l'Entity sans definition ni d'éventuelle méthodes
- * @returns {string}
- */
-Entity.prototype.toString = function() {
-  return JSON.stringify(this)
-}
-
-/**
- * Un raccourci pour lassi.tools.update
- * @param {Object} newValues La liste clé/valeur des champs à ajouter ou remplacer
- */
-Entity.prototype.update = function(newValues) {
-  lassi.tools.update(this, newValues)
-}
-
-/**
- * Raccourci pour lassi.tools.merge
- * @param newValues
- */
-Entity.prototype.merge = function(newValues) {
-  lassi.tools.merge(this, newValues)
 }
 
 module.exports = Entity;

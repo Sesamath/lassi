@@ -21,11 +21,22 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
+var _ = require('underscore')._;
+var Entity = require('./Entity');
+var EntityQuery = require('./EntityQuery');
 
-function EntityDefinition(entityClass) {
+function fooCb(cb) { cb(); }
+
+/**
+ * Construction d'une définition d'entité. Passez par la méthode {@link Component#entity} pour créer une entité.
+ * @constructor
+ * @param {String} name le nom de l'entité
+ */
+function EntityDefinition(name) {
+  this.name = name;
   this.indexes = {};
-  this.listeners = {};
-  this.entityClass = entityClass;
+  this._beforeStore = this._afterStore = this._afterLoad = fooCb;
+  this._construct = function() {};
 }
 
 /**
@@ -54,60 +65,30 @@ EntityDefinition.prototype.defineIndex = function(fieldName, fieldType, callback
 }
 
 /**
- * Indique quelle nom de table utiliser pour cette entité. Par défaut il
- * s'agira de la version underscore de la classe de l'entité (ex. mon_entite
- * pour MonEntite)
- * @param {String} table le nom de la table
- * @return {Entity} l'entité (chaînable)
- */
-EntityDefinition.prototype.useTable = function(table) {
-  this.table = table;
-  return this;
-}
-
-/**
- * Ajoute un listener sur un évènement donné.
- * @param {String} event L'évènement à écouter.
- * @param {SimpleCallback} callback La callback
- * @return {Entity} l'entité (chaînable)
- */
-EntityDefinition.prototype.on = function(event, callback) {
-  if (!this.on[event]) this.listeners[event] = new lfw.tools.Callbacks();
-  this.listeners[event].do(callback);
-  return this;
-}
-
-/**
  * Finalisation de l'objet Entité.
  * @param {Entities} entities le conteneur d'entités.
  * @return {Entity} l'entité (chaînable)
+ * @private
  */
 EntityDefinition.prototype.bless = function(entities) {
   if (this.configure) this.configure();
   this.entities = entities;
-  this.name = this.entityClass.name;
-  this.table = this.table || lassi.tools.toUnderscore(this.name);
-  /*
-  if(!this.entityClass.prototype.hasOwnProperty('__fullClassName')) {
-    this.entityClass.prototype.__proto__ = lfw.entities.Entity.prototype;
-    for(var staticName in this.entityClass) {
-      lassi.assert.not.defined(this[staticName], "Vous ne pouvez pas redéfinir une proptiété d'Entity : "+staticName);
-      this[staticName] = this.entityClass[staticName];
-      delete this.entityClass[staticName];
-    }
-  }*/
+  this.table = this.table || (this.name[0].toLowerCase()+this.name.substr(1)).replace(/([A-Z])/g, function($1){return '_'+$1.toLowerCase();});
+  console.log(this.name, this.table);
+  this.entityClass = this.entityClass || function() {};
   return this;
 }
 
 /**
- * Retourne une nouvelle instance de l'entité
+ * Retourne une instance {@link Entity} à partir de la définition.
  * @param {Object=} values Des valeurs à injecter dans l'objet.
- * @return {lfw.entities.Entity} Une instance d'entité
+ * @return {Entity} Une instance d'entité
  */
 EntityDefinition.prototype.create = function(values) {
-  var instance = new this.entityClass();
+  var instance = new Entity();
   instance.setDefinition(this);
-  if (values) lassi.tools.update(instance, values);
+  if (this._construct) this._construct.apply(instance);
+  if (values) _.extend(instance, values);
   return instance;
 }
 /**
@@ -116,34 +97,42 @@ EntityDefinition.prototype.create = function(values) {
  * @return {EntityQuery}
  */
 EntityDefinition.prototype.match = function() {
-  var query = new lfw.entities.Query(this);
+  var query = new EntityQuery(this);
   if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments));
   return query;
 }
 
 /**
- * Raccourcis vers .match().{@link EntityQuery.grab|grab}()
+ * Ajoute un constructeur. 
+ * @param {function} fn Constructeur
  */
-EntityDefinition.prototype.grab = function() {
-  var query = this.match();
-  query.grab.apply(query, Array.prototype.slice.call(arguments));
+EntityDefinition.prototype.construct = function(fn) {
+  this._construct = fn;
 }
 
 /**
- * Raccourcis vers .match().{@link EntityQuery.grabOne|grabOne}()
+ * Ajoute un traitement avant stockage.  
+ * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
  */
-EntityDefinition.prototype.grabOne = function() {
-  var query = this.match();
-  query.grabOne.apply(query, Array.prototype.slice.call(arguments));
+EntityDefinition.prototype.beforeStore = function(fn) {
+  this._beforeStore = fn;
 }
 
 /**
- * Raccourcis vers .match().{@link EntityQuery.sort|sort}()
- * @return {EntityQuery}
+ * Ajoute une traitement après stockage.  
+ * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
  */
-EntityDefinition.prototype.sort = function() {
-  var query = this.match();
-  return query.sort.apply(query, Array.prototype.slice.call(arguments));
+EntityDefinition.prototype.afterStore = function(fn) {
+  this._afterStore = fn;
 }
+
+/**
+ * Ajoute une traitement après chargement.  
+ * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
+ */
+EntityDefinition.prototype.afterLoad = function(fn) {
+  this._afterLoad = fn;
+}
+
 
 module.exports = EntityDefinition;

@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Class: Lassi</title>
+    <title>Class: EntityDefinition</title>
     
     
     
@@ -425,7 +425,7 @@
     </ul>
 </div>
     <div class="main">
-        <h1 class="page-title" data-filename="Lassi.html">Class: Lassi</h1>
+        <h1 class="page-title" data-filename="EntityDefinition.html">Class: EntityDefinition</h1>
         
 
 
@@ -434,7 +434,7 @@
     
 <header>
     <h2>
-    Lassi
+    EntityDefinition
     </h2>
     
 </header>  
@@ -447,14 +447,14 @@
         
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="Lassi">
+        <h4 class="name" id="EntityDefinition">
             
-            new Lassi<span class="signature">(<span class="optional">root</span>)</span>
+            new EntityDefinition<span class="signature">(name)</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 51
+            entities/EntityDefinition.js, line 35
         </div>
         
     </div>
@@ -465,9 +465,7 @@
     
     
     <div class="description">
-        <p>Constructeur de l'application. Effectue les
-initialisation par défaut.
-Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
+        <p>Construction d'une définition d'entité. Passez par la méthode <a href="Component.html#entity">Component#entity</a> pour créer une entité.</p>
     </div>
     
 
@@ -498,7 +496,914 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	
         <tr>
             
-                <td class="name"><code>root</code></td>
+                <td class="name"><code>name</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>le nom de l'entité</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+</dd>
+
+    
+    </div>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        <h3 class="subsection-title">Methods</h3>
+        
+        <dl>
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="afterLoad">
+            
+            afterLoad<span class="signature">(fn)</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 133
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Ajoute une traitement après chargement.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>fn</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>fonction à exécuter qui doit avoir une callback en paramètre</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="afterStore">
+            
+            afterStore<span class="signature">(fn)</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 125
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Ajoute une traitement après stockage.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>fn</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>fonction à exécuter qui doit avoir une callback en paramètre</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="beforeStore">
+            
+            beforeStore<span class="signature">(fn)</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 117
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Ajoute un traitement avant stockage.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>fn</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>fonction à exécuter qui doit avoir une callback en paramètre</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="construct">
+            
+            construct<span class="signature">(fn)</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 109
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Ajoute un constructeur.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>fn</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>Constructeur</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="create">
+            
+            create<span class="signature">(<span class="optional">values</span>)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Entity.html">Entity</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 87
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Retourne une instance <a href="Entity.html">Entity</a> à partir de la définition.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>values</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                        <span class="optional">optional</span>
+                    
+                    
+                        
+                    
+                
+                <p>Des valeurs à injecter dans l'objet.</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+<h5>Returns:</h5>
+instance d'entité
+<br />
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="defineIndex">
+            
+            defineIndex<span class="signature">(fieldName, fieldType, callback)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Entity.html">Entity</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 59
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Ajoute un indexe à l'entité. Contrairement à la logique SGBD, on ne type pas
+l'indexe. En réalité il faut comprendre un index comme &quot;Utilise la valeur du
+champ XXX et indexe-la&quot;.</p>
+<p>Une callback peut être fournie pour fabriquer des valeurs virtuelles. Par exemple :</p>
+<pre class="prettyprint source lang-javascript"><code> entity.index('age', 'integer', function() {
+   return (new Date()).getFullYear() - this.born.getFullYear();
+ });</code></pre>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>fieldName</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>Nom du champ à indexer</p></td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>fieldType</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>Type du champ à indexer ('integer', 'string', 'date')</p></td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>callback</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">function</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>Cette fonction permet de définir virtuellement la valeur d'un index.</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+<h5>Returns:</h5>
+(chaînable)
+<br />
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="match">
+            
+            match<span class="signature">(<span class="optional">index</span>)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityDefinition.js, line 99
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Retourne un requeteur (sur lequel on pourra chaîner les méthodes de <a href="EntityQuery.html">EntityQuery</a>)</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>index</code></td>
             
             
             <td class="type">
@@ -521,7 +1426,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
                         
                     
                 
-                <p>La racine du projet. Par défaut il s'agit du dossier d'exécution du script.</p></td>
+                <p>Un indexe à matcher en premier.</p></td>
         </tr>
 	
 	
@@ -566,242 +1471,8 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
-</dd>
-
-    
-    </div>
-    
-    
-        <h3 class="subsection-title">Extends</h3>
-        
-        <ul>
-            <li>Emitter</li>
-        </ul>
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-        <h3 class="subsection-title">Methods</h3>
-        
-        <dl>
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="component">
-            
-            component<span class="signature">(name, dependencies)</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 194
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Enregistre un <a href="Component.html">Component</a> dans le système.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
 
 
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du component</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>dependencies</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">array</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Une liste de composant en dépendance</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="shutdown">
-            
-            shutdown<span class="signature">()</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 315
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Arrêt de l'application.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-    <h5>Fires:</h5>
-    <ul>
-        <li><a href="Lassi.html#event:shutdown">Lassi#event:shutdown</a></li>
-    </ul>
-    
-
-    
-
-    
-    
-    
-    
     
     
     
@@ -812,431 +1483,6 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
-    
-        <h3 class="subsection-title">Events</h3>
-        
-        <dl>
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
-            
-            beforeRailUse
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 247
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement déclenché après chargement d'un middleware.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Les réglages qui ont été appliqués au middleware</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
-            
-            beforeRailUse
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 235
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement déclenché avant chargement d'un middleware.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Les réglages qui seront appliqués au middleware</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:bootstrap">
-            
-            bootstrap
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 138
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré une fois que l'application est en écoute du port.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:shutdown">
-            
-            shutdown
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 317
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré lorsque l'application est arrêtée par
-la méthode shutdown.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        </dl>
     
 </article>
 

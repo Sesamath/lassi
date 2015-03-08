@@ -35,6 +35,7 @@ var util = require('util')
  * @class
  * @extends ExpressSession.Store
  * @constructor
+ * @private
  */
 function SessionStore(application, options) {
   this.$cache = application.services.resolve('$cache');

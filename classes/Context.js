@@ -76,15 +76,7 @@ Context.prototype.isPost = function() { return this.method=='post' }
 Context.prototype.redirect = function (path, code) {
   this.location = path;
   this.status = code || 302;
-  this.next(new Error());
-}
-
-/**
- * Provoque l'arrêt des traitements.
- */
-Context.prototype.break = function () {
-  this.status = 666;
-  this.next(new Error());
+  this.next();
 }
 
 /**

@@ -29,8 +29,8 @@ var Component    = require('./Component');
 var fs           = require('fs');
 var pathLib      = require('path');
 var should       = require('./tools/Asserts');
-var EventEmitter = require('events').EventEmitter
 var Services     = require('./tools/Services');
+var EventEmitter = require('events').EventEmitter
 var util         = require('util');
 
 /**
@@ -38,15 +38,6 @@ var util         = require('util');
  * @callback SimpleCallback
  * @param {Error} error Une erreur est survenue.
  */
-
-/**
- * Évènement déclenché après le chargement d'un composant de lassi
- * @event Lassi#loaded
- * @param {String}  type Type de composant ('part', 'middleware', 'component')
- * @param {String}  name Le nom ou la classe du composant (ex. Entities);
- * @param {Object} instance L'instance du composant
- */
-
 
 /**
  * Constructeur de l'application. Effectue les
@@ -69,12 +60,21 @@ function Lassi(root) {
   var configPath = fs.realpathSync(pathLib.resolve(this.root, 'config'));
   this.settings = require(configPath);
   should.object(this.settings, 'La configuration doit être un objet');
+  this.loadSettings();
 
   this.transports = {};
   this.components = {};
   this.services = new Services();
   this.mainComponent = this.component('');
-  this.service('$cache', function() {
+  var Controllers = require('./Controllers');
+  this.controllers = new Controllers(this);
+  var self = this;
+  this.services.register('$entities', function() {
+    var Entities = require('./entities');
+    var entities = new Entities(self.settings.entities);
+    return entities;
+  });
+  this.services.register('$cache', function() {
     var Manager = require('./cache');
     var manager = new Manager();
     return {
@@ -84,7 +84,6 @@ function Lassi(root) {
       addEngine : function() { manager.addEngine.apply(manager, arguments); }
     }
   });
-
 
   // Logging
   this.on('afterRailUse', function(name, settings, object) {
@@ -99,42 +98,22 @@ function Lassi(root) {
     console.log("Rail ❭ ".grey+name+' {'.blue+tmp.join(', ')+'}'.blue);
     if (name == 'Controllers') {
       object.on('request', function(context) {
-        lassi.log.debug('Request: '+context.method+' '+context.url);
+        console.log('Request: '+context.method+' '+context.url);
       });
-    }
-  });
-  this.on('loaded', function(type, name, object) {
-    switch(type) {
-      case 'part':
-        console.log("Part ❭ ".grey+name);
-        break;
-      case 'decorator':
-        console.log("Decorateur ❭ ".grey+name.green+' ➠ '.grey+object.view+'#'+object.target);
-        break;
-      default:
-        console.log('WTF', type, name);
     }
   });
 }
 util.inherits(Lassi, EventEmitter)
 
 /**
- * Démarre l'application en effectuant les tâches suivantes :
- *  - Chargement de la configuration,
- *  - Chargement des composants,
- *  - Initialisation des middlewares d'Express,
- *  - Initialisation des couches de transport,
- *  - Initialisation des composants,
- *  - Synchronization du modèle des entités,
- *  - Démarrage du service node_modules/lassi/classes/lfw/framework/Lassi.js
- * @fires Lassi#loaded
- * @fires Lassi#boot
+ * Démarre l'application.
+ * @fires Lassi#bootstrap
+ * @private
  */
-Lassi.prototype.boot = function() {
+Lassi.prototype.bootstrap = function(component) {
   var self = this;
 
   flow()
-  .seq(function() { self.loadSettings(); this(); })
   .seq(function() {
     var HtmlTransport = require('./transport/html');
     var JsonTransport = require('./transport/json');
@@ -149,28 +128,18 @@ Lassi.prototype.boot = function() {
 
     this();
   })
-  .seq(function() {
-    _.each(self.components, function(component) {
-      if (component.initialize) {
-        self.services.parseInjections(component.initialize, component);
-      }
-    });
-    this();
-  })
-  .seq(function() {
-    if (self.entities) self.entities.initializeStorage(this); else this();
-  })
+  .seq(function() { component.configure(); this(); })
+  .seq(function() { self.services.resolve('$entities').initializeStorage(this); })
   .seq(function() { self.initializeRail(this); })
   .seq(function() {
-    self.emit('loaded', 'part', 'Lassi', self);
     var port = self.settings.server.port
     console.log('Listening for peoples on port ' +port);
     self.server = self.rail.listen(port, function() {
       /**
        * Évènement généré une fois que l'application est en écoute du port.
-       * @event Lassi#boot
+       * @event Lassi#bootstrap
        */
-       self.emit('boot');
+       self.emit('bootstrap');
      });
      function onTerminate() {
        //if (self.sessionStore) {
@@ -191,9 +160,7 @@ Lassi.prototype.boot = function() {
 Lassi.prototype.loadSettings = function() {
   should.object(this.settings.application, "Le champ 'application' n'est pas présent dans la configuration", this.loadSettings);
   should.string(this.settings.application.name, "Le réglage 'application.name' doit être défini", this.loadSettings);
-  should.string(this.settings.application.mail, "Le réglage 'application.mail' doit être défini", this.loadSettings);
   this.name = this.settings.application.name;
-  this.mail = this.settings.application.mail;
   this.staging = this.settings.application.staging;
 
   // Paramétrage des slots de config par défaut
@@ -220,16 +187,16 @@ Lassi.prototype.loadSettings = function() {
 
 
 /**
- * Enregistre un component dans le système.
+ * Enregistre un {@link Component} dans le système.
  * @param {String} name Le nom du component
- * @private
+ * @param {array} dependencies Une liste de composant en dépendance
  */
-Lassi.prototype.component = function(name) {
-  //var config;
-  //if (_.has(this.settings.components, name)) {
-    //config = this.settings.components[name];
-  //}
-  var component = new Component(name);
+Lassi.prototype.component = function(name, dependencies) {
+  var settings;
+  if (_.has(this.settings.components, name)) {
+    settings = this.settings.components[name];
+  }
+  var component = new Component(name, dependencies, settings);
 
   // Bless the component....
   component.bless(this);
@@ -237,13 +204,6 @@ Lassi.prototype.component = function(name) {
   // Enregistrement du component
   this.components[component.name] = component;
 
-  // Est-ce que l'on a un aspect publique ?
-  //if (!component.publish) {
-    //var publicPath = pathLib.resolve(componentFullPath, 'public');
-    //if (fs.existsSync(publicPath)) {
-      //component.publish = publicPath;
-    //}
-  //}
   return component;
 }
 
@@ -337,8 +297,6 @@ Lassi.prototype.initializeRail = function(next) {
   }, railConfig.session);
 
   // Ajout du router principal
-  var Controllers = require('./Controllers');
-  this.controllers = new Controllers(self);
   railUse('controllers', function() { return self.controllers.middleware() }, {});
 
   // Lorsqu'il n'y a plus d'espoir...
@@ -367,16 +325,15 @@ Lassi.prototype.shutdown = function() {
   }
 }
 
-Lassi.prototype.service = function(name, service) {
-  return this.services.register(name, service);
-}
-
-Lassi.prototype.entity = function() {
-  return this.mainComponent.entity.apply(this.mainComponent, arguments);
-}
-
-Lassi.prototype.controller = function() {
-  return this.mainComponent.controller.apply(this.mainComponent, arguments);
+/**
+ * Définition d'une entité.
+ * @param String name Le nom de l'entité.
+ * @param function definition la définition de l'entité.
+ * @return {Lassi} chaînable
+ * @private
+ */
+Lassi.prototype.entity = function(name, definition) {
+  return this;
 }
 
 module.exports = Lassi;

@@ -84,14 +84,12 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
     template(locals, callback);
   } else {
     _this.dust.onLoad = function (path, callback) {
-      //lassi.log.debug('[Dust] Compiling '+path);
       _this.readTemplate(viewsPath+'/partials', path, locals, callback);
     };
     this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
       if (err) { callback(err); return }
       fs.readFile(path, 'utf8', function(err, str) {
         if (err) { callback(err); return }
-        //lassi.log.debug('[Dust] Compiling '+path);
         template = _this.dust.compileFn(str);
         if (_this.cache) _this.cacheStore[unresolvedPath] = template;
         template(locals, callback);

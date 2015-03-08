@@ -25,9 +25,12 @@
 var _                = require('underscore')._;
 var flow             = require('seq');
 var EntityDefinition = require('./EntityDefinition');
+var EventEmitter = require('events').EventEmitter
+var util         = require('util');
+var DatabaseManager = require('../database');
+var DatabaseQuery = require('../database/DatabaseQuery');
 
 
-lassi.tools.mixin(Entities, lassi.Emitter);
 /**
  * Construction du gestionnaire d'entités.
  * À ne jamais utiliser directement.  Cette classe est instanciée par
@@ -37,9 +40,6 @@ lassi.tools.mixin(Entities, lassi.Emitter);
  * @param {Object} settings
  */
 function Entities(settings) {
-  // Initialisation du mixin Emitter
-  this.Emitter();
-
   this.entities = {}
   if (settings.database.client == 'sqlite3') {
     if (!lassi.fs.existsSync(settings.database.connection.filename)) {
@@ -49,6 +49,8 @@ function Entities(settings) {
   this.settings = settings;
   this.database = null;
 }
+util.inherits(Entities, EventEmitter)
+
 
 /**
  * Enregistre une entité dans le modèle.
@@ -56,8 +58,10 @@ function Entities(settings) {
  * l'exploration des composants.
  * @param {Entity} entity le module
  */
-Entities.prototype.create = function(name) {
-  return this.entities[name] = new EntityDefinition(name);
+Entities.prototype.define = function(name) {
+  var def = new EntityDefinition(name);
+  def.bless(this);
+  return this.entities[name] = def;
 }
 
 /**
@@ -68,89 +72,48 @@ Entities.prototype.create = function(name) {
  * @private
  */
 Entities.prototype.initializeEntityStorage = function(entity, next) {
-  var _this = this
+  var self = this
 
   function createStore(next) {
     var table = entity.table;
-    _this.database.hasTable(table, function(error, exists) {
+    self.database.hasTable(table, function(error, exists) {
+      console.log(table, exists);
       if (error || exists) return next(error);
-      var query = new lfw.lang.StringBuffer();
-      switch(_this.database.client) {
-        case 'mysql':
-        case 'mysql2':
-          // on laisse le IF NOT EXISTS au cas où hasTable se tromperait...
-          // (ça génèrera des warnings sur la création des index plus loin mais n'empêchera pas le boot)
-          query.push('CREATE TABLE IF NOT EXISTS %s (', table);
-          query.push('  oid INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
-          query.push('  data MEDIUMBLOB');
-          query.push(') DEFAULT CHARACTER SET utf8');
-          break;
-        case 'pgsql':
-          query.push('CREATE TABLE IF NOT EXISTS "%s" (', table);
-          query.push('  oid SERIAL PRIMARY KEY NOT NULL,');
-          query.push('  data BYTEA');
-          query.push(');');
-          break;
-      }
-      _this.database.execute(query, next);
+      var query = new DatabaseQuery();
+      query.push('CREATE TABLE IF NOT EXISTS %s (', table);
+      query.push('  oid INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
+      query.push('  data MEDIUMBLOB');
+      query.push(') DEFAULT CHARACTER SET utf8');
+      self.database.execute(query, next);
     })
   }
 
   function createStoreIndex(next) {
     var table = entity.table+"_index";
-    _this.database.hasTable(table, function(error, exists) {
+    self.database.hasTable(table, function(error, exists) {
       if (error || exists) return next(error);
       var queries = [];
-      var query;
-      switch(_this.database.client) {
-        case 'mysql':
-        case 'mysql2':
-          query = new lfw.lang.StringBuffer();
-          query.push('CREATE TABLE IF NOT EXISTS %s (', table);
-          query.push('  iid INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
-          query.push('  name VARCHAR(255),');
-          query.push('  _integer INT(11),');
-          query.push('  _string VARCHAR(255),');
-          query.push('  _date DATETIME,');
-          query.push('  _boolean TINYINT(1),');
-          query.push('  oid BIGINT');
-          query.push(') DEFAULT CHARACTER SET utf8;');
-          queries.push(query);
-          queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_name_index(name);');
-          queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nnteger_index(_integer);');
-          queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_ntring_index(_string);');
-          queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nate_index(_date);');
-          queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_noolean_index(_boolean);');
-          queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nid_index(oid);');
-          break;
-        case 'pgsql':
-          query = new lassi.lang.StringBuffer();
-          query.push('CREATE TABLE IF NOT EXISTS "%s" (', table);
-          query.push('  iid SERIAL PRIMARY KEY NOT NULL,');
-          query.push('  name VARCHAR(255),');
-          query.push('  _integer INTEGER,');
-          query.push('  _string VARCHAR(255),');
-          query.push('  _date TIMESTAMP,');
-          query.push('  _boolean BOOLEAN,');
-          query.push('  oid BIGINT');
-          query.push(');');
-          queries.push(query);
-          queries.push('CREATE INDEX person_test_index_name_index     ON person_test_index (name);');
-          queries.push('CREATE INDEX person_test_index__integer_index ON person_test_index (_integer);');
-          queries.push('CREATE INDEX person_test_index__string_index  ON person_test_index (_string);');
-          queries.push('CREATE INDEX person_test_index__date_index    ON person_test_index (_date);');
-          queries.push('CREATE INDEX person_test_index__boolean_index ON person_test_index (_boolean);');
-          queries.push('CREATE INDEX person_test_index_oid_index      ON person_test_index (oid);');
-          break;
-      }
+      var query = new DatabaseQuery();
+      query.push('CREATE TABLE IF NOT EXISTS %s (', table);
+      query.push('  iid INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
+      query.push('  name VARCHAR(255),');
+      query.push('  _integer INT(11),');
+      query.push('  _string VARCHAR(255),');
+      query.push('  _date DATETIME,');
+      query.push('  _boolean TINYINT(1),');
+      query.push('  oid BIGINT');
+      query.push(') DEFAULT CHARACTER SET utf8;');
+      queries.push(query);
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_name_index(name);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nnteger_index(_integer);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_ntring_index(_string);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nate_index(_date);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_noolean_index(_boolean);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nid_index(oid);');
 
       flow(queries)
-        .seqEach(function(query) {
-          _this.database.execute(query, this);
-        })
-        .empty()
-        .seq(next)
-        .catch(next)
+        .seqEach(function(query) { self.database.execute(query, this); })
+        .empty().seq(next) .catch(next)
     })
   }
 
@@ -170,26 +133,26 @@ Entities.prototype.initializeEntityStorage = function(entity, next) {
  * @fires Entities#storageInitialized
  */
 Entities.prototype.initializeStorage = function(next) {
-  var _this = this
+  var self = this
   flow()
     .seq(function() {
       var _next = this;
-      lfw.database.Manager.instance().createClient(_this.settings.database, function(error, client) {
+      DatabaseManager.instance().createClient(self.settings.database, function(error, client) {
         if (error) return _next(error);
-        _this.database = client;
+        self.database = client;
         _next();
       });
     })
     .set(_.values(this.entities))
     .seqEach(function(entity) {
       var _next = this;
-      _this.initializeEntityStorage(entity, function(error) {
+      self.initializeEntityStorage(entity, function(error) {
         if (error) return _next(error);
         /**
          * Évènement généré lorsque le modèle est synchronisé.
          * @event Entities#storageInitialized
          */
-        _this.emit('storageIntialized', entity.name);
+        self.emit('storageIntialized', entity.name);
         _next();
       });
     })
@@ -205,13 +168,13 @@ Entities.prototype.initializeStorage = function(next) {
  * @private
  */
 Entities.prototype.dropEntityIndexes = function(entity, next) {
-  var _this = this
+  var self = this
 
   function dropStoreIndex(next) {
     var table = entity.table+"_index";
-    _this.database.schema.dropTableIfExists(table)
+    self.database.schema.dropTableIfExists(table)
       .exec(function (error) {
-          lassi.log.info('Suppression de la table %s for %s', table.red, entity.name.green);
+          console.log('Suppression de la table %s for %s', table.red, entity.name.green);
           next(error)
        });
   }
@@ -229,10 +192,10 @@ Entities.prototype.dropEntityIndexes = function(entity, next) {
  * @param {SimpleCallback} next callback de retour.
  */
 Entities.prototype.dropIndexes = function(next) {
-  var _this = this
+  var self = this
 
   flow(_.values(this.entities))
-    .parEach(function(entity) { _this.dropEntityIndexes(entity, this) })
+    .parEach(function(entity) { self.dropEntityIndexes(entity, this) })
     .seq(function() { next() })
 }
 
@@ -243,13 +206,13 @@ Entities.prototype.dropIndexes = function(next) {
  * @private
  */
 Entities.prototype.rebuildEntityIndexes = function(entity, next) {
-  var _this = this
+  var self = this
 
   function dropStoreIndex(next) {
     var table = entity.table+"_index";
-    _this.database(table).delete()
+    self.database(table).delete()
     .exec(function (error) {
-        lassi.log.info('Suppression des données de la table %s for %s', table.red, entity.name.green);
+        console.log('Suppression des données de la table %s for %s', table.red, entity.name.green);
         next(error)
      });
   }
@@ -282,10 +245,10 @@ Entities.prototype.rebuildEntityIndexes = function(entity, next) {
  * @param {SimpleCallback} next callback de retour.
  */
 Entities.prototype.rebuildIndexes = function(next) {
-  var _this = this
+  var self = this
 
   flow(_.values(this.entities))
-    .parEach(function(entity) { _this.rebuildEntityIndexes(entity, this) })
+    .parEach(function(entity) { self.rebuildEntityIndexes(entity, this) })
     .seq(function() { next() })
 }
 

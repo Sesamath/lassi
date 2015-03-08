@@ -6,6 +6,7 @@ function Services() {
 
 Services.prototype.register = function(name, service) {
   if (this.services[name]) throw new Error('Already registered service '+name);
+  console.log("register ", name);
   this.services[name] = service;
 }
 

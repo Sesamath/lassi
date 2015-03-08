@@ -2,7 +2,6 @@
 module.exports = {
   application : {
     name: 'Bang Lassi',
-    mail: 'dev.lassi@arnumeral.fr',
     staging: 'dev'
   },
   entities : {
@@ -40,14 +39,5 @@ module.exports = {
       }
     },
     authentication: {},
-  },
-
-  // Configuration des plugins
-  components : {
-    // Plugin "main"
-    main : {
-      // Titre de l'application. Voir dans index.js du plugin.
-      title: 'Bang Lassi'
-    }
   }
 }

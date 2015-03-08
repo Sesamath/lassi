@@ -27,8 +27,6 @@ var _            = require('underscore')._;
 var Context      = require('./Context');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
-var Component    = require('./Component');
-var Controller   = require('./Controller');
 var flow         = require('seq');
 
 /**
@@ -36,29 +34,11 @@ var flow         = require('seq');
  * l'arrivée des requêtes, détermine les actions qui y répondent et
  * la couche de transport à utiliser pour répondre.
  * @constructor
+ * @private
  * @extends Emitter
  */
 function Controllers(application) {
-  var self = this;
   this.application = application;
-  this.actions = [];
-  _.each(application.components, function(component) {
-    _.each(component.controllers, function(controller) {
-      controller.actions.forEach(function(action) {
-        self.actions.push(action);
-      });
-    });
-  });
-
-  this.fakeComponent = new Component('fake');
-  this.fakeComponent.bless(application, 'fake', 'fake', {});
-  this.fakeController = new Controller();
-  this.fakeController.bless('', this.fakeComponent);
-  this.errorActions = {
-    404: this.fakeController.Action('404').do(function notFound(context) {
-      context.notFound();
-    }).bless(this.fakeController)
-  }
 }
 util.inherits(Controllers, EventEmitter)
 
@@ -75,6 +55,17 @@ Controllers.prototype.middleware = function() {
    * @fires Controllers#request
    */
   return function(request, response, next) {
+    if (!self.actions) {
+      self.actions = [];
+      _.each(self.application.components, function(component) {
+        _.each(component.controllers, function(controller) {
+          _.each(controller.actions, function(action) {
+            self.actions.push(action);
+          });
+        });
+      });
+      console.log(self.actions);
+    }
     request.data = {};
     if (!request.parsedUrl) request.parsedUrl = parse(request.url);
 
@@ -98,6 +89,7 @@ Controllers.prototype.middleware = function() {
         action.action.middleware(request, response, function() { nextAction();  });
       } else {
         action.action.execute(context, function(error, result) {
+          result = result || {};
           if (error) return next(error);
           if (typeof result=='object') {
             _.extend(data, result);
@@ -111,6 +103,11 @@ Controllers.prototype.middleware = function() {
             data.$metas = data.$metas || {};
             _.extend(data.$metas, result.$metas);
           }
+          if (context.status) {
+            data.$status = context.status;
+            data.content = context.message;
+            data.$location = context.location;
+          }
           nextAction();
         });
       }
@@ -120,18 +117,27 @@ Controllers.prototype.middleware = function() {
         data.$contentType = undefined;
       }
       if (data.$contentType) {
-        if (data.content) {
-          data.$contentType = 'text/html';
-        } else if (typeof data === 'string') {
+        if (data.$status) {
           data.$contentType = 'text/plain';
+        } else if (data.content) {
+          data.$contentType = 'text/html';
         } else {
           data.$contentType = 'application/json';
         }
       }
+      console.log(data);
+      self.emit('beforeTransport', data);
       var transport = self.application.transports[data.$contentType];
       transport.process(data, this);
     })
     .seq(function(content) {
+      if (data.$status) {
+        context.response.status(data.$status);
+        if (data.$status > 300 && data.$status < 400) {
+          context.response.redirect(data.$location);
+          return;
+        }
+      }
       context.response.setHeader('Content-Type', data.$contentType);
       context.response.send(content);
     })

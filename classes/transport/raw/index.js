@@ -27,18 +27,10 @@ function RawTransport(application) {
   this.application = application;
 }
 
-RawTransport.prototype.process = function(context, next) {
-  var action = context.action;
-  if (action.constructor.name == 'Action') {
-    action.execute(context, function(error, data) {
-      if (error) return next(error);
-      next();
-    });
-  } else {
-    next(new Error('why do I have to process '+action.constructor.name+'['+action.name+'] in a JSON transport ?'))
-
-  }
+RawTransport.prototype.process = function(data, next) {
+  next(null, data.content);
 }
+
 RawTransport.prototype.manageError = function() { return false; }
 
 module.exports = RawTransport;

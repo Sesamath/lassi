@@ -22,17 +22,57 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-app.controller(function() {
+lassi.component('example-html')
+
+.config(function() {
+  lassi.transports.html.on('metas', function(metas) {
+    metas.addCss('styles/main.css');
+    metas.addJs('vendors/jquery.min.js');
+  });
+  lassi.controllers.on('beforeTransport', function(data) {
+    if (data.$status && data.$status > 400 && data.$status < 500) {
+      data.$layout = 'layout-'+data.$status;
+      data.$contentType = 'text/html';
+      data.content = {$view: 'error', message: data.content};
+    }
+  });
+})
+
+.service('$settings', function() {
+  return {
+    title: function() { return 'Titre via $settings'; }
+  }
+})
+
+.controller(function($settings) {
   this.renderAs({
     $contentType: 'text/html',
     $layout: 'layout-page',
-    $views: __dirname+'/../views'});
+    $views: __dirname+'/views'
+  });
+
+  this.serve(__dirname+'/public');
 
   this.get('*', function(context) {
-    context.next({sidebar: 'ceci est dans ma sidebar'});
+    if (context.request.url.indexOf('/api/')===0) return context.next();
+    context.next({
+      $metas: {
+        title: $settings.title(),
+      },
+      sidebar: {
+        $view: 'sidebar',
+        actions: [
+        '<a href="/">Accueil</a>',
+        '<a href="/error404">404</a>',
+        '<a href="/error403">403</a>',
+        '<a href="/error500">500</a>',
+        '<a href="/redirect">redirect</a>',
+        '<a href="/api/toto">json</a>',
+        '<a href="/api/person">entities</a>',
+      ]}});
   });
+
   this.get(function(context) {
-    //this.metas.title = 'Accueil';
     context.next(null, {
       content: {
         $view: 'home',
@@ -45,17 +85,14 @@ app.controller(function() {
   });
 
   this.get('error404', function(context) {
-    this.metas.title = '404';
     context.notFound("Je n'existe pas, non non...");
   });
 
   this.get('error403', function(context) {
-    //this.metas.title = '403';
     context.accessDenied("Qui va là ?");
   });
 
   this.get('error500', function(context) {
-    this.metas.title = '500';
     context.next(new Error('Ça va pas bien dans ma tête...'));
   });
 });

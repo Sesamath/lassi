@@ -1,103 +1,91 @@
-Structure d'une application lassi
-=================================
-    build/
-    config/
-      index.js
-    construct/
-      index.js
-      monComposant/
-        index.js
-        controllers/
-          monControleur.js
-        decorators/
-          monDécorateur.js
-        entities/
-          monEntité.js
-        views/
-          partials/
-            monFragment.dust
-          maVue.dust
-    node_modules/
-    gulpfile.js
-    package.json
+Initialisation
+==============
 
-  - `build` va recevoir le résultat de la compilation du projet contenu dans le
-  dossier `construct`. 
-  - `construct` contient le code brut du projet. Il contient à minima un fichier
-    `index.js` chargé de l'initialisation du projet. 
-  
-Initialisation d'une application
-================================
-L'objet global [lassi](lassi.html) donne accès aux fonctions et objets du framework Lassi.
-Il suffit donc de le déclarer une seule fois, généralement dans le fichier index.js du
-module applicatif pour avoir accès au namespace dans le reste du code.
+L'initialisation du framework passe par l'appel à la fonction renvoyée par require
+que l'on argument avec le dossier racine du projet (celui dans lequel se trouve le
+donnes `config`)
 
 ```javascript
-require('lassi');
+require('lassi')(__dirname+'/..);
 ```
 
-L'étape suivante consiste en la création de l'application lassi qui héberge l'ensemble
-de la logique du framework. 
-
+L'étape suivante consiste en la création du composant principal
 ```javascript
-var monApplication = lassi.Application();
+var monApplication = lassi.component('MonAppli');
 ```
 
-Une fois l'application crée, il est possible d'y rattacher l'écoute d'évènements
+On peu ensuite rattacher des services au composant :
 ```javascript
-monApplication.on('initialize', function(next) { ... }
+monApplication.service('NomService', function() { ... })
 ```
-ou tout simplement démarrer l'application
+
+Le service sont globaux. Une fois enregistrés, ils sont accessibles de tous les
+composants. Attention donc aux conflits de nommage. 
+
+Une fois un service enregistré, il peut être injecté par exemple dans un autre service en
+passant son nom en paramètre
+```javascript
+monApplication.service('NomAutreService', function(NomService) { ... })
+```
+
+On peut aussi rajouter une entité à un composant. Une entité est un cas particulier du
+service :
+```javascript
+monApplication.entity('NomEntité', function() { 
+  this.construct(function() {
+    this.champ = 'default value';
+  })
+  this.beforeLoad(function(cb) {
+    this.champ = ;
+    cb();
+  })
+  this.afterLoad(function(cb) {
+    this.champ = ;
+    cb();
+  })
+  this.afterStore(function(cb) {
+    this.champ = ;
+    cb();
+  })
+  this.defineIndex('champ', 'integer', function() { });
+})
+```
+
+Elle peut donc aussi être injectée :
+```javascript
+monApplication.service('NomAutreService', function(NomService, NomEntité) { ... })
+```
+
+Pour paramétrer un composant, on peut lui adjoindre un configurateur
+```javascript
+monApplication.config(function() { ... })
+```
+
+On peut ensuite rajoute des controllers qui peuvent prendre des dépendances
+```javascript
+monApplication.controller(function(MonService, MonEntité) {
+  this.get(function(context) {
+    context.next(null, {hello: 'wordl'});
+  });
+})
+```
+
+Le contrôleur peut prendre un premier paramètre un chemin racine, auquel cas ce chemin
+sera utilisé pour les actions qu'il contient. De même l'action peut avoir un chemin en
+première paramètre auquel cas il sera ajouté au chemin du contrôleur. 
+
+Dans le contrôleur, les fonctions appelées path this.XXX correspondent aux méthodes HTTP
+(get,put,delete,post,options,etc.). Un cas spécial est `serve` qui permet de répondre par
+la publication d'un dossier complet. 
+```javascript
+monApplication.controller('une/racine', function() {
+  this.serve('un/sous/dossier', __dirname+'/public');
+})
+```
+
+Puis de démarrer l'application
 ```javascript
 monApplication.boot();
 ```
-Une fois démarrée, l'application va :
- - déterminer sa racine en se basant sur le chemin de votre `index.js`
- - rechercher les composants
 
-Pour chaque composant Lassi va charger les contrôleurs, les décorateurs et les entités.
-Ensuite l'application initialisera chacun des composants et se mettra enfin en écoute du
-port 3000 (par défaut). 
-
-Ajout d'un composant
-====================
-Un composant est une unité logique dont le but est de regrouper un aspect fonctionnel de
-l'application. Par exemple un blog pourrait avoir un composant `article` et un composant
-`commentaire`. 
-
-La création d'un composant consiste simplement à créer son dossier au niveau du fichier
-`index.js`. Il est possible, mais pas obligatoire, de mettre dans ce dossier un fichier
-d'initialisation du composant. 
-
-```javascript
-var component = lassi.Component();
-component.initialize = function(next) {
-  next();
-}
-
-module.exports = component;
-```
-
-La fonction `initialize` est optionnelle. Elle est appelée lors de l'initialisation du
-composant et sera probablement remplacée à terme par un emit/on.
-
-Callbacks
-=========
-Dans lassi les callbacks sont utilisées un peu partout (logique). Elles sont de deux
-types, les synchrones (ex. {@link Component.initialize}) ou les asynchrones (ex {@link Action.do}).
-
-Les callbacks asynchrones ont des caractéristiques communes :
-  - Elle sont exécutée en sein d'un context (ex. L'objet {@link Context} pour une callback
-    {@link Action.do}). Cela veut dire que le `this` correspond au contexte. 
-  - Elles peuvent être synchrones (sic ! ;-). Dans ce cas, il faut soit que la callback
-    n'ait aucun paramétre, soit qu'elle renvoie un résultat non indéfini.  
-  - Elles peuvent avoir un seul paramètre qui sera alors une callback de retour type
-    nodejs (error, result)
-  - Elles peuvent avoir deux paramètres, et le premier sera le contexte, le second la
-    callback de retour. 
-  - La callback de retour lorsqu'elle est spécifiée peut être utilisé à la mode nodeJs
-    (ex. `next(null, {mon:'résultat'})`), soit de manière raccourcie en mettant résultat
-    ou erreur en première paramètre. Il faut dans ce cas que l'erreur soit une instance de
-    `Error`. 
-
-Pour plus de précision, voir l'objet {@link Callbacks}
+  

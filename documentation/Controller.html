@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Class: Lassi</title>
+    <title>Class: Controller</title>
     
     
     
@@ -425,7 +425,7 @@
     </ul>
 </div>
     <div class="main">
-        <h1 class="page-title" data-filename="Lassi.html">Class: Lassi</h1>
+        <h1 class="page-title" data-filename="Controller.html">Class: Controller</h1>
         
 
 
@@ -434,7 +434,7 @@
     
 <header>
     <h2>
-    Lassi
+    Controller
     </h2>
     
 </header>  
@@ -447,14 +447,14 @@
         
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="Lassi">
+        <h4 class="name" id="Controller">
             
-            new Lassi<span class="signature">(<span class="optional">root</span>)</span>
+            new Controller<span class="signature">()</span>
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 51
+            Controller.js, line 34
         </div>
         
     </div>
@@ -465,9 +465,96 @@
     
     
     <div class="description">
-        <p>Constructeur de l'application. Effectue les
-initialisation par défaut.
-Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
+        <p>Cette classe est instanciée par <a href="Component.html#controller">Component#controller</a></p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+</dd>
+
+    
+    </div>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        <h3 class="subsection-title">Methods</h3>
+        
+        <dl>
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="delete">
+            
+            delete<span class="signature">(<span class="optional">path</span>, cb)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Controller.html">Controller</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            Controller.js, line 109
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Réponse à une méthode DELETE</p>
     </div>
     
 
@@ -498,7 +585,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	
         <tr>
             
-                <td class="name"><code>root</code></td>
+                <td class="name"><code>path</code></td>
             
             
             <td class="type">
@@ -521,137 +608,20 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
                         
                     
                 
-                <p>La racine du projet. Par défaut il s'agit du dossier d'exécution du script.</p></td>
+                <p>le chemin absolu ou relatif au controller .</p></td>
         </tr>
 	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-    
-    </div>
-    
-    
-        <h3 class="subsection-title">Extends</h3>
-        
-        <ul>
-            <li>Emitter</li>
-        </ul>
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-        <h3 class="subsection-title">Methods</h3>
-        
-        <dl>
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="component">
-            
-            component<span class="signature">(name, dependencies)</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 194
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Enregistre un <a href="Component.html">Component</a> dans le système.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
 	
 	
         <tr>
             
-                <td class="name"><code>name</code></td>
+                <td class="name"><code>cb</code></td>
             
             
             <td class="type">
             
                 
-<span class="param-type">String</span>
+<span class="param-type"><a href="Action.html#~callback">Action~callback</a></span>
 
 
             
@@ -661,106 +631,17 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
             <td class="description last">
                 
-                <p>Le nom du component</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>dependencies</code></td>
-            
-            
-            <td class="type">
-            
+                    
+                    
+                        
+                    
                 
-<span class="param-type">array</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Une liste de composant en dépendance</p></td>
+                <p>La callback</p></td>
         </tr>
 	
 	
 	</tbody>
 </table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="shutdown">
-            
-            shutdown<span class="signature">()</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 315
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Arrêt de l'application.</p>
-    </div>
-    
-
-    
-    
-    
-    
     
     
     
@@ -792,7 +673,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     <h5>Fires:</h5>
     <ul>
-        <li><a href="Lassi.html#event:shutdown">Lassi#event:shutdown</a></li>
+        <li><a href="Controller.html#event:beforeTransport">Controller#event:beforeTransport</a></li>
     </ul>
     
 
@@ -802,6 +683,780 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     
+    
+    
+    
+
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="get">
+            
+            get<span class="signature">(<span class="optional">path</span>, cb)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Controller.html">Controller</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            Controller.js, line 93
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Réponse à une méthode GET</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>path</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                        <span class="optional">optional</span>
+                    
+                    
+                        
+                    
+                
+                <p>le chemin absolu ou relatif au controller .</p></td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>cb</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Action.html#~callback">Action~callback</a></span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                    
+                        
+                    
+                
+                <p>La callback</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+    <h5>Fires:</h5>
+    <ul>
+        <li><a href="Controller.html#event:beforeTransport">Controller#event:beforeTransport</a></li>
+    </ul>
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="post">
+            
+            post<span class="signature">(<span class="optional">path</span>, cb)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Controller.html">Controller</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            Controller.js, line 77
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Réponse à une méthode POST</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>path</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                        <span class="optional">optional</span>
+                    
+                    
+                        
+                    
+                
+                <p>le chemin absolu ou relatif au controller .</p></td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>cb</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Action.html#~callback">Action~callback</a></span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                    
+                        
+                    
+                
+                <p>La callback</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+    <h5>Fires:</h5>
+    <ul>
+        <li><a href="Controller.html#event:beforeTransport">Controller#event:beforeTransport</a></li>
+    </ul>
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="put">
+            
+            put<span class="signature">(<span class="optional">path</span>, cb)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Controller.html">Controller</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            Controller.js, line 61
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Réponse à une méthode PUT</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>path</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                        <span class="optional">optional</span>
+                    
+                    
+                        
+                    
+                
+                <p>le chemin absolu ou relatif au controller .</p></td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>cb</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type"><a href="Action.html#~callback">Action~callback</a></span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                    
+                        
+                    
+                
+                <p>La callback</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+    <h5>Fires:</h5>
+    <ul>
+        <li><a href="Controller.html#event:beforeTransport">Controller#event:beforeTransport</a></li>
+    </ul>
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="renderAs">
+            
+            renderAs<span class="signature">(options)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Controller.html">Controller</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            Controller.js, line 164
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Affecte les options de rendu, principalement dans le cas
+du transport HTML.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>Les options à affecter aux données</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+<h5>Returns:</h5>
+class="prettyprint source"><code>this.renderAs({
+  $contentType: 'text/html',
+  $layout: 'layout-page',
+  $views: __dirname+'/../views'
+});</code></pre>
+<br />
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="serve">
+            
+            serve<span class="signature">(<span class="optional">path</span>, fsPath)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="Controller.html">Controller</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            Controller.js, line 124
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Publie l'ensemble des fichiers d'un dossier physique.</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>path</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                        <span class="optional">optional</span>
+                    
+                    
+                        
+                    
+                
+                <p>le chemin absolu ou relatif au controller .</p></td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>fsPath</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                    
+                    
+                        
+                    
+                
+                <p>Le chemin physique</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
     
     
     
@@ -819,14 +1474,14 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
+        <h4 class="name" id="event:beforeTransport">
             
-            beforeRailUse
+            beforeTransport
         </h4>
     
         
         <div class="tag-source">
-            Lassi.js, line 247
+            Controller.js, line 46
         </div>
         
     </div>
@@ -837,7 +1492,9 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
     
     
     <div class="description">
-        <p>Évènement déclenché après chargement d'un middleware.</p>
+        <p>Évènement généré avant l'expédition des données
+sur la couche de transport et avant que la couche
+de transport ne soit déterminée via data.$contentTYpe</p>
     </div>
     
 
@@ -868,30 +1525,7 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
 	
         <tr>
             
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
+                <td class="name"><code>data</code></td>
             
             
             <td class="type">
@@ -907,294 +1541,12 @@ Ce constructeur n'est jamais appelé directement. Utilisez lassi.Lassi</p>
             
             <td class="description last">
                 
-                <p>Les réglages qui ont été appliqués au middleware</p></td>
+                <p>les données modifiables</p></td>
         </tr>
 	
 	
 	</tbody>
 </table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:beforeRailUse">
-            
-            beforeRailUse
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 235
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement déclenché avant chargement d'un middleware.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>name</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Le nom du middleware.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>settings</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Object</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Les réglages qui seront appliqués au middleware</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:bootstrap">
-            
-            bootstrap
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 138
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré une fois que l'application est en écoute du port.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="event:shutdown">
-            
-            shutdown
-        </h4>
-    
-        
-        <div class="tag-source">
-            Lassi.js, line 317
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Évènement généré lorsque l'application est arrêtée par
-la méthode shutdown.</p>
-    </div>
-    
-
-    
-    
-    
-    
     
     
     

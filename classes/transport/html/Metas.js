@@ -55,6 +55,10 @@ Metas.prototype.addJs = function(path) {
   }
 }
 
+function stripTags(source) {
+  return source.replace(/(<([^>]+)>)/ig,"");
+}
+
 Metas.prototype.head = function() {
   var head = new Head();
   // Section Asimov
@@ -136,12 +140,12 @@ Metas.prototype.head = function() {
 
   // Description du document
   if (this.description) {
-    var description = lassi.tools.teaser(this.description, 200)
+    var description = stripTags(this.description).substr(0, 200)
     .trim()
     .replace(/(\r\n?|\n|&nbsp;|&amp;|&)/g, ' ')
     .replace(/\s+/g, ' ')
     .substr(0,150);
-    description = lassi.tools.stripTags(description);
+    description = stripTags(description);
     head.addMetaName('description',  description);
     head.addMetaProperty('twitter:description', description);
   }

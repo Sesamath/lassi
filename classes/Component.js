@@ -22,21 +22,24 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-var _          = require('underscore')._;
-var should     = require('./tools/Asserts');
 var Controller = require('./Controller');
+var _            = require('underscore')._;
 
 /**
  * Construction d'un composant.
- * Ce constructeur n'est jamais appelé directement. Utilisez {@link
- * lfw.Component}
+ * Ce constructeur n'est jamais appelé directement. Utilisez {@link Lassi#component}
  * @constructor
- * @param {string} name the optional name of the component.
+ * @param {string} name Le nom du composant.
+ * @param {array} dependencies Dépendances
+ * @param {Object} [settings] ses optionnels réglages.
  */
-function Component(name) {
+function Component(name, dependencies, settings) {
   this.name = name;
+  this.settings = settings;
   this.controllers = [];
-  this.decorators = [];
+  this.dependencies = dependencies;
+  this.entities = {};
+  this.services = {};
   this.path = undefined;
 }
 
@@ -49,87 +52,92 @@ Component.prototype.bless = function(application) {
   this.application = application;
 }
 
+/**
+ * Ajoute un configurateur au composant.
+ * @param {Function} fn le configurateur.
+ * @return {Component} chaînable
+ */
 Component.prototype.config = function(fn) {
-  this.initialize = fn;
+  this.userConfig = fn;
   return this;
 }
 
-/**
- * Callback de rendu d'une vue.
- * @callback Component~renderCallback
- * @param {Error} error Une erreur est survenue.
- * @param {String} render Le rendu de la vue.
- */
+Component.prototype.configure = function() {
+  var self = this;
+  _.each(self.dependencies, function(dependency) {
+    console.log(dependency, _.keys(self.application.components));
+    var component = self.application.components[dependency];
+    component.configure();
+  });
+  _.each(self.services, function(service, name) {
+    self.application.services.register(name, service);
+  });
+  _.each(self.entities, function(entity, name) {
+    var cons = (function(name, entity) {
+      return function($entities) {
+        var def = $entities.define(name);
+        entity.apply(def);
+        return def;
+      }
+    })(name, entity);
+    self.application.services.register(name, cons);
+  });
+  _.each(self.controllers, function(fn, name) {
+    var controller = new Controller(fn.$$path);
+    self.application.services.parseInjections(fn, controller);
+    controller.bless(self);
+    self.controllers[name] = controller;
+  });
 
-/**
- * Effectue le rendu d'une vue du composant.
- * @param {String} view Le nom de la vue dans le dossier ./views
- * @param {Object} data Les données à injecter dans la vue
- * @param {String} format Le format cible (html par défaut)
- * @param {Component~renderCallback} callback La callback
- */
-Component.prototype.render = function(view, data, format, callback) {
-  if (_.isFunction(format)) {
-    callback = format;
-    format = 'html';
-  }
-  var transport = this.application.transport[format];
-  if (!transport) return callback(new Error('No transport for '+format));
-  transport.renderView(this, view, data, callback);
+  if (self.userConfig) self.application.services.parseInjections(self.userConfig, self);
 }
 
+/**
+ * Définition d'un controleur dans le composant.
+ * @param {String} [path] le chemin des actions de ce contrôleur.
+ * @param {function} fn La fonction du controleur.
+ * @return {Component} chaînable
+ */
 Component.prototype.controller = function(path, fn) {
   if (typeof path === 'function') {
     fn = path;
     path = undefined;
   }
-  var controller = new Controller(path);
-  fn.apply(controller);
-  controller.bless(controller, this);
-  this.controllers.push(controller);
+  fn.$$path = path;
+  this.controllers.push(fn);
   return this;
 }
-
 
 /**
- * Enregistre les décorateurs présents dans le composant.
- * @param {Component} component le composant parent
- * @param {SimpleCallback} next la callback de retour.
- * @private
+ * Ajoute une {@link EntityDefinition} au composant.
+ * @param {String} name le nom de l'entité.
+ * @param {Function} fn La fonction de l'entité
+ * @return {Component} chaînable
  */
-Component.prototype.decorator = function(component, next) {
-  var self = this;
-  var path = lassi.fs.join(component.path, "decorators");
-  lassi.fs.readdir(path, function(error, files) {
-    if (error) {
-      if (error.code == 'ENOENT') return next();
-      return next(error);
-    }
-    files.forEach(function(file) {
-      var decorator = require(lassi.fs.join(path, file))
-      var assertName = 'decorator'+' ('.white+file.yellow+')';
-      should.not.empty(decorator, assertName+" can't be empty.");
-      decorator = self.bless(decorator, file, component);
-      component.decorators.push(decorator);
-      self.emit('loaded', 'decorator', decorator.name, decorator);
-    });
-    next();
-  });
-}
-
-Component.prototype.entity = function(entity) {
-  if (!this.entities) {
-    should.not.empty(this.settings.entities, 'No settings for entities found in configuration.');
-    this.entities = new lfw.entities.Manager(this.settings.entities);
-    this.emit('loaded', 'part', 'Entities', this.entities);
-  }
-  entity = this.bless(entity, this.entities);
-  this.entities.register(entity);
+Component.prototype.entity = function(name, fn) {
+  this.entities[name] = fn;
+  //this.application.entity.apply(this.application, arguments);
   return this;
 }
 
-Component.prototype.service = function() {
-  return this.application.service.apply(this.application.mainComponent, arguments);
+/**
+ * Définition d'un service.
+ * @param String name Le nom du service.
+ * @param function name Le service (paramètres injectables).
+ * @return Lassi chaînable
+ */
+Component.prototype.service = function(name, fn) {
+  this.services[name] = fn;
+  //this.application.service.apply(this.application, arguments);
+  return this;
+}
+
+/**
+ * Démarre l'application.
+ * @fires Lassi#bootstrap
+ */
+Component.prototype.bootstrap = function() {
+  this.application.bootstrap(this);
 }
 
 module.exports = Component;

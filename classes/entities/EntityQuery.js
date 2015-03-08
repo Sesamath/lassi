@@ -23,6 +23,7 @@
 */
 var _ = require('underscore')._;
 var flow = require('seq');
+var DatabaseQuery = require('../database/DatabaseQuery');
 
 /**
  * Construction d'une requête sur entité.
@@ -240,7 +241,7 @@ EntityQuery.prototype.finalizeQuery = function(query) {
   // Construction des conditions
   if (this.clauses.length) {
     query.push('WHERE');
-    var where = new lfw.lang.StringBuffer();
+    var where = new DatabaseQuery();
     _.each(this.clauses, function(clause) {
       if (clause.index != 'oid') {
         where.push("%s.name=?", clause.alias);
@@ -345,7 +346,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     from = 0;
   }
   var _this = this;
-  var query = new lfw.lang.StringBuffer();
+  var query = new DatabaseQuery();
   query.push('SELECT * FROM %s AS d', this.entity.table);
   this.finalizeQuery(query);
   if (count) {
@@ -375,7 +376,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
            * Évènement déclenché après le chargement d'une entité
            * @event EntityQuery#afterLoad
            */
-          instance.emit('afterLoad', function (error) {
+          _this.entity._afterLoad.call(instance, function (error) {
             if (error) return _next(error);
             objects.push(instance);
             _next();
@@ -403,7 +404,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
  * @param {EntityQuery~CountCallback} callback
  */
 EntityQuery.prototype.count = function(callback) {
-  var query = new lfw.lang.StringBuffer();
+  var query = new DatabaseQuery();
   query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
   this.finalizeQuery(query);
   this.entity.entities.database.execute({text: query, parameters: query.args}, function(error, rows) {
@@ -471,3 +472,4 @@ EntityQuery.prototype.delete = function(callback) {
   })
 }
 
+module.exports = EntityQuery;

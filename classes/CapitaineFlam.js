@@ -84,22 +84,7 @@ CapitaineFlam.prototype.middleware = function() {
   return function(error, request, response) {
     var formattedError = _this.generateError(request, error);
     if (!request.__transport || !request.__transport.manageError(request.__context, formattedError)) {
-      console.log(error)
-      console.log(error.stack)
       response.send(500, error.message)
-    }
-
-    if (_this.settings.sendAlert) {
-      var nodemailer = require("nodemailer");
-      var transport = nodemailer.createTransport("Sendmail", "/usr/sbin/sendmail");
-      transport.sendMail({
-        from    : "<"+_this.application.mail+"> "+_this.application.name,
-        to      : _this.settings.sendAlert,
-        subject : "[Critical] Error on "+formattedError.body.Application,
-        html    : output
-      }, function(error) {
-        if (error) console.log(error); // On évite les crashs en cascade...
-      });
     }
   }
 }

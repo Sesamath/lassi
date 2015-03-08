@@ -22,24 +22,38 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-lassi.Class('lfw.database.Connection', {
-  construct: function(client) {
-    this.client = client;
-  },
+var DatabaseClient = require('./DatabaseClient');
+/**
+ * Classe de gestion des bases de données.
+ * @class
+ */
+function DatabaseManager() { }
 
-  debug: function(query) {
-    var debug = query.text;
-    var value;
-    for(var i in query.parameters) {
-      if (query.parameters[i]===null) value='NULL'
-      else if (typeof query.parameters[i] === 'undefined') value = 'undefined'
-      else if (typeof query.parameters[i] === 'string') value = "'"+query.parameters[i]+"'"
-      else value = query.parameters[i].toString();
-      debug = debug.replace('?', value);
-    }
-    console.log(debug);
-  },
-  release: function() {
-    this.client.releaseConnection(this);
+  /**
+   * Récupération de l'instance du manager.
+   * @static
+   */
+DatabaseManager.instance = function() {
+  if (!this._instance) {
+    this._instance = new DatabaseManager();
   }
-})
+  return this._instance;
+}
+
+/**
+ * Création d'un client.
+ * @param {object} settings le record d'établissement de la connexion.
+ * @return {DatabaseClient} Le client.
+ */
+DatabaseManager.prototype.createClient = function(settings, callback) {
+  var client = settings.client;
+  var clientInstance;
+  clientInstance = new DatabaseClient(settings.connection);
+  clientInstance.client = client;
+  clientInstance.initialize(callback);
+}
+
+module.exports = DatabaseManager;
+
+
+
