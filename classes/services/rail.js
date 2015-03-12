@@ -21,10 +21,11 @@ module.exports = function($settings) {
     /**
      * Évènement déclenché avant chargement d'un middleware.
      * @event Lassi#beforeRailUse
+     * @param {Express}  rail express
      * @param {String}  name Le nom du middleware.
      * @param {Object} settings Les réglages qui seront appliqués au middleware
      */
-    lassi.emit('beforeRailUse', name, settings);
+    lassi.emit('beforeRailUse', _rail, name, settings);
 
     var middleware = callback(settings);
     if (!middleware) return;
@@ -33,10 +34,11 @@ module.exports = function($settings) {
     /**
      * Évènement déclenché après chargement d'un middleware.
      * @event Lassi#afterRailUse
+     * @param {Express}  rail express
      * @param {String}  name Le nom du middleware.
      * @param {Object} settings Les réglages qui ont été appliqués au middleware
      */
-    lassi.emit('afterRailUse', name, settings, middleware);
+    lassi.emit('afterRailUse', _rail, name, settings, middleware);
   }
 
   /**
