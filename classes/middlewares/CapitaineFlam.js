@@ -29,7 +29,6 @@ function CapitaineFlam() {
 }
 CapitaineFlam.prototype.generateError = function(request, error) {
   this.settings = this.application.settings.rail.capitaineFlam || {};
-  console.log('CROTTE');
   var body = {};
   if (request.user) body.User = JSON.stringify(request.user, undefined, 2);
   body.application = this.application.name+" ["+this.application.staging+'@'+os.hostname()+"]";

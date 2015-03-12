@@ -24,9 +24,8 @@
 var _ = require('underscore')._;
 
 // constructeur
-function JsonTransport(application) {
-  this.application = application;
-}
+function JsonTransport() { }
+
 JsonTransport.prototype.process = function(data, next) {
   var result = {};
   _.each(data, function(v,k) {

@@ -77,7 +77,6 @@ Entities.prototype.initializeEntity = function(entity, next) {
   function createStore(next) {
     var table = entity.table;
     self.database.hasTable(table, function(error, exists) {
-      console.log(table, exists);
       if (error || exists) return next(error);
       var query = new DatabaseQuery();
       query.push('CREATE TABLE IF NOT EXISTS %s (', table);

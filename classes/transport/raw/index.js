@@ -23,9 +23,7 @@
 */
 
 // constructeur
-function RawTransport(application) {
-  this.application = application;
-}
+function RawTransport() { }
 
 RawTransport.prototype.process = function(data, next) {
   next(null, data.content);

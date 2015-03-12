@@ -43,7 +43,7 @@ module.exports = function($settings) {
     }, railConfig.compression);
 
     _rail.use(function(request, response, next) {
-      console.log("request: "+request.url);
+      lassi.log("lassi", "request", request.url);
       next();
     });
 

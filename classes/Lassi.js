@@ -54,9 +54,9 @@ function Lassi(root) {
   var HtmlTransport = require('./transport/html');
   var JsonTransport = require('./transport/json');
   var RawTransport = require('./transport/raw');
-  this.transports.html = new HtmlTransport(this);
-  this.transports.json = new JsonTransport(this);
-  this.transports.raw = new RawTransport(this);
+  this.transports.html = new HtmlTransport();
+  this.transports.json = new JsonTransport();
+  this.transports.raw = new RawTransport();
   this.transports['text/plain'] = this.transports.raw;
   this.transports['text/html'] = this.transports.html;
   this.transports['application/json'] = this.transports.json;
