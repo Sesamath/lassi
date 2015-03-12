@@ -25,7 +25,7 @@
 var Memcached = require('memcached');
 
 function MemcacheEngine(settings) {
-  this.memcached = new Memcached(settings.host);
+  this.memcached = new Memcached(settings);
 }
 
 MemcacheEngine.prototype.get = function(key, callback) {
