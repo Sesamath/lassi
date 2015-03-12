@@ -145,7 +145,7 @@ Controllers.prototype.middleware = function() {
         context.contentType = context.contentType || 'text/plain';
 
         // Si on n'a pas reçu de contenu => 404
-        if ((context.contentType==='text/html' || context.contentType==='text/plain') && !data.content) {
+      if ((context.contentType==='text/html' || context.contentType==='text/plain') && !data.content) {
           context.status = 404;
           data.content = 'not found';
           context.contentType = 'text/plain';
