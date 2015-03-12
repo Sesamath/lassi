@@ -4,7 +4,7 @@
  */
 module.exports = function($settings) {
   var Entities = require('../entities');
-  var entities = new Entities($settings.get('entities'));
+  var entities = new Entities($settings.get('$entities'));
 
   /**
    * Initialisation du service utilisé par lassi lors

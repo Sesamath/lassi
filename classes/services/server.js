@@ -13,7 +13,7 @@ module.exports = function($settings, $rail) {
    * @memberof $server
    */
   function start(next) {
-    var port = $settings.get('server.port');
+    var port = $settings.get('$server.port');
     _http = require('http').Server($rail.get());
     lassi.emit('httpReady', _http);
     _server = _http.listen(port, function() {

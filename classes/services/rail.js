@@ -48,7 +48,7 @@ module.exports = function($settings) {
    * @private
    */
   function setup(next) {
-    var railConfig = $settings.get('rail');
+    var railConfig = $settings.get('$rail');
 
     railUse('compression', function() {
       return require('compression')();

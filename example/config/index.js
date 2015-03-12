@@ -5,7 +5,8 @@ module.exports = {
     staging: 'dev',
     mail: 'toto'
   },
-  entities : {
+
+  $entities : {
     database : {
       client: "mysql",
       connection: {
@@ -17,15 +18,11 @@ module.exports = {
     },
   },
 
-  renderer : {
-    cache : true
-  },
-
-  server : {
+  $server : {
     port: 3000
   },
 
-  rail : {
+  $rail : {
     // cors : {origin: '*'},
     logger : {format: ':method :url - :post - :referrer', options: {}},
     //compression : {},
@@ -38,7 +35,6 @@ module.exports = {
         type: 'memcache',
         servers: '127.0.0.1:11211'
       }
-    },
-    authentication: {},
+    }
   }
 }

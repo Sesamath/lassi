@@ -137,7 +137,7 @@ Controllers.prototype.middleware = function() {
     })
     .seq(function() {
       if (!context.error) {
-        console.log(context.contentType, context.status, context.error, data);
+        //console.log(context.contentType, context.status, context.error, data);
         // Cas d'une redirection, on passe en fast-track
         if (context.location) this();
 
