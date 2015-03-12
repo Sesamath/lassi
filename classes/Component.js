@@ -31,25 +31,14 @@ var _            = require('underscore')._;
  * @constructor
  * @param {string} name Le nom du composant.
  * @param {array} dependencies Dépendances
- * @param {Object} [settings] ses optionnels réglages.
  */
-function Component(name, dependencies, settings) {
+function Component(name, dependencies) {
   this.name = name;
-  this.settings = settings;
   this.controllers = [];
   this.dependencies = dependencies;
   this.entities = {};
   this.services = {};
   this.path = undefined;
-}
-
-/**
- * Finalise l'objet Component
- * @private
- * @param {Application} application L'application parente.
- */
-Component.prototype.bless = function(application) {
-  this.application = application;
 }
 
 /**
@@ -63,33 +52,37 @@ Component.prototype.config = function(fn) {
 }
 
 Component.prototype.configure = function() {
+  if (this.configured) return;
   var self = this;
   _.each(self.dependencies, function(dependency) {
-    console.log(dependency, _.keys(self.application.components));
-    var component = self.application.components[dependency];
+    var component = lassi.components[dependency];
     component.configure();
   });
   _.each(self.services, function(service, name) {
-    self.application.services.register(name, service);
+    lassi.services.register(name, service);
   });
   _.each(self.entities, function(entity, name) {
     var cons = (function(name, entity) {
       return function($entities) {
         var def = $entities.define(name);
         entity.apply(def);
+        def.setup = function(cb) {
+          $entities.initializeEntity(def, cb);
+        }
         return def;
       }
     })(name, entity);
-    self.application.services.register(name, cons);
+    lassi.services.register(name, cons);
   });
   _.each(self.controllers, function(fn, name) {
     var controller = new Controller(fn.$$path);
-    self.application.services.parseInjections(fn, controller);
-    controller.bless(self);
+    lassi.services.parseInjections(fn, controller);
     self.controllers[name] = controller;
   });
 
-  if (self.userConfig) self.application.services.parseInjections(self.userConfig, self);
+  if (self.userConfig) lassi.services.parseInjections(self.userConfig, self);
+  this.configured = true;
+  lassi.log(this.name, 'initialized');
 }
 
 /**
@@ -116,7 +109,6 @@ Component.prototype.controller = function(path, fn) {
  */
 Component.prototype.entity = function(name, fn) {
   this.entities[name] = fn;
-  //this.application.entity.apply(this.application, arguments);
   return this;
 }
 
@@ -128,7 +120,6 @@ Component.prototype.entity = function(name, fn) {
  */
 Component.prototype.service = function(name, fn) {
   this.services[name] = fn;
-  //this.application.service.apply(this.application, arguments);
   return this;
 }
 
@@ -137,7 +128,7 @@ Component.prototype.service = function(name, fn) {
  * @fires Lassi#bootstrap
  */
 Component.prototype.bootstrap = function() {
-  this.application.bootstrap(this);
+  lassi.bootstrap(this);
 }
 
 module.exports = Component;

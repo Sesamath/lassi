@@ -32,22 +32,27 @@ var EventEmitter = require('events').EventEmitter
  * @constructor
  */
 function Controller(path) {
-  this.path = path;
+  this.path = '/' + (path || '');
   this.actions = [];
+  return this;
 }
 util.inherits(Controller, EventEmitter)
 
-Controller.prototype.on = function(path) {
-  var action = new Action(path);
-  this.actions.push(action)
-  return action;
+Controller.prototype.on = function(methods, path, callback) {
+  if (typeof callback === 'undefined') {
+    callback = path;
+    path = undefined;
+  }
+  if (!_.isArray(methods)) methods = [ methods ];
+  this.actions.push(new Action(this, methods, path, callback))
+  return this;
 }
 
 /**
  * Évènement généré avant l'expédition des données
  * sur la couche de transport et avant que la couche
  * de transport ne soit déterminée via data.$contentTYpe
- * @event Controller#beforeTransport
+ * @event Lassi#beforeTransport
  * @param {Object} data les données modifiables
  */
 
@@ -55,15 +60,11 @@ Controller.prototype.on = function(path) {
  * Réponse à une méthode PUT
  * @param {String} [path] le chemin absolu ou relatif au controller .
  * @param {Action~callback} cb La callback
- * @fires Controller#beforeTransport
+ * @fires Lassi#beforeTransport
  * @return {Controller} Chaînable
  */
 Controller.prototype.put = function(path, cb) {
-  if (typeof path === 'function') {
-    cb = path;
-    path = undefined;
-  }
-  this.on(path).via('put').do(cb);
+  this.on('put', path, cb);
   return this;
 }
 
@@ -71,99 +72,43 @@ Controller.prototype.put = function(path, cb) {
  * Réponse à une méthode POST
  * @param {String} [path] le chemin absolu ou relatif au controller .
  * @param {Action~callback} cb La callback
- * @fires Controller#beforeTransport
+ * @fires Lassi#beforeTransport
  * @return {Controller} Chaînable
  */
 Controller.prototype.post = function(path, cb) {
-  if (typeof path === 'function') {
-    cb = path;
-    path = undefined;
-  }
-  this.on(path).via('post').do(cb);
-  return this;
+  return this.on('post', path, cb);
 }
 
 /**
  * Réponse à une méthode GET
  * @param {String} [path] le chemin absolu ou relatif au controller .
  * @param {Action~callback} cb La callback
- * @fires Controller#beforeTransport
+ * @fires Lassi#beforeTransport
  * @return {Controller} Chaînable
  */
 Controller.prototype.get = function(path, cb) {
-  if (typeof path === 'function') {
-    cb = path;
-    path = undefined;
-  }
-  this.on(path).via('get').do(cb);
-  return this;
+  return this.on('get', path, cb);
 }
 
 /**
  * Réponse à une méthode DELETE
  * @param {String} [path] le chemin absolu ou relatif au controller .
  * @param {Action~callback} cb La callback
- * @fires Controller#beforeTransport
+ * @fires Lassi#beforeTransport
  * @return {Controller} Chaînable
  */
 Controller.prototype.delete = function(path, cb) {
-  if (typeof path === 'function') {
-    cb = path;
-    path = undefined;
-  }
-  this.on(path).via('delete').do(cb);
-  return this;
+  return this.on('delete', path, cb);
 }
 
 /**
- * Publie l'ensemble des fichiers d'un dossier physique. 
+ * Publie l'ensemble des fichiers d'un dossier physique.
  * @param {String} [path] le chemin absolu ou relatif au controller .
  * @param {String} fsPath Le chemin physique
  * @return {Controller} Chaînable
  */
 Controller.prototype.serve = function(path, fsPath) {
-  if (typeof fsPath==='undefined') {
-    fsPath = path;
-    path = '*';
-  } else {
-    path += '/*';
-  }
-
-  var action = new Action(path, fsPath);
-  this.actions.push(action)
-  return action;
-}
-
-Controller.prototype.bless = function(component) {
-  var self = this;
-  this.component = component;
-  _.each(this._serve, function(serve) {
-    serve.path = serve.path  || self.path;
-  });
-  this.actions.forEach(function(action) {
-    action.bless(self);
-  });
-
-  return this;
-}
-
-/**
- * Affecte les options de rendu, principalement dans le cas
- * du transport HTML. 
- * @param {Object} options Les options à affecter aux données
- * @return {Controller} Chaînable
- * 
- * ~~~
- * this.renderAs({
- *   $contentType: 'text/html',
- *   $layout: 'layout-page',
- *   $views: __dirname+'/../views'
- * });
- * ~~~
- */
-Controller.prototype.renderAs = function(options) {
-  this._renderAs = options;
-  return this;
+  return this.on('get', path, fsPath);
 }
 
 module.exports = function(path) {

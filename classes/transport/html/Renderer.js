@@ -34,9 +34,9 @@ function Renderer(options) {
 }
 
 Renderer.prototype.helper = function(name, callback) {
-  var _this = this;
+  var self = this;
   this.dust.helpers[name] = function() {
-    callback.apply(_this.dust, Array.prototype.slice.call(arguments));
+    callback.apply(self.dust, Array.prototype.slice.call(arguments));
   };
 }
 
@@ -62,15 +62,15 @@ Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals
 }
 
 Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, callback) {
-  var _this = this;
-  if (_this.cache && _this.cacheStore[unresolvedPath]) {
-    callback(null, _this.cacheStore[unresolvedPath]);
+  var self = this;
+  if (self.cache && self.cacheStore[unresolvedPath]) {
+    callback(null, self.cacheStore[unresolvedPath]);
   } else {
-    _this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
+    self.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
       if (err) { callback(err); return; }
       fs.readFile(path, 'utf8', function(err, res) {
         if (err) { callback(err); return; }
-        if (_this.cache) _this.cacheStore[unresolvedPath] = res;
+        if (self.cache) self.cacheStore[unresolvedPath] = res;
         callback(null, res);
       });
     });
@@ -78,20 +78,20 @@ Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, c
 }
 
 Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callback) {
-  var _this = this;
+  var self = this;
   var template = (this.cache && this.cacheStore[unresolvedPath]) || null;
   if (template) {
     template(locals, callback);
   } else {
-    _this.dust.onLoad = function (path, callback) {
-      _this.readTemplate(viewsPath+'/partials', path, locals, callback);
+    self.dust.onLoad = function (path, callback) {
+      self.readTemplate(viewsPath+'/partials', path, locals, callback);
     };
     this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
       if (err) { callback(err); return }
       fs.readFile(path, 'utf8', function(err, str) {
         if (err) { callback(err); return }
-        template = _this.dust.compileFn(str);
-        if (_this.cache) _this.cacheStore[unresolvedPath] = template;
+        template = self.dust.compileFn(str);
+        if (self.cache) self.cacheStore[unresolvedPath] = template;
         template(locals, callback);
       });
     });

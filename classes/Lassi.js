@@ -26,12 +26,11 @@
 var flow         = require('seq');
 var _            = require('underscore')._;
 var Component    = require('./Component');
-var fs           = require('fs');
-var pathLib      = require('path');
-var should       = require('./tools/Asserts');
 var Services     = require('./tools/Services');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
+var colors       = require('colors');
+var tty          = require('tty');
 
 /**
  * Callback simple.
@@ -49,142 +48,75 @@ var util         = require('util');
  * @extends Emitter
  */
 function Lassi(root) {
-
-  this.root = fs.realpathSync(root);
-  if (!this.root) throw new Error('Unable to find root (call Sameen) :'+root);
-
-  while (!fs.existsSync(this.root+'/config')) {
-    this.root = pathLib.resolve(this.root, '..');
-    if (this.root=='/') throw new Error('Impossible de trouver la configuration');
-  }
-  var configPath = fs.realpathSync(pathLib.resolve(this.root, 'config'));
-  this.settings = require(configPath);
-  should.object(this.settings, 'La configuration doit être un objet');
-  this.loadSettings();
+  GLOBAL.lassi = this;
 
   this.transports = {};
+  var HtmlTransport = require('./transport/html');
+  var JsonTransport = require('./transport/json');
+  var RawTransport = require('./transport/raw');
+  this.transports.html = new HtmlTransport(this);
+  this.transports.json = new JsonTransport(this);
+  this.transports.raw = new RawTransport(this);
+  this.transports['text/plain'] = this.transports.raw;
+  this.transports['text/html'] = this.transports.html;
+  this.transports['application/json'] = this.transports.json;
+  this.transports['application/jsonp'] = this.transports.json;
   this.components = {};
   this.services = new Services();
-  this.mainComponent = this.component('');
-  var Controllers = require('./Controllers');
-  this.controllers = new Controllers(this);
-  var self = this;
-  this.services.register('$entities', function() {
-    var Entities = require('./entities');
-    var entities = new Entities(self.settings.entities);
-    return entities;
-  });
-  this.services.register('$cache', function() {
-    var Manager = require('./cache');
-    var manager = new Manager();
-    return {
-      get       : function() { manager.get.apply(manager, arguments); },
-      set       : function() { manager.set.apply(manager, arguments); },
-      delete    : function() { manager.delete.apply(manager, arguments); },
-      addEngine : function() { manager.addEngine.apply(manager, arguments); }
-    }
-  });
-
-  // Logging
-  this.on('afterRailUse', function(name, settings, object) {
-    var tmp = [];
-    for(var key in settings) {
-      if (typeof settings[key] === 'function') {
-        tmp.push(key.green+':'+'function'.cyan);
-      } else if (key!='mountPoint' || settings[key] !== '/') {
-        tmp.push(key.green+':'+settings[key].toString());
-      }
-    }
-    console.log("Rail ❭ ".grey+name+' {'.blue+tmp.join(', ')+'}'.blue);
-    if (name == 'Controllers') {
-      object.on('request', function(context) {
-        console.log('Request: '+context.method+' '+context.url);
-      });
-    }
-  });
+  this.services.register('$settings', require('./services/settings'));
+  this.services.resolve('$settings').load(root);
+  this.services.register('$cache', require('./services/cache'));
+  this.services.register('$entities', require('./services/entities'));
+  this.services.register('$rail', require('./services/rail'));
+  this.services.register('$server', require('./services/server'));
 }
+
 util.inherits(Lassi, EventEmitter)
 
+Lassi.prototype.startup = function(component, next) {
+  var self = this;
+  flow()
+  // Configuration des composants
+  .seq(function() { component.configure(); this(); })
+
+  // Configuration des services
+  .seq(function() {
+    var setupables = [];
+    _.each(self.services.services(), function(service, name) {
+      service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
+      if (service.setup) {
+        lassi.log("lassi", 'setting up', name.blue);
+        setupables.push(service);
+      }
+    });
+    flow(setupables)
+    .seqEach(function(service) { service.setup(this); })
+    .empty().seq(this).catch(this);
+  })
+  .empty().seq(function() {
+    self.emit('startup');
+    next();
+  }).catch(next);
+}
 /**
- * Démarre l'application.
+ * Démarre l'application d'un composant.
+ * @param {Component} component Le composant
  * @fires Lassi#bootstrap
- * @private
  */
 Lassi.prototype.bootstrap = function(component) {
   var self = this;
-
   flow()
-  .seq(function() {
-    var HtmlTransport = require('./transport/html');
-    var JsonTransport = require('./transport/json');
-    var RawTransport = require('./transport/raw');
-    self.transports.html = new HtmlTransport(self);
-    self.transports.json = new JsonTransport(self);
-    self.transports.raw = new RawTransport(self);
-    self.transports['text/plain'] = self.transports.raw;
-    self.transports['text/html'] = self.transports.html;
-    self.transports['application/json'] = self.transports.json;
-    self.transports['application/jsonp'] = self.transports.json;
-
-    this();
-  })
-  .seq(function() { component.configure(); this(); })
-  .seq(function() { self.services.resolve('$entities').initializeStorage(this); })
-  .seq(function() { self.initializeRail(this); })
-  .seq(function() {
-    var port = self.settings.server.port
-    console.log('Listening for peoples on port ' +port);
-    self.server = self.rail.listen(port, function() {
-      /**
-       * Évènement généré une fois que l'application est en écoute du port.
-       * @event Lassi#bootstrap
-       */
-       self.emit('bootstrap');
-     });
-     function onTerminate() {
-       //if (self.sessionStore) {
-         //self.sessionStore.store();
-       //}
-       process.exit();
-     }
-     process.on('SIGTERM', onTerminate);
-     process.on('SIGINT', onTerminate);
-  });
+    .seq(function() {
+      self.startup(component, this);
+    })
+    .seq(function () {
+      var $server = self.service('$server');
+      $server.start(this);
+    })
+    .catch(function(error) {
+      console.log(error.stack);
+    });
 }
-
-
-/**
- * Chargement de la configuration.
- * @private
- */
-Lassi.prototype.loadSettings = function() {
-  should.object(this.settings.application, "Le champ 'application' n'est pas présent dans la configuration", this.loadSettings);
-  should.string(this.settings.application.name, "Le réglage 'application.name' doit être défini", this.loadSettings);
-  this.name = this.settings.application.name;
-  this.staging = this.settings.application.staging;
-
-  // Paramétrage des slots de config par défaut
-  _.defaults(this.settings, {
-    locales  : {},
-    rail     : {},
-    components  : {},
-    server   : {},
-    renderer : {}
-  });
-
-  // Config par défaut des components
-  _.defaults(this.settings.components, {
-    styles: false,
-  });
-
-  // Paramétrage des options serveur par défaut
-  _.defaults(this.settings.server, {
-    port: 3000
-  });
-
-  this.settings.components.users = false;
-}
-
 
 /**
  * Enregistre un {@link Component} dans le système.
@@ -192,119 +124,11 @@ Lassi.prototype.loadSettings = function() {
  * @param {array} dependencies Une liste de composant en dépendance
  */
 Lassi.prototype.component = function(name, dependencies) {
-  var settings;
-  if (_.has(this.settings.components, name)) {
-    settings = this.settings.components[name];
-  }
-  var component = new Component(name, dependencies, settings);
-
-  // Bless the component....
-  component.bless(this);
-
-  // Enregistrement du component
-  this.components[component.name] = component;
-
-  return component;
+  return this.components[name] = new Component(name, dependencies);
 }
 
-
-
-/**
- * initialisation du rail pour notre express.
- * @param {SimpleCallback} next la callback de retour.
- * @private
- */
-Lassi.prototype.initializeRail = function(next) {
-  var self = this;
-  var express = require('express');
-  var rail = this.rail = express();
-
-
-  /**
-   * Wrapper permettant d'enregistrer un middleware sur le rail Express.
-   * @fires Lassi#beforeRailUse
-   * @fires Lassi#afterRailUse
-   * @private
-   */
-  function railUse(name, callback, settings) {
-    if (!settings) return;
-    // @fixme virer ce commentaire si ce truc est mieux là (avant l'appel de callback,
-    // je (DC) le verrai mieux entre l'appel et le rail.use mais je sais pas si des callback utilisent ce mountpoint)
-    settings.mountPoint = settings.mountPoint || '/';
-
-    /**
-     * Évènement déclenché avant chargement d'un middleware.
-     * @event Lassi#beforeRailUse
-     * @param {String}  name Le nom du middleware.
-     * @param {Object} settings Les réglages qui seront appliqués au middleware
-     */
-    self.emit('beforeRailUse', name, settings);
-
-    var middleware = callback(settings);
-    if (!middleware) return;
-    rail.use(settings.mountPoint, middleware);
-
-    /**
-     * Évènement déclenché après chargement d'un middleware.
-     * @event Lassi#beforeRailUse
-     * @param {String}  name Le nom du middleware.
-     * @param {Object} settings Les réglages qui ont été appliqués au middleware
-     */
-    self.emit('afterRailUse', name, settings, middleware);
-  }
-  this.use = railUse;
-
-  var railConfig = this.settings.rail;
-
-  railUse('compression', function() {
-    return require('compression')();
-  }, railConfig.compression);
-
-  rail.use(function(request, response, next) {
-    console.log("request: "+request.url);
-    next();
-  });
-
-
-  // Gestion des sessions
-  railUse('cookie', function(settings) {
-    return require('cookie-parser')(settings.key)
-  }, railConfig.cookie);
-
-  var bodyParser = require('body-parser');
-  var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-  railUse('body-parser',
-    function(settings) {
-      return bodyParser(settings);
-    },
-    railConfig.bodyParser || {
-      reviver: function (key, value) {
-        if (typeof value === 'string') {
-          if (dateRegExp.exec(value)) {
-            return new Date(value);
-          }
-        }
-        return value;
-      }
-    }
-  );
-
-  railUse('session', function(settings) {
-    var session = require('express-session');
-    var SessionStore = require('./SessionStore');
-    settings.store = new SessionStore(self);
-    return session(settings);
-  }, railConfig.session);
-
-  // Ajout du router principal
-  railUse('controllers', function() { return self.controllers.middleware() }, {});
-
-  // Lorsqu'il n'y a plus d'espoir...
-  var CapitaineFlam = require('./CapitaineFlam');
-  this.capitaineFlam = new CapitaineFlam(self);
-  railUse('errors', function() { return self.capitaineFlam.middleware() }, {});
-
-  next();
+Lassi.prototype.service = function(name) {
+  return this.services.resolve(name);
 }
 
 
@@ -326,14 +150,35 @@ Lassi.prototype.shutdown = function() {
 }
 
 /**
- * Définition d'une entité.
- * @param String name Le nom de l'entité.
- * @param function definition la définition de l'entité.
- * @return {Lassi} chaînable
- * @private
+ * Logger
  */
-Lassi.prototype.entity = function(name, definition) {
+Lassi.prototype.log = function(){
+  var args = Array.prototype.slice.call(arguments);
+  var first = args.shift();
+  //if (level<Levels.info) return;
+  var message = util.format.apply(console, args);
+  var isatty = tty.isatty(1);
+  var color = isatty;
+
+  if (color) {
+    console.log('['.white+first.yellow+']'.white, message);
+  } else {
+    message = '['+ first + '] ' + message;
+    if (!isatty) {
+      message = message.replace(/\x1b\[[^m]+m/g, '');
+      message = message.replace(/\x1b/g, '');
+    }
+    console.log(message);
+  }
   return this;
+};
+
+module.exports = function(root) {
+  if (_.has(GLOBAL, 'lassi')) return lassi;
+  new Lassi(root);
+  lassi.Context = require('./Context');
+  lassi.require = function() {
+    return require.apply(this, arguments);
+  }
 }
 
-module.exports = Lassi;

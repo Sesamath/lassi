@@ -2,6 +2,7 @@
     "name": "lassi",
     "version": "1.8.4",
     "private": true,
+    "main": "./classes/Lassi",
     "dependencies": {
         "body-parser": "~1.0.0",
         "colors": "^0.6.2",
