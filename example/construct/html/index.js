@@ -34,20 +34,21 @@ lassi.component('example-html')
   });
 })
 
-.service('appSettings', function() {
+.service('$appSettings', function() {
   return {
     title: function() { return 'Titre via appSettings'; }
   }
 })
 
-.controller(function(appSettings) {
+.controller(function($appSettings) {
   this.serve(__dirname+'/public');
 
   this.get('*', function(context) {
     if (context.request.url.indexOf('/api/')===0) return context.next();
     context.next({
+      $layout: 'layout-page',
       $metas: {
-        title: appSettings.title(),
+        title: $appSettings.title(),
         css: ['styles/main.css'],
         js: ['vendors/jquery.min.js'],
       },

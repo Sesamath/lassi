@@ -108,7 +108,7 @@ Controller.prototype.delete = function(path, cb) {
  * @return {Controller} Chaînable
  */
 Controller.prototype.serve = function(path, fsPath) {
-  return this.on('serve', path, fsPath);
+  return this.on('get', path, fsPath);
 }
 
 module.exports = function(path) {
