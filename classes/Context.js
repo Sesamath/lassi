@@ -27,6 +27,7 @@ var _ = require('underscore')._;
  * Contexte d'exécution d'une action.
  * @param {Request} request la requête Express.
  * @param {Response} response la réponse Express.
+ * @fires Lassi#context
  * @constructor
  */
 function Context(request, response) {
@@ -37,6 +38,12 @@ function Context(request, response) {
   this.post         = this.request.body;
   this.session      = this.request.session;
   this.user         = this.request.user;
+  /**
+   * Évènement généré de la création d'un nouveau contexte.
+   * @param {Context} context le context fraîchement créé.
+   * @event Lassi#context
+   */
+  lassi.emit('context', this);
 }
 
 /**
@@ -102,6 +109,15 @@ Context.prototype.notFound = function(message) {
  */
 Context.prototype.json = function(data) {
   this.contentType = 'application/json';
+  this.next(null, data);
+}
+
+/**
+ * Renvoie une réponse de type HTML.
+ * @param {object} data données
+ */
+Context.prototype.html = function(data) {
+  this.contentType = 'text/html';
   this.next(null, data);
 }
 
