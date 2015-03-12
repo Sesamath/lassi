@@ -26,7 +26,7 @@ lassi.component('example-json')
 
 .controller('api', function() {
   this.get('toto', function(context) {
-    context.next(null, {toto: 12});
+    context.json({toto: 12});
   });
 });
 

@@ -52,7 +52,7 @@ lassi.component('example-entities')
         .seq(function() { Person.create({name:'gaston'}).store(this); })
         .seq(function() { Person.match('name').equals('gaston').grab(this); })
         .seq(function(gastons) {
-          context.next({gastons: gastons});
+          context.json({gastons: gastons});
         })
         .catch(context.next);
     });

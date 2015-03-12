@@ -25,10 +25,10 @@
 lassi.component('example-html')
 
 .config(function() {
-  lassi.on('beforeTransport', function(data) {
-    if (data.$status && data.$status > 400 && data.$status < 500) {
-      data.$layout = 'layout-'+data.$status;
-      data.$contentType = 'text/html';
+  lassi.on('beforeTransport', function(context, data) {
+    if (context.contentType !== 'application/json' && context.status && context.status > 400 && context.status < 500) {
+      data.$layout = 'layout-'+context.status;
+      context.contentType = 'text/html';
       data.content = {$view: 'error', message: data.content};
     }
   });
@@ -45,9 +45,9 @@ lassi.component('example-html')
 
   this.get('*', function(context) {
     if (context.request.url.indexOf('/api/')===0) return context.next();
+    context.contentType = 'text/html';
     context.next({
       $views: __dirname+'/views',
-      $contentType: 'text/html',
       $metas : {
         title : $appSettings.title(),
         css   : ['styles/main.css'],
@@ -59,6 +59,7 @@ lassi.component('example-html')
         actions: [
         '<a href="/">Accueil</a>',
         '<a href="/error404">404</a>',
+        '<a href="/tagazok">Truc qui existe vraiment pas !</a>',
         '<a href="/error403">403</a>',
         '<a href="/error500">500</a>',
         '<a href="/redirect">redirect</a>',

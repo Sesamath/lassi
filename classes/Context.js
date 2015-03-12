@@ -68,10 +68,8 @@ Context.prototype.isPost = function() { return this.method=='post' }
 /**
  * Provoque une redirection.
  *
- * @param {Action|String} action l'action sur laquelle on redirige, ou une url directement
- * @param {Object} args Les arguments à appliquer. (ignoré si action est une url)
+ * @param {String} path Le chemin de la redirection
  * @param {Integer=} [code=302] Le code de redirection à utiliser (301 pour une redirection permanente)
- * @throws {Error} Une erreur pour être catché par lassi tout de suite
  */
 Context.prototype.redirect = function (path, code) {
   this.location = path;
@@ -81,24 +79,30 @@ Context.prototype.redirect = function (path, code) {
 
 /**
  * Provoque la génération d'un access denied (403)
- * @param {string} message Le message éventuel (sera "access denied" si non fourni)
+ * @param {string=} message Le message éventuel (sera "access denied" si non fourni)
  */
 Context.prototype.accessDenied = function(message) {
   this.status = 403;
-  this.message = message || "access denied";
-  this.next();
+  this.next(null, {content: message || "access denied"});
 }
 
 /**
  * Provoque la génération d'un not found (404)
  *
- * @param {string} message Le message éventuel (sera "not found" si non fourni)
- * @throws {Error} Une erreur de type 404.
+ * @param {string=} message Le message éventuel (sera "not found" si non fourni)
  */
 Context.prototype.notFound = function(message) {
   this.status = 404;
-  this.message = message || "not found";
-  this.next();
+  this.next(null, {content: message || "not found"});
+}
+
+/**
+ * Renvoie une réponse de type JSON.
+ * @param {object} data données
+ */
+Context.prototype.json = function(data) {
+  this.contentType = 'application/json';
+  this.next(null, data);
 }
 
 module.exports = Context;

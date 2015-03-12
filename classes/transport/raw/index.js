@@ -29,6 +29,4 @@ RawTransport.prototype.process = function(data, next) {
   next(null, data.content);
 }
 
-RawTransport.prototype.manageError = function() { return false; }
-
 module.exports = RawTransport;

@@ -1,11 +1,19 @@
-module.exports =
-
-function() {
+/**
+ * Service de gestion des réglages de lassi
+ * @namespace $settings
+ */
+module.exports = function() {
   var fs = require('fs');
   var _ = require('underscore')._;
   var _settings = {};
   var should       = require('../tools/Asserts');
 
+  /**
+   * Chargement des réglages à partir de la racine.
+   * @param {String} root la racine où chercher le dossier config
+   * @private
+   * @memberof $settings
+   */
   function load(root) {
     root = fs.realpathSync(root);
     var settingsPath = root+'/config';
@@ -32,6 +40,13 @@ function() {
     _.defaults(_settings.server, { port: 3000 });
   }
 
+  /**
+   * Chargement des réglages à partir de la racine.
+   * @param {String} path Le chemin du réglage (ex. application.mail)
+   * @param {mixed} def La valeur à renvoyer si le chemin n'existe pas.
+   * @return {mixed} la valeur du réglage
+   * @memberof $settings
+   */
   function get(path, def) {
     if (_.isString(path)) path = path.split(/\./);
     var current = _settings;

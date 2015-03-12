@@ -23,6 +23,9 @@
 */
 
 var MemoryEngine = require('./MemoryEngine');
+/**
+ * @constructor
+ */
 function CacheManager() {
   this.engines = [];
   this.addEngine('', 'memory', {});
@@ -38,6 +41,12 @@ function sanitizeHashKey(source) {
   return source.replace(/\x00-\x20\x7F-\xA0]/, '');
 }
 
+/**
+ * Ajoute un nouvel engine sur un slot.
+ * @param {String} slot le chemin de clef pris en charge par l'engine.
+ * @param {String} drive le pilote à utiliser (memory, memcache)
+ * @param {Object} settings les réglages à envoyer au pilote.
+ */
 CacheManager.prototype.addEngine = function(slot, driver, settings) {
   settings = settings || {};
   var engine;

@@ -1,3 +1,7 @@
+/**
+ * Service de gestion des middlewares
+ * @namespace $rail
+ */
 module.exports = function($settings) {
   var express = require('express');
   var _rail = express();
@@ -28,25 +32,27 @@ module.exports = function($settings) {
 
     /**
      * Évènement déclenché après chargement d'un middleware.
-     * @event Lassi#beforeRailUse
+     * @event Lassi#afterRailUse
      * @param {String}  name Le nom du middleware.
      * @param {Object} settings Les réglages qui ont été appliqués au middleware
      */
     lassi.emit('afterRailUse', name, settings, middleware);
   }
 
+  /**
+   * Initialisation du service utilisé par lassi lors
+   * de la configuration du composant parent.
+   *
+   * @param callback next callback de retour
+   * @memberof $rail
+   * @private
+   */
   function setup(next) {
     var railConfig = $settings.get('rail');
 
     railUse('compression', function() {
       return require('compression')();
     }, railConfig.compression);
-
-    _rail.use(function(request, response, next) {
-      lassi.log("lassi", "request", request.url);
-      next();
-    });
-
 
     // Gestion des sessions
     railUse('cookie', function(settings) {
@@ -79,19 +85,19 @@ module.exports = function($settings) {
     }, railConfig.session);
 
     // Ajout du router principal
-    var Controllers = require('../middlewares/Controllers');
+    var Controllers = require('../Controllers');
     var controllers = new Controllers(this);
     railUse('controllers', function() { return controllers.middleware() }, {});
-
-    // Lorsqu'il n'y a plus d'espoir...
-    var CapitaineFlam = require('../middlewares/CapitaineFlam');
-    var capitaineFlam = new CapitaineFlam();
-    railUse('errors', function() { return capitaineFlam.middleware() }, {});
     next();
   }
 
   return {
     setup: setup,
+    /**
+     * Renvoie la liste des middlewares en cours;
+     * @return {Express} expres
+     * @memberof $rail
+     */
     get : function() { return _rail; }
   }
 

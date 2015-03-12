@@ -37,8 +37,8 @@ var _ = require('underscore')._;
  * @private
  */
 function Action(controller, methods, path, cb) {
-  this.path            = path;
-  this.methods         = methods || ['get'];
+  this.path = path;
+  this.methods = methods;
   if (_.isString(cb)) {
     this.fsPath = cb;
     this.callback = undefined;
@@ -80,7 +80,7 @@ function Action(controller, methods, path, cb) {
   this.pathRegexp = pathtoRegexp(this.path, this.keys = [], { sensitive: true, strict: true, end: false });
   lassi.log(
     'lassi',
-    this.methods.join(',').blue,
+    (this.methods?this.methods.join(','):'ALL').blue,
     this.path.yellow,
     this.pathRegexp,
     this.middleware?' -> '+cb:''
@@ -134,7 +134,7 @@ Action.prototype.match = function(method, path){
 
 
   method = method.toLowerCase();
-  if (!_.contains(this.methods, method)) return null;
+  if (this.methods && !_.contains(this.methods, method)) return null;
   var match = this.pathRegexp.exec(path);
   //console.log(path, this.pathRegexp, match);
   if (!match) return null;
@@ -167,7 +167,6 @@ Action.prototype.match = function(method, path){
  * @param {Function} next
  */
 Action.prototype.execute = function(context, next) {
-  lassi.log('Action', this.path);
   var GLOBAL_TIMEOUT = 1000
 
   var timeout = GLOBAL_TIMEOUT;

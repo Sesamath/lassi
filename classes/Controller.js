@@ -43,7 +43,7 @@ Controller.prototype.on = function(methods, path, callback) {
     callback = path;
     path = undefined;
   }
-  if (!_.isArray(methods)) methods = [ methods ];
+  if (methods && !_.isArray(methods)) methods = [ methods ];
   this.actions.push(new Action(this, methods, path, callback))
   return this;
 }
@@ -51,8 +51,9 @@ Controller.prototype.on = function(methods, path, callback) {
 /**
  * Évènement généré avant l'expédition des données
  * sur la couche de transport et avant que la couche
- * de transport ne soit déterminée via data.$contentTYpe
+ * de transport ne soit déterminée via context.contentTYpe
  * @event Lassi#beforeTransport
+ * @param {Context} context le context de la requête
  * @param {Object} data les données modifiables
  */
 
@@ -100,6 +101,29 @@ Controller.prototype.get = function(path, cb) {
 Controller.prototype.delete = function(path, cb) {
   return this.on('delete', path, cb);
 }
+
+/**
+ * Réponse à une méthode OPTIONS
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {Action~callback} cb La callback
+ * @fires Lassi#beforeTransport
+ * @return {Controller} Chaînable
+ */
+Controller.prototype.options = function(path, cb) {
+  return this.on('options', path, cb);
+}
+
+/**
+ * Réponse à une méthode ALL
+ * @param {String} [path] le chemin absolu ou relatif au controller .
+ * @param {Action~callback} cb La callback
+ * @fires Lassi#beforeTransport
+ * @return {Controller} Chaînable
+ */
+Controller.prototype.all = function(path, cb) {
+  return this.on(undefined, path, cb);
+}
+
 
 /**
  * Publie l'ensemble des fichiers d'un dossier physique.

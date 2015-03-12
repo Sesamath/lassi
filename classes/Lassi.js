@@ -101,7 +101,7 @@ Lassi.prototype.startup = function(component, next) {
 /**
  * Démarre l'application d'un composant.
  * @param {Component} component Le composant
- * @fires Lassi#bootstrap
+ * @private
  */
 Lassi.prototype.bootstrap = function(component) {
   var self = this;
@@ -134,6 +134,7 @@ Lassi.prototype.service = function(name) {
 
 /**
  * Arrêt de l'application.
+ * @private
  * @fires Lassi#shutdown
  */
 Lassi.prototype.shutdown = function() {
@@ -151,6 +152,7 @@ Lassi.prototype.shutdown = function() {
 
 /**
  * Logger
+ * @private
  */
 Lassi.prototype.log = function(){
   var args = Array.prototype.slice.call(arguments);

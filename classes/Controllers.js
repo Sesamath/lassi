@@ -24,7 +24,7 @@
 
 var parse        = require('url').parse;
 var _            = require('underscore')._;
-var Context      = require('../Context');
+var Context      = require('./Context');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
 var flow         = require('seq');
@@ -98,6 +98,10 @@ Controllers.prototype.middleware = function() {
     // Séquencement des actions
     flow(actionnables)
     .seqEach(function(actionnable) {
+      // Si une erreur s'est produite plus haut dans la chaîne, on n'exécute pas
+      // les actions suivantes.
+      if (context.error) return this();
+
       var nextAction = this;
       context.arguments = actionnable.params;
 
@@ -108,22 +112,17 @@ Controllers.prototype.middleware = function() {
       // L'acttionnable est une action
       } else {
         actionnable.action.execute(context, function(error, result) {
-          if (error) return next(error);
+          if (error) {
+            context.error = error;
+            return nextAction();
+          }
 
           result = result || {};
 
-          // Status : 40X,30X
-          if (context.status) {
-            data.$contentType = data.$contentType || 'text/plain';
-            data.$status = context.status;
-            data.content = context.message;
-            data.$location = context.location;
-          }
-
           // Si le résultat et une simple chaîne, on la transforme en content et on affecte
           // un content type adapté
-          else if (typeof result === 'string') {
-            data.$contentType = data.$contentType || 'text/plain';
+          if (typeof result === 'string') {
+            context.contentType = context.contentType || 'text/plain';
             data.content = result;
           }
 
@@ -137,35 +136,47 @@ Controllers.prototype.middleware = function() {
       }
     })
     .seq(function() {
-      // Cas d'une redirection, on passe en fast-track
-      if (data.$location) {
-        response.redirect(data.$location);
-        return;
+      if (!context.error) {
+        //console.log(context.contentType, context.status, context.error, data);
+        // Cas d'une redirection, on passe en fast-track
+        if (context.location) this();
+
+        // Content type par défaut
+        context.contentType = context.contentType || 'text/plain';
+
+        // Si on n'a pas reçu de contenu => 404
+        if ((context.contentType==='text/html' || context.contentType==='text/plain') && !data.content) {
+          context.status = 404;
+          data.content = 'not found';
+          context.contentType = 'text/plain';
+        }
+      }
+      lassi.emit('beforeTransport', context, data);
+
+      // Si une erreur s'est produite et que rien n'a été fait dans l'event, on envoie
+      // une erreur standard
+      if (context.error) {
+        var head = context.error.toString();
+        lassi.log('Lassi', head.red, context.error.stack.toString().replace(head, ''));
+        context.contentType = 'text/plain';
+        context.status = 500;
+        data.content = 'Server Error';
       }
 
-      // Content type par défaut
-      data.$contentType = data.$contentType || 'text/plain';
-
-      // Si on n'a pas reçu de contenu => 404
-      if ((data.$contentType==='text/html' || data.$contentType==='text/plain') && !data.content) {
-        data.$status = 404;
-        data.content = 'not found';
-        data.$contentType = 'text/plain';
-      }
-
-      lassi.emit('beforeTransport', data);
-      var transport = lassi.transports[data.$contentType];
+      // Sélection du transport et processing
+      var transport = lassi.transports[context.contentType];
       transport.process(data, this);
     })
+
     .seq(function(content) {
-      if (data.$status) {
-        context.response.status(data.$status);
-        if (data.$status > 300 && data.$status < 400) {
-          context.response.redirect(data.$location);
+      if (context.status) {
+        context.response.status(context.status);
+        if (context.status > 300 && context.status < 400) {
+          context.response.redirect(context.location);
           return;
         }
       }
-      context.response.setHeader('Content-Type', data.$contentType);
+      context.response.setHeader('Content-Type', context.contentType);
       context.response.send(content);
     })
     .catch(next);

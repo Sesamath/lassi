@@ -22,7 +22,7 @@ monApplication.service('NomService', function() { ... })
 ```
 
 Le service sont globaux. Une fois enregistrés, ils sont accessibles de tous les
-composants. Attention donc aux conflits de nommage. 
+composants. Attention donc aux conflits de nommage.
 
 Une fois un service enregistré, il peut être injecté par exemple dans un autre service en
 indiquant son nom en paramètre de la fonction de callback
@@ -35,7 +35,7 @@ On peut aussi rajouter une entité à un composant. Une entité est un cas parti
 service :
 
 ```javascript
-monApplication.entity('NomEntité', function() { 
+monApplication.entity('NomEntité', function() {
   this.construct(function() {
     this.champ = 'default value';
   })
