@@ -74,7 +74,6 @@ EntityDefinition.prototype.bless = function(entities) {
   if (this.configure) this.configure();
   this.entities = entities;
   this.table = this.table || (this.name[0].toLowerCase()+this.name.substr(1)).replace(/([A-Z])/g, function($1){return '_'+$1.toLowerCase();});
-  console.log(this.name, this.table);
   this.entityClass = this.entityClass || function() {};
   return this;
 }
@@ -103,7 +102,7 @@ EntityDefinition.prototype.match = function() {
 }
 
 /**
- * Ajoute un constructeur. 
+ * Ajoute un constructeur.
  * @param {function} fn Constructeur
  */
 EntityDefinition.prototype.construct = function(fn) {
@@ -111,7 +110,7 @@ EntityDefinition.prototype.construct = function(fn) {
 }
 
 /**
- * Ajoute un traitement avant stockage.  
+ * Ajoute un traitement avant stockage.
  * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
  */
 EntityDefinition.prototype.beforeStore = function(fn) {
@@ -119,7 +118,7 @@ EntityDefinition.prototype.beforeStore = function(fn) {
 }
 
 /**
- * Ajoute une traitement après stockage.  
+ * Ajoute une traitement après stockage.
  * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
  */
 EntityDefinition.prototype.afterStore = function(fn) {
@@ -127,7 +126,7 @@ EntityDefinition.prototype.afterStore = function(fn) {
 }
 
 /**
- * Ajoute une traitement après chargement.  
+ * Ajoute une traitement après chargement.
  * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
  */
 EntityDefinition.prototype.afterLoad = function(fn) {

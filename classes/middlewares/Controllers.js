@@ -40,6 +40,17 @@ var flow         = require('seq');
 function Controllers() { }
 util.inherits(Controllers, EventEmitter)
 
+function merge(a,b) {
+  _.each(b, function(v, k) {
+    if (_.isArray(a[k])) {
+      a[k] = a[k].concat(v);
+    } else if (typeof a[k] === 'object') {
+      merge(a[k],v);
+    } else {
+      a[k] = v;
+    }
+  });
+}
 
 /**
 * Génération du middleware Express.
@@ -53,6 +64,9 @@ Controllers.prototype.middleware = function() {
    * @fires Controllers#request
    */
   return function(request, response, next) {
+
+    // Première entrées, on collectionne toutes les actions
+    // disponibles
     if (!self.actions) {
       self.actions = [];
       _.each(lassi.components, function(component) {
@@ -63,73 +77,82 @@ Controllers.prototype.middleware = function() {
         });
       });
     }
-    request.data = {};
+
+    // Parsing de l'url
     if (!request.parsedUrl) request.parsedUrl = parse(request.url);
 
+    // Génération du contexte
     var context = new Context(request, response);
-    var actions = [];
-    var params;
+
+    // Sélection des actions déclenchables
+    var params, actionnables = [];
     _.each(self.actions, function(action) {
       if (params = action.match(request.method, request.parsedUrl.pathname)) {
-        actions.push({action: action, params: params});
+        actionnables.push({action: action, params: params});
       }
     });
 
+    // Espace de stockage des résultats
     var data = {};
-    flow(actions)
-    .seqEach(function(action) {
-      var nextAction = this;
-      context.arguments = action.params;
 
-      if (action.action.middleware) {
-        action.action.middleware(request, response, function() { nextAction();  });
+    // Séquencement des actions
+    flow(actionnables)
+    .seqEach(function(actionnable) {
+      var nextAction = this;
+      context.arguments = actionnable.params;
+
+      // L'actionnable est un middleware
+      if (actionnable.action.middleware) {
+        actionnable.action.middleware(request, response, function() { nextAction();  });
+
+      // L'acttionnable est une action
       } else {
-        action.action.execute(context, function(error, result) {
-          result = result || {};
+        actionnable.action.execute(context, function(error, result) {
           if (error) return next(error);
-          if (typeof result=='object') {
-            _.extend(data, result);
-          } else {
-            data = result;
-          }
-          if (result.$metas) {
-            data.$metas = data.$metas || {};
-            _.each(result.$metas, function(v,k) {
-              if (k=='css' || k=='js') {
-                if (!_.isArray(v)) v = [ v ];
-                data.$metas[k] = data.$metas[k] || [];
-                console.log('====', k);
-                data.$metas[k] = data.$metas[k].concat(v);
-              } else {
-                data.$metas[k] = v;
-              }
-            });
-          }
+
+          result = result || {};
+
+          // Status : 40X,30X
           if (context.status) {
+            data.$contentType = data.$contentType || 'text/plain';
             data.$status = context.status;
             data.content = context.message;
             data.$location = context.location;
           }
+
+          // Si le résultat et une simple chaîne, on la transforme en content et on affecte
+          // un content type adapté
+          else if (typeof result === 'string') {
+            data.$contentType = data.$contentType || 'text/plain';
+            data.content = result;
+          }
+
+          // Cas général d'un retour objet à merger
+          else {
+            merge(data, result);
+          }
+
           nextAction();
         });
       }
     })
     .seq(function() {
-      console.log(data);
-      data.$contentType = data.$contentType || 'text/plain';
-      /*
-      if (!lassi.transports[data.$contentType]) {
-        data.$contentType = undefined;
+      // Cas d'une redirection, on passe en fast-track
+      if (data.$location) {
+        response.redirect(data.$location);
+        return;
       }
-      if (data.$contentType) {
-        if (data.$status) {
-          data.$contentType = 'text/plain';
-        } else if (data.content) {
-          data.$contentType = 'text/html';
-        } else {
-          data.$contentType = 'application/json';
-        }
-      }*/
+
+      // Content type par défaut
+      data.$contentType = data.$contentType || 'text/plain';
+
+      // Si on n'a pas reçu de contenu => 404
+      if ((data.$contentType==='text/html' || data.$contentType==='text/plain') && !data.content) {
+        data.$status = 404;
+        data.content = 'not found';
+        data.$contentType = 'text/plain';
+      }
+
       lassi.emit('beforeTransport', data);
       var transport = lassi.transports[data.$contentType];
       transport.process(data, this);

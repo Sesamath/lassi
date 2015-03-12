@@ -27,21 +27,14 @@ var flow = require('seq');
 var util = require('util');
 var Renderer = require('./Renderer');
 var Metas = require('./Metas');
-var EventEmitter = require('events').EventEmitter
-var util         = require('util');
 var pathlib = require('path');
 
 /**
  * Gestion du transport HTML.
- * @param {Application} application L'application parente
- * @extends Emitter
  */
-function HtmlTransport(application) {
-  // Initialisation du mixin Emitter
-  this.application = application;
+function HtmlTransport() {
   this.engine = new Renderer();
 }
-util.inherits(HtmlTransport, EventEmitter)
 
 /**
 * Définit le layout à appliquer lorsque décorateurs et action sont
@@ -65,7 +58,6 @@ HtmlTransport.prototype.process = function(data, next) {
   var self = this;
   var sections = _.filter(_.keys(data), function(i) { return i.charAt(0)!=='$' });
   var metas = new Metas(data.$metas || {});
-  self.emit('metas', metas);
   flow(sections)
     .seqEach(function(key) {
       if (key.charAt[0]==='$') return this();

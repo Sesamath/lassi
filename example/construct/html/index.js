@@ -46,12 +46,14 @@ lassi.component('example-html')
   this.get('*', function(context) {
     if (context.request.url.indexOf('/api/')===0) return context.next();
     context.next({
-      $layout: 'layout-page',
-      $metas: {
-        title: $appSettings.title(),
-        css: ['styles/main.css'],
-        js: ['vendors/jquery.min.js'],
+      $views: __dirname+'/views',
+      $contentType: 'text/html',
+      $metas : {
+        title : $appSettings.title(),
+        css   : ['styles/main.css'],
+        js    : ['vendors/jquery.min.js'],
       },
+      $layout : 'layout-page',
       sidebar: {
         $view: 'sidebar',
         actions: [
@@ -67,13 +69,15 @@ lassi.component('example-html')
 
   this.get(function(context) {
     context.next(null, {
-      $contentType: 'text/html',
-      $layout: 'layout-page',
-      $views: __dirname+'/views',
+      $metas : {
+        title: 'test',
+        css: [ 'aaa' ]
+      },
       content: {
         $view: 'home',
         message: 'Bienvenue !!'}
-    });
+      }
+    );
   });
 
   this.get('redirect', function(context) {
