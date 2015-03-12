@@ -25,11 +25,7 @@
 lassi.component('example-html')
 
 .config(function() {
-  lassi.transports.html.on('metas', function(metas) {
-    metas.addCss('styles/main.css');
-    metas.addJs('vendors/jquery.min.js');
-  });
-  lassi.controllers.on('beforeTransport', function(data) {
+  lassi.on('beforeTransport', function(data) {
     if (data.$status && data.$status > 400 && data.$status < 500) {
       data.$layout = 'layout-'+data.$status;
       data.$contentType = 'text/html';
@@ -38,26 +34,22 @@ lassi.component('example-html')
   });
 })
 
-.service('$settings', function() {
+.service('appSettings', function() {
   return {
-    title: function() { return 'Titre via $settings'; }
+    title: function() { return 'Titre via appSettings'; }
   }
 })
 
-.controller(function($settings) {
-  this.renderAs({
-    $contentType: 'text/html',
-    $layout: 'layout-page',
-    $views: __dirname+'/views'
-  });
-
+.controller(function(appSettings) {
   this.serve(__dirname+'/public');
 
   this.get('*', function(context) {
     if (context.request.url.indexOf('/api/')===0) return context.next();
     context.next({
       $metas: {
-        title: $settings.title(),
+        title: appSettings.title(),
+        css: ['styles/main.css'],
+        js: ['vendors/jquery.min.js'],
       },
       sidebar: {
         $view: 'sidebar',
@@ -74,6 +66,9 @@ lassi.component('example-html')
 
   this.get(function(context) {
     context.next(null, {
+      $contentType: 'text/html',
+      $layout: 'layout-page',
+      $views: __dirname+'/views',
       content: {
         $view: 'home',
         message: 'Bienvenue !!'}

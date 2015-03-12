@@ -32,29 +32,6 @@ function Metas(metas) {
   _.extend(this, metas);
 }
 
-/**
-* Ajout un fichier css.
-* @param {String} path l'url relative à la racine (sans / au démarrage) du fichier.
-*/
-Metas.prototype.addCss = function(path) {
-  this.css.push('/'+path);
-}
-
-/**
- * Ajout un fichier js.
- * @param {String} path l'url relative à la racine (sans / au démarrage) du fichier.
- */
-Metas.prototype.addJs = function(path) {
-  if (typeof path === 'string') {
-    this.js.push(path);
-  } else {
-    if (!this.settings) this.settings = {};
-    for(var key in path) {
-      this.settings[key] = path[key];
-    }
-  }
-}
-
 function stripTags(source) {
   return source.replace(/(<([^>]+)>)/ig,"");
 }
@@ -151,14 +128,23 @@ Metas.prototype.head = function() {
   }
 
   this.css.forEach(function(path) {
-    head.addLink('stylesheet', path, {type:'text/css', media:'all'});
+    head.addLink('stylesheet', '/'+path, {type:'text/css', media:'all'});
   }, this);
 
-  this.js.forEach(function(path) {
-    head.add('script', {type: 'text/javascript', src: path}, '');
-  }, this);
-  if (this.settings) {
-    head.add('script', {type: 'text/javascript'}, 'settings = '+JSON.stringify(this.settings));
+  var settings;
+  _.each(this.js, function(path) {
+    if (typeof path === 'string') {
+      head.add('script', {type: 'text/javascript', src: path}, '');
+    } else {
+      if (!settings) settings = {};
+      _.each(path, function(v,k) {
+        settings[k] = v;
+      });
+    }
+  });
+
+  if (settings) {
+    head.add('script', {type: 'text/javascript'}, 'settings = '+JSON.stringify(settings));
   }
   return head;
 }

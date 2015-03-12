@@ -1,13 +1,13 @@
 var _ = require('underscore')._;
 
 function Services() {
-  this.services = {};
+  this._services = {};
 }
 
 Services.prototype.register = function(name, service) {
-  if (this.services[name]) throw new Error('Already registered service '+name);
-  console.log("register ", name);
-  this.services[name] = service;
+  if (this._services[name]) throw new Error('Already registered service '+name);
+  lassi.log("lassi", "service", name.blue, "registered");
+  this._services[name] = service;
 }
 
 Services.prototype.parseInjections = function(fn, context) {
@@ -23,11 +23,15 @@ Services.prototype.parseInjections = function(fn, context) {
 }
 
 Services.prototype.resolve = function(name) {
-  if (!this.services[name]) throw new Error('Unknow service '+name);
-  if (typeof this.services[name] === 'function') {
-    this.services[name] = this.parseInjections(this.services[name]);
+  if (!this._services[name]) throw new Error('Unknow service '+name);
+  if (typeof this._services[name] === 'function') {
+    this._services[name] = this.parseInjections(this._services[name]);
   }
-  return this.services[name];
+  return this._services[name];
+}
+
+Services.prototype.services = function() {
+  return this._services;
 }
 
 module.exports = Services;

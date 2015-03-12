@@ -24,7 +24,7 @@
 
 var parse        = require('url').parse;
 var _            = require('underscore')._;
-var Context      = require('./Context');
+var Context      = require('../Context');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
 var flow         = require('seq');
@@ -37,9 +37,7 @@ var flow         = require('seq');
  * @private
  * @extends Emitter
  */
-function Controllers(application) {
-  this.application = application;
-}
+function Controllers() { }
 util.inherits(Controllers, EventEmitter)
 
 
@@ -57,20 +55,18 @@ Controllers.prototype.middleware = function() {
   return function(request, response, next) {
     if (!self.actions) {
       self.actions = [];
-      _.each(self.application.components, function(component) {
+      _.each(lassi.components, function(component) {
         _.each(component.controllers, function(controller) {
           _.each(controller.actions, function(action) {
             self.actions.push(action);
           });
         });
       });
-      console.log(self.actions);
     }
     request.data = {};
     if (!request.parsedUrl) request.parsedUrl = parse(request.url);
 
     var context = new Context(request, response);
-    context.contentType = 'application/json';
     var actions = [];
     var params;
     _.each(self.actions, function(action) {
@@ -96,12 +92,18 @@ Controllers.prototype.middleware = function() {
           } else {
             data = result;
           }
-          if (action.action.controller._renderAs) {
-            _.extend(data, action.action.controller._renderAs);
-          }
           if (result.$metas) {
             data.$metas = data.$metas || {};
-            _.extend(data.$metas, result.$metas);
+            _.each(result.$metas, function(v,k) {
+              if (k=='css' || k=='js') {
+                if (!_.isArray(v)) v = [ v ];
+                data.$metas[k] = data.$metas[k] || [];
+                console.log('====', k);
+                data.$metas[k] = data.$metas[k].concat(v);
+              } else {
+                data.$metas[k] = v;
+              }
+            });
           }
           if (context.status) {
             data.$status = context.status;
@@ -113,7 +115,10 @@ Controllers.prototype.middleware = function() {
       }
     })
     .seq(function() {
-      if (!self.application.transports[data.$contentType]) {
+      console.log(data);
+      data.$contentType = data.$contentType || 'text/plain';
+      /*
+      if (!lassi.transports[data.$contentType]) {
         data.$contentType = undefined;
       }
       if (data.$contentType) {
@@ -124,10 +129,9 @@ Controllers.prototype.middleware = function() {
         } else {
           data.$contentType = 'application/json';
         }
-      }
-      console.log(data);
-      self.emit('beforeTransport', data);
-      var transport = self.application.transports[data.$contentType];
+      }*/
+      lassi.emit('beforeTransport', data);
+      var transport = lassi.transports[data.$contentType];
       transport.process(data, this);
     })
     .seq(function(content) {

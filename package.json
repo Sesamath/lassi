@@ -2,6 +2,7 @@
     "name": "lassi",
     "version": "1.8.4",
     "private": true,
+    "main": "./classes/Lassi",
     "bin": {
         "lassi": "./bin/lassi.js"
     },

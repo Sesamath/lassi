@@ -2,7 +2,8 @@
 module.exports = {
   application : {
     name: 'Bang Lassi',
-    staging: 'dev'
+    staging: 'dev',
+    mail: 'toto'
   },
   entities : {
     database : {
@@ -21,7 +22,7 @@ module.exports = {
   },
 
   server : {
-    port: 8000
+    port: 3000
   },
 
   rail : {

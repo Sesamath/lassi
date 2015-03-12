@@ -37,11 +37,10 @@ var util = require('util')
  * @constructor
  * @private
  */
-function SessionStore(application, options) {
-  this.$cache = application.services.resolve('$cache');
+function SessionStore(options) {
+  this.$cache = lassi.service('$cache');
   options = options || {};
   Store.call(this, options)
-  this.application = application;
   /*
   var file = lassi.fs.join(this.application.settings.layout.temp, "sessions.json");
   lassi.fs.readFile(file, function(error, data) {

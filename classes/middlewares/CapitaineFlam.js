@@ -25,11 +25,10 @@
 var os = require('os');
 var util = require('util');
 
-function CapitaineFlam(application) {
-  this.application = application;
-  this.settings = this.application.settings.rail.capitaineFlam || {};
+function CapitaineFlam() {
 }
 CapitaineFlam.prototype.generateError = function(request, error) {
+  this.settings = this.application.settings.rail.capitaineFlam || {};
   console.log('CROTTE');
   var body = {};
   if (request.user) body.User = JSON.stringify(request.user, undefined, 2);

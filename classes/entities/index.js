@@ -71,7 +71,7 @@ Entities.prototype.define = function(name) {
  * @param {SimpleCallback} next callback de retour
  * @private
  */
-Entities.prototype.initializeEntityStorage = function(entity, next) {
+Entities.prototype.initializeEntity = function(entity, next) {
   var self = this
 
   function createStore(next) {
@@ -132,33 +132,18 @@ Entities.prototype.initializeEntityStorage = function(entity, next) {
  * @param {SimpleCallback} next callback de retour.
  * @fires Entities#storageInitialized
  */
-Entities.prototype.initializeStorage = function(next) {
+Entities.prototype.initialize = function(next) {
   var self = this
   flow()
-    .seq(function() {
-      var _next = this;
-      DatabaseManager.instance().createClient(self.settings.database, function(error, client) {
-        if (error) return _next(error);
-        self.database = client;
-        _next();
-      });
-    })
-    .set(_.values(this.entities))
-    .seqEach(function(entity) {
-      var _next = this;
-      self.initializeEntityStorage(entity, function(error) {
-        if (error) return _next(error);
-        /**
-         * Évènement généré lorsque le modèle est synchronisé.
-         * @event Entities#storageInitialized
-         */
-        self.emit('storageIntialized', entity.name);
-        _next();
-      });
-    })
-    .empty()
-    .seq(next)
-    .catch(next);
+  .seq(function() {
+    var _next = this;
+    DatabaseManager.instance().createClient(self.settings.database, function(error, client) {
+      if (error) return _next(error);
+      self.database = client;
+      _next();
+    });
+  })
+  .empty().seq(next).catch(next);
 }
 
 /**
