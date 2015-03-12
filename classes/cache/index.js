@@ -23,6 +23,11 @@
 */
 
 var MemoryEngine = require('./MemoryEngine');
+
+/**
+ * Le gestionnaire de cache, initialisé avec memory sur le slot ''
+ * @constructor
+ */
 function CacheManager() {
   this.engines = [];
   this.addEngine('', 'memory', {});
@@ -38,6 +43,14 @@ function sanitizeHashKey(source) {
   return source.replace(/\x00-\x20\x7F-\xA0]/, '');
 }
 
+/**
+ * Ajoute un gestionnaire de cache
+ * @param slot Le préfixe des clés (laisser vide si un seul gestionnaire),
+ *             permet d'affecter la clé slot1_foo au gestionnaire slot1_ et slot2_bar au gestionnaire slot2_
+ * @param driver memory|memcache
+ * @param settings Inutile pour memory, passer 'host:port' pour memcache si c'est différent de localhost:11211
+ *      (ou une liste de serveurs memcached, cf doc du module npm memcached pour voir ce qu'il accepte)
+ */
 CacheManager.prototype.addEngine = function(slot, driver, settings) {
   settings = settings || {};
   var engine;
@@ -56,6 +69,13 @@ CacheManager.prototype.addEngine = function(slot, driver, settings) {
   this.engines.unshift({slot: slot, engine: engine});
 }
 
+/**
+ * Affecte une valeur dans le cache
+ * @param {string}   key        Clé (sera nettoyée des caractères non ascii)
+ * @param {*}        value      Valeur
+ * @param {number}   ttl        Durée de vie en ms
+ * @param {function} [callback] Callback à appeler quand la valeur sera stockée
+ */
 CacheManager.prototype.set = function(key, value, ttl, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
@@ -66,6 +86,12 @@ CacheManager.prototype.set = function(key, value, ttl, callback) {
   }
 }
 
+/**
+ * Récupère une valeur du cache
+ * @param key
+ * @param callback
+ * @returns {*}
+ */
 CacheManager.prototype.get = function(key, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
@@ -75,6 +101,12 @@ CacheManager.prototype.get = function(key, callback) {
   }
 }
 
+/**
+ * Supprime une valeur du cache
+ * @param key
+ * @param callback
+ * @returns {*|Controller}
+ */
 CacheManager.prototype.delete = function(key, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {

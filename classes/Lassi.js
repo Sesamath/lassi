@@ -54,6 +54,10 @@ function Lassi(root) {
   var HtmlTransport = require('./transport/html');
   var JsonTransport = require('./transport/json');
   var RawTransport = require('./transport/raw');
+  /**
+   * Liste de transports (html, json et raw au bootstrap,
+   * avec les alias 'text/html', 'application/json' et 'text/plain')
+   */
   this.transports.html = new HtmlTransport(this);
   this.transports.json = new JsonTransport(this);
   this.transports.raw = new RawTransport(this);
@@ -61,7 +65,14 @@ function Lassi(root) {
   this.transports['text/html'] = this.transports.html;
   this.transports['application/json'] = this.transports.json;
   this.transports['application/jsonp'] = this.transports.json;
+  /**
+   * Liste de {@link Component}, sous la forme name:component
+   */
   this.components = {};
+  /**
+   * La liste des services, contiendra au minimum $cache et $entities
+   * @type {Services}
+   */
   this.services = new Services();
   this.services.register('$settings', require('./services/settings'));
   this.services.resolve('$settings').load(root);
