@@ -29,8 +29,9 @@ var Component    = require('./Component');
 var Services     = require('./tools/Services');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
-var colors       = require('colors');
+var fs           = require('fs');
 var tty          = require('tty');
+require('colors');
 
 /**
  * Callback simple.
@@ -65,27 +66,29 @@ function Lassi(root) {
   this.transports['text/html'] = this.transports.html;
   this.transports['application/json'] = this.transports.json;
   this.transports['application/jsonp'] = this.transports.json;
-  /**
-   * Liste de {@link Component}, sous la forme name:component
-   */
+
   this.components = {};
-  /**
-   * La liste des services, contiendra au minimum $cache et $entities
-   * @type {Services}
-   */
   this.services = new Services();
-  this.services.register('$settings', require('./services/settings'));
-  this.services.resolve('$settings').load(root);
-  this.services.register('$cache', require('./services/cache'));
-  this.services.register('$entities', require('./services/entities'));
-  this.services.register('$rail', require('./services/rail'));
-  this.services.register('$server', require('./services/server'));
+  lassi.root = root;
+  lassi.component('lassi')
+    .service('$settings', require('./services/settings'))
+    .service('$cache', require('./services/cache'))
+    .service('$entities', require('./services/entities'))
+    .service('$rail', require('./services/rail'))
+    .service('$server', require('./services/server'));
+
+  root = fs.realpathSync(root);
+  var settingsPath = root+'/config';
+  lassi.settings = require(settingsPath);
+  lassi.settings.root = root;
+  this.defaultDependencies = _.keys(lassi.components);
 }
 
 util.inherits(Lassi, EventEmitter)
 
 Lassi.prototype.startup = function(component, next) {
   var self = this;
+  component.dependencies = this.defaultDependencies.concat(component.dependencies);
   flow()
   // Configuration des composants
   .seq(function() { component.configure(); this(); })
