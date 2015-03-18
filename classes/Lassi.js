@@ -98,6 +98,7 @@ Lassi.prototype.startup = function(component, next) {
     var setupables = [];
     _.each(self.services.services(), function(service, name) {
       service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
+      if (!service) throw new Error("Le service " +name +" n'a pu être résolu (il ne retourne probablement rien)")
       if (service.setup) {
         lassi.log("lassi", 'setting up', name.blue);
         setupables.push(service);
