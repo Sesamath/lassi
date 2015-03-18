@@ -65,7 +65,7 @@ function Lassi(root) {
   this.transports['text/plain'] = this.transports.raw;
   this.transports['text/html'] = this.transports.html;
   this.transports['application/json'] = this.transports.json;
-  this.transports['application/jsonp'] = this.transports.json;
+  this.transports['application/javascript'] = this.transports.raw;
 
   this.components = {};
   this.services = new Services();
