@@ -31,15 +31,27 @@ var _ = require('underscore')._;
  * @constructor
  */
 function Context(request, response) {
-  /** la requête Express (@see http://expressjs.com/api.html#request) */
+  /**
+   * La requête Express
+   * @see http://expressjs.com/api.html#request
+   */
   this.request      = request;
-  /** la réponse Express (@see http://expressjs.com/api.html#response) */
+  /**
+   * La réponse Express
+   * @see http://expressjs.com/api.html#response
+   */
   this.response     = response;
   /** La méthode http utilisée (en minuscules) */
   this.method       = request.method.toLowerCase();
-  /** Les paramètres passés en get, alias vers request.query */
+  /**
+   * Les paramètres passés en get, alias vers request.query
+   * @see http://expressjs.com/api.html#req.query
+   */
   this.get          = this.request.query;
-  /** Les paramètres passés en post, alias vers request.body */
+  /**
+   * Les paramètres passés en post, alias vers request.body
+   * http://expressjs.com/api.html#req.body
+   */
   this.post         = this.request.body;
   /** La session */
   this.session      = this.request.session;

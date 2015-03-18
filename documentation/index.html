@@ -271,6 +271,22 @@
             </span>
             <ul class="members itemMembers">
             
+            <span class="subtitle">Members</span>
+            
+                <li data-name="Context#get"><a href="Context.html#get">get</a></li>
+            
+                <li data-name="Context#method"><a href="Context.html#method">method</a></li>
+            
+                <li data-name="Context#post"><a href="Context.html#post">post</a></li>
+            
+                <li data-name="Context#request"><a href="Context.html#request">request</a></li>
+            
+                <li data-name="Context#response"><a href="Context.html#response">response</a></li>
+            
+                <li data-name="Context#session"><a href="Context.html#session">session</a></li>
+            
+                <li data-name="Context#user"><a href="Context.html#user">user</a></li>
+            
             </ul>
             <ul class="typedefs itemMembers">
             
@@ -292,6 +308,8 @@
                 <li data-name="Context#isPost"><a href="Context.html#isPost">isPost</a></li>
             
                 <li data-name="Context#json"><a href="Context.html#json">json</a></li>
+            
+                <li data-name="Context#jsonP"><a href="Context.html#jsonP">jsonP</a></li>
             
                 <li data-name="Context#notFound"><a href="Context.html#notFound">notFound</a></li>
             
@@ -532,12 +550,6 @@
             </span>
             <ul class="members itemMembers">
             
-            <span class="subtitle">Members</span>
-            
-                <li data-name="Lassi#components"><a href="Lassi.html#components">components</a></li>
-            
-                <li data-name="Lassi#services"><a href="Lassi.html#services">services</a></li>
-            
             </ul>
             <ul class="typedefs itemMembers">
             
@@ -600,9 +612,9 @@ dossier <code>config</code>)</p>
 composants. Attention donc aux conflits de nommage.</p>
 <p>Une fois un service enregistré, il peut être injecté par exemple dans un autre service en
 indiquant son nom en paramètre de la fonction de callback</p>
-<pre class="prettyprint source lang-javascript"><code>monApplication.service('NomAutreService', function(NomService) { ... })</code></pre><p>On peut aussi rajouter une entité à un composant. Une entité est un cas particulier de
+<pre class="prettyprint source lang-javascript"><code>monComposant.service('NomAutreService', function(NomService) { ... })</code></pre><p>On peut aussi rajouter une entité à un composant. Une entité est un cas particulier de
 service :</p>
-<pre class="prettyprint source lang-javascript"><code>monApplication.entity('NomEntité', function() {
+<pre class="prettyprint source lang-javascript"><code>monComposant.entity('NomEntité', function() {
   this.construct(function() {
     this.champ = 'default value';
   })
@@ -620,11 +632,33 @@ service :</p>
   })
   this.defineIndex('champ', 'integer', function() { });
 })</code></pre><p>Elle peut donc aussi être injectée :</p>
-<pre class="prettyprint source lang-javascript"><code>monApplication.service('NomAutreService', function(NomService, NomEntité) { ... })</code></pre><p>Pour paramétrer un composant, on peut lui adjoindre un configurateur</p>
-<pre class="prettyprint source lang-javascript"><code>monComposant.config(function() { /* code exécuté à l'init du composant */ })</code></pre><p>On peut ensuite rajoute des controllers qui peuvent avoir des dépendances</p>
-<pre class="prettyprint source lang-javascript"><code>monApplication.controller(function(MonService, MonEntité) {
-  this.get(function(context) {
-    context.next(null, {hello: 'world'});
+<pre class="prettyprint source lang-javascript"><code>monComposant.service('NomAutreService', function(NomService, NomEntité) { ... })</code></pre><p>Pour paramétrer un composant, on peut lui adjoindre un configurateur</p>
+<pre class="prettyprint source lang-javascript"><code>monComposant.config(function() { /* code exécuté à l'init du composant */ })</code></pre><p>On peut ensuite rajouter des controllers qui peuvent avoir des dépendances</p>
+<pre class="prettyprint source lang-javascript"><code>monApplication.controller('chemin/du/controleur', function(MonService, MonEntité) {
+
+  // une première action pour la route chemin/du/controleur/cheminAction/*/* en get
+  this.get('cheminAction/:foo/:bar', function(context) {
+    // le code de cette action, on peut récupérer les paramètres de la route passée en 1er argument
+    var myFoo = context.arguments.foo;
+    var myBar = context.arguments.bar;
+    // pour utiliser un transport (en fait rendu) défini ailleurs
+    context.next(null, {hello: 'world', foo:myFoo, bar:myBar});
+    // pour imposer ici un rendu html (à la place de la ligne précédente)
+    context.html({
+      $views: __dirname+'/views', // dossier des vues
+      $metas : {
+        title : 'Mon titre de page',
+        css   : ['styles/main.css'], // des css à ajouter en &lt;head>
+        js    : ['vendors/jquery.min.js'], // des js à ajouter en &lt;head>
+      },
+      $layout : 'layout-page', // le layout à utiliser (dans le dossier views)
+      layoutBloc1 : {
+        $view : 'foo', // le nom de la vue dans $views, à laquelle on passera les variables qui suivent
+        bar : 'une valeur'
+        // le rendu de cette vue sera envoyé au layout dans la variable layoutBloc1
+      },
+      baz : 'autre valeur' // variable baz passée directement au layout
+    })
   });
 })</code></pre><p><code>controller()</code> peut prendre en premier paramètre un chemin racine d'url, auquel cas ce chemin
 sera utilisé pour les actions qu'il contient. De même l'action peut avoir un chemin en
@@ -647,7 +681,7 @@ monApplication.controller('une/racine', function() {
         
 
         <footer>
-            Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-beta1</a> on Fri Mar 13 2015 00:54:30 GMT+0100 (CET)
+            Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-beta2</a> on Wed Mar 18 2015 16:38:55 GMT-0500 (COT)
         </footer>
     </div>
 </div>
