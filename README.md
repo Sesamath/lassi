@@ -81,19 +81,25 @@ monApplication.controller('chemin/du/controleur', function(MonService, MonEntit�
     context.next(null, {hello: 'world', foo:myFoo, bar:myBar});
     // pour imposer ici un rendu html (à la place de la ligne précédente)
     context.html({
-      $views: __dirname+'/views', // dossier des vues
+      // le dossier dans lequel on cherchera les vues
+      $views: __dirname+'/views',
+      // les infos à mettre dans le <head>
       $metas : {
         title : 'Mon titre de page',
-        css   : ['styles/main.css'], // des css à ajouter en <head>
-        js    : ['vendors/jquery.min.js'], // des js à ajouter en <head>
+        css   : ['styles/main.css'],
+        js    : ['vendors/jquery.min.js'],
       },
-      $layout : 'layout-page', // le layout à utiliser (dans le dossier views)
-      layoutBloc1 : {
-        $view : 'foo', // le nom de la vue dans $views, à laquelle on passera les variables qui suivent
+      // le layout à utiliser (dans le dossier views)
+      $layout : 'layout-page',
+      // les sections, chaque propriété qui ne commence pas par $ sera envoyé à la vue)
+      // le rendu de la section sera envoyé au layout (comme valeur d'une variable ayant le nom de la section)
+      section1 : {
+        // le nom de la vue dans $views, si absent on prendra le nom de la section
+        $view : 'foo',
+        // les propriétés envoyées à la vue
         bar : 'une valeur'
-        // le rendu de cette vue sera envoyé au layout dans la variable layoutBloc1
       },
-      baz : 'autre valeur' // variable baz passée directement au layout
+      baz : 'autre valeur' // variable baz passée directement au layout sans rendu si ce n'est pas un objet
     })
   });
 })
