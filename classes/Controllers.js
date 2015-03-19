@@ -164,7 +164,9 @@ Controllers.prototype.middleware = function() {
       }
 
       // Sélection du transport et processing
+      if (!context.contentType) return this(new Error('No content type defined'));
       var transport = lassi.transports[context.contentType];
+      if (!transport) return this(new Error('No renderer found for contentType:'+context.contentType));
       transport.process(data, this);
     })
 
