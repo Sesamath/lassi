@@ -25,18 +25,37 @@ var _ = require('underscore')._;
 
 /**
  * Contexte d'exécution d'une action.
- * @param {Request} request la requête Express.
- * @param {Response} response la réponse Express.
+ * @param {Request} request la requête Express
+ * @param {Response} response la réponse Express
  * @fires Lassi#context
  * @constructor
  */
 function Context(request, response) {
+  /**
+   * La requête Express
+   * @see http://expressjs.com/api.html#request
+   */
   this.request      = request;
+  /**
+   * La réponse Express
+   * @see http://expressjs.com/api.html#response
+   */
   this.response     = response;
+  /** La méthode http utilisée (en minuscules) */
   this.method       = request.method.toLowerCase();
+  /**
+   * Les paramètres passés en get, alias vers request.query
+   * @see http://expressjs.com/api.html#req.query
+   */
   this.get          = this.request.query;
+  /**
+   * Les paramètres passés en post, alias vers request.body
+   * http://expressjs.com/api.html#req.body
+   */
   this.post         = this.request.body;
+  /** La session */
   this.session      = this.request.session;
+  /** Le user courant */
   this.user         = this.request.user;
   /**
    * Évènement généré de la création d'un nouveau contexte.
@@ -110,6 +129,28 @@ Context.prototype.notFound = function(message) {
 Context.prototype.json = function(data) {
   this.contentType = 'application/json';
   this.next(null, data);
+}
+
+/**
+ * Renvoie une réponse de type jsonP (du code js)
+ * Appelle la fonction précisée dans context.$callbackName, ou passée en get avec ?callback=...
+ * ou à défaut "callback"
+ * @param {object} data Les données à passer en paramètre à la fct de callback,
+ *                      attention à ne pas envoyer de références circulaires
+ */
+Context.prototype.jsonP = function(data) {
+  this.contentType = 'application/javascript';
+  // on formate le code js
+  var callbackName = this.$callbackName || this.get.callback || 'callback'
+  var jsString = callbackName +'('
+  // stringify peut planter en cas de références circulaire (faudra cloner avant)
+  try {
+    jsString += JSON.stringify(data)
+  } catch (error) {
+    jsString += '{ "error" : "' +error.toString().replace('"', '\\"') +'"}'
+  }
+  jsString += ');'
+  this.next(null, jsString);
 }
 
 /**

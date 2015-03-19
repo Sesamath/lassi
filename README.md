@@ -28,14 +28,14 @@ Une fois un service enregistré, il peut être injecté par exemple dans un autr
 indiquant son nom en paramètre de la fonction de callback
 
 ```javascript
-monApplication.service('NomAutreService', function(NomService) { ... })
+monComposant.service('NomAutreService', function(NomService) { ... })
 ```
 
 On peut aussi rajouter une entité à un composant. Une entité est un cas particulier de
 service :
 
 ```javascript
-monApplication.entity('NomEntité', function() {
+monComposant.entity('NomEntité', function() {
   this.construct(function() {
     this.champ = 'default value';
   })
@@ -58,7 +58,7 @@ monApplication.entity('NomEntité', function() {
 Elle peut donc aussi être injectée :
 
 ```javascript
-monApplication.service('NomAutreService', function(NomService, NomEntité) { ... })
+monComposant.service('NomAutreService', function(NomService, NomEntité) { ... })
 ```
 
 Pour paramétrer un composant, on peut lui adjoindre un configurateur
@@ -67,12 +67,34 @@ Pour paramétrer un composant, on peut lui adjoindre un configurateur
 monComposant.config(function() { /* code exécuté à l'init du composant */ })
 ```
 
-On peut ensuite rajoute des controllers qui peuvent avoir des dépendances
+On peut ensuite rajouter des controllers qui peuvent avoir des dépendances
 
 ```javascript
-monApplication.controller(function(MonService, MonEntité) {
-  this.get(function(context) {
-    context.next(null, {hello: 'world'});
+monApplication.controller('chemin/du/controleur', function(MonService, MonEntité) {
+
+  // une première action pour la route chemin/du/controleur/cheminAction/*/* en get
+  this.get('cheminAction/:foo/:bar', function(context) {
+    // le code de cette action, on peut récupérer les paramètres de la route passée en 1er argument
+    var myFoo = context.arguments.foo;
+    var myBar = context.arguments.bar;
+    // pour utiliser un transport (en fait rendu) défini ailleurs
+    context.next(null, {hello: 'world', foo:myFoo, bar:myBar});
+    // pour imposer ici un rendu html (à la place de la ligne précédente)
+    context.html({
+      $views: __dirname+'/views', // dossier des vues
+      $metas : {
+        title : 'Mon titre de page',
+        css   : ['styles/main.css'], // des css à ajouter en <head>
+        js    : ['vendors/jquery.min.js'], // des js à ajouter en <head>
+      },
+      $layout : 'layout-page', // le layout à utiliser (dans le dossier views)
+      layoutBloc1 : {
+        $view : 'foo', // le nom de la vue dans $views, à laquelle on passera les variables qui suivent
+        bar : 'une valeur'
+        // le rendu de cette vue sera envoyé au layout dans la variable layoutBloc1
+      },
+      baz : 'autre valeur' // variable baz passée directement au layout
+    })
   });
 })
 ```
