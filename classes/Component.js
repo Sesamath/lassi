@@ -39,6 +39,7 @@ function Component(name, dependencies) {
   this.entities = {};
   this.services = {};
   this.path = undefined;
+  this.userConfig = [];
 }
 
 /**
@@ -47,7 +48,7 @@ function Component(name, dependencies) {
  * @return {Component} chaînable
  */
 Component.prototype.config = function(fn) {
-  this.userConfig = fn;
+  this.userConfig.push(fn);
   return this;
 }
 
@@ -80,7 +81,9 @@ Component.prototype.configure = function() {
     self.controllers[name] = controller;
   });
 
-  if (self.userConfig) lassi.services.parseInjections(self.userConfig, self);
+  _.each(self.userConfig, function(userConfig) {
+    lassi.services.parseInjections(userConfig, self);
+  });
   this.configured = true;
   lassi.log(this.name, 'initialized');
 }
