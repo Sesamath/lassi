@@ -30,7 +30,17 @@ function DatabaseConnection(client) {
 }
 
 DatabaseConnection.prototype.initialize = function(callback) {
-  this.handler = mysql.createConnection(this.client.settings);
+  var self = this;
+  function buildConnection() {
+    self.handler = mysql.createConnection(self.client.settings);
+    self.handler.on('error', function (error) {
+      if (!error.fatal) return;
+      if (error.code !== 'PROTOCOL_CONNECTION_LOST') throw error;
+      console.error('> Re-connecting lost MySQL connection: ' + error.stack);
+      buildConnection();
+    });
+  }
+  buildConnection();
   callback();
 }
 
