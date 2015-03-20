@@ -66,7 +66,7 @@ Component.prototype.configure = function() {
     var cons = (function(name, entity) {
       return function($entities) {
         var def = $entities.define(name);
-        entity.apply(def);
+        lassi.services.parseInjections(entity, def);
         def.setup = function(cb) {
           $entities.initializeEntity(def, cb);
         }
