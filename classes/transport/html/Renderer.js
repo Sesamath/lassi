@@ -98,6 +98,8 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
   }
 }
 
+// @see https://github.com/linkedin/dustjs/wiki/Dust-Tutorial#Controlling_whitespace_suppression
+
 Renderer.prototype.whiteSpaceKeeper = function(ctx, node) { return node }
 
 Renderer.prototype.disableWhiteSpaceCompression = function () {
