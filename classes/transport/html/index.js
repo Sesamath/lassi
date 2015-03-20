@@ -48,9 +48,7 @@ function HtmlTransport() {
 /**
 * Helper de rendu d'une vue via un composant.
 *
-* @param {Component} component le composant
-* @param {String} view la vue
-* @param {Object} data le context de rendu
+* @param {Object} data les données à rendre
 * @param {SimpleCallback} next la callback de retour
 * @private
 */
@@ -60,9 +58,12 @@ HtmlTransport.prototype.process = function(data, next) {
   var metas = new Metas(data.$metas || {});
   flow(sections)
     .seqEach(function(key) {
-      if (key.charAt[0]==='$') return this();
+      // on autorise l'envoi de string|number directement au layout
+      if (!_.isObject) return this();
       var next = this;
+      // si $view n'existe pas on prendra le nom de la section
       var view = data[key].$view || key;
+      // et on remplace chaque section par son rendu
       self.engine.render(data.$views, view, data[key], function(error, result) {
         if (error) return next(error);
         data[key] = result;

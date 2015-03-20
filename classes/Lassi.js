@@ -81,6 +81,9 @@ function Lassi(root) {
   var settingsPath = root+'/config';
   lassi.settings = require(settingsPath);
   lassi.settings.root = root;
+  // on ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
+  if (!lassi.settings.basePath) lassi.settings.basePath = '/'
+  // et les composants par défaut en premier
   this.defaultDependencies = _.keys(lassi.components);
 }
 

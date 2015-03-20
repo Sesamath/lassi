@@ -81,7 +81,7 @@ Metas.prototype.head = function() {
   }
 
   // Titre de la page
-  this.headTitle = this.pageTitle + ' | ' + this.siteName;
+  this.headTitle = this.pageTitle || this.siteName;
 
   head.add('title', {}, this.headTitle);
 
