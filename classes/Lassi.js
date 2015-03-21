@@ -24,7 +24,7 @@
  */
 
 var flow         = require('seq');
-var _            = require('underscore')._;
+var _            = require('lodash');
 var Component    = require('./Component');
 var Services     = require('./tools/Services');
 var EventEmitter = require('events').EventEmitter

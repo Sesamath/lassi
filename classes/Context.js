@@ -21,7 +21,8 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _ = require('underscore')._;
+
+var _            = require('lodash');
 
 /**
  * Contexte d'exécution d'une action.
@@ -160,6 +161,20 @@ Context.prototype.jsonP = function(data) {
 Context.prototype.html = function(data) {
   this.contentType = 'text/html';
   this.next(null, data);
+}
+
+Context.prototype.fieldError = function(field, message) {
+  var data = {};
+  if (field) data.field = field;
+  data.message = message;
+  data.ok = false;
+  this.json(data);
+}
+
+Context.prototype.rest = function(data) {
+  data = _.clone(data);
+  data.ok = true;
+  this.json(data);
 }
 
 module.exports = Context;

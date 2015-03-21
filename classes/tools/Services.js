@@ -1,4 +1,4 @@
-var _ = require('underscore')._;
+var _            = require('lodash');
 
 function Services() {
   this._services = {};

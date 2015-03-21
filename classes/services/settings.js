@@ -3,7 +3,7 @@
  * @namespace $settings
  */
 module.exports = function() {
-  var _ = require('underscore')._;
+  var _            = require('lodash');
   var should       = require('../tools/Asserts');
 
   function initialize() {

@@ -23,7 +23,7 @@
 */
 
 var parse        = require('url').parse;
-var _            = require('underscore')._;
+var _            = require('lodash');
 var Context      = require('./Context');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');

@@ -23,7 +23,7 @@
  */
 require('colors');
 var util = require('util');
-var _ = require('underscore')._;
+var _            = require('lodash');
 function Asserts() {}
 Asserts.not = {};
 var is = require('./Validate');

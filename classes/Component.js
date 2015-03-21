@@ -23,7 +23,7 @@
  */
 
 var Controller = require('./Controller');
-var _            = require('underscore')._;
+var _            = require('lodash');
 
 /**
  * Construction d'un composant.
