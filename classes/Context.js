@@ -162,23 +162,4 @@ Context.prototype.html = function(data) {
   this.next(null, data);
 }
 
-Context.prototype.restError = function(field, message) {
-  if (typeof field === 'object') {
-    var error = field;
-    field = error.field;
-    message = error.message;
-  }
-  var data = {};
-  if (field) data.field = field;
-  data.message = message;
-  data.ok = false;
-  this.json(data);
-}
-
-Context.prototype.rest = function(data) {
-  data = _.clone(data);
-  data.ok = true;
-  this.json(data);
-}
-
 module.exports = Context;
