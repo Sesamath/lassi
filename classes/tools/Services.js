@@ -12,7 +12,7 @@ Services.prototype.register = function(name, service) {
 
 Services.prototype.parseInjections = function(fn, context) {
   context = context || {};
-  var match = fn.toString().match(/function\s+\(\s*([^\)]*)\s*\)/);
+  var match = fn.toString().match(/function[\s\w]+\(\s*([^\)]*)\s*\)/);
   var args = match[1];
   if (args==='') { args = []; } else { args = args.split(/\s*,\s*/); }
   var self = this;

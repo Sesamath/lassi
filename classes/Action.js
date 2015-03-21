@@ -45,6 +45,7 @@ function Action(controller, methods, path, cb) {
     this.middleware = true;
   } else {
     this.callback = cb;
+    if (cb.timeout) this.timeout = cb.timeout
     this.middleware = undefined;
   }
   if (this.path && this.path.trim()==='') this.path=undefined;
@@ -167,9 +168,7 @@ Action.prototype.match = function(method, path){
  * @param {Function} next
  */
 Action.prototype.execute = function(context, next) {
-  var GLOBAL_TIMEOUT = 1000
-
-  var timeout = GLOBAL_TIMEOUT;
+  var timeout = this.timeout || 1000; // 1s par défaut, que l'on peut overrider avec une proprité timeout sur la fct
   var timer = setTimeout(function() {
     timer = null;
     next(new Error('Timeout while executing ('+timeout+'ms)'));
