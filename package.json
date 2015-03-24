@@ -16,7 +16,7 @@
     "memcached": "^0.2.8",
     "mime": "^1.2.11",
     "mkdirp": "^0.5.0",
-    "seq": "git+ssh://git@github.com:yoran-brault/node-seq.git",
+    "seq": "https://github.com/substack/node-seq.git",
     "static-favicon": "~1.0.0",
     "validator": "^3.16.0"
   },
