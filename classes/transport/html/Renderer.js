@@ -43,8 +43,12 @@ Renderer.prototype.helper = function(name, callback) {
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
   // Normalize
   var path = unresolvedPath;
+  // ajout de l'extension si elle n'y est pas
   if (pathlib.extname(path)==='') path+='.dust';
-  path = pathlib.resolve(viewsPath, path);
+
+  // on autorise les chemins absolus, sinon c'est relatif a viewsPath
+  // @see https://nodejs.org/api/path.html#path_path_resolve_from_to
+  if (path.charAt(0) !== '/') path = pathlib.resolve(viewsPath, path);
 
   // Check if path exists
   fs.lstat(path, function(err) {
