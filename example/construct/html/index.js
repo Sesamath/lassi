@@ -62,6 +62,9 @@ lassi.component('example-html')
         '<a href="/tagazok">Truc qui existe vraiment pas !</a>',
         '<a href="/error403">403</a>',
         '<a href="/error500">500</a>',
+        '<a href="/timeout">timeout KO</a>',
+        '<a href="/timeout1">timeout OK</a>',
+        '<a href="/too-late">too late..</a>',
         '<a href="/redirect">redirect</a>',
         '<a href="/api/toto">json</a>',
         '<a href="/api/person">entities</a>',
@@ -83,6 +86,28 @@ lassi.component('example-html')
 
   this.get('redirect', function(context) {
     context.redirect('/');
+  });
+
+  this.get('timeout', function(context) {
+    setTimeout(function() {
+      context.plain('coucou');
+    }, 2000);
+  });
+
+  this.get('timeout1', function(context) {
+    context.timeout = 3000;
+    setTimeout(function() {
+      context.plain('coucou');
+    }, 2000);
+  });
+
+  this.get('too-late', function(context) {
+    setTimeout(function() {
+      context.plain('in time...');
+    }, 500);
+    setTimeout(function() {
+      context.plain('too late...');
+    }, 800);
   });
 
   this.get('error404', function(context) {

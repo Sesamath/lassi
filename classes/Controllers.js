@@ -145,15 +145,11 @@ Controllers.prototype.middleware = function() {
         context.contentType = context.contentType || 'text/plain';
 
         // Si on n'a pas reçu de contenu => 404
-        /* Commenté par DC,
-        - pourquoi obliger à avoir une section nommée content
-        - pourquoi répondre en text
-        => on laisse l'appli gérér ses 404 et l'absence de contenu
-        if ((context.contentType==='text/html' || context.contentType==='text/plain') && !data.content) {
+        if (!context.status && _.isEmpty(data)) {
           context.status = 404;
-          data.content = 'not found';
+          data = 'not found';
           context.contentType = 'text/plain';
-        } */
+        }
       }
       lassi.emit('beforeTransport', context, data);
 
