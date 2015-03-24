@@ -163,6 +163,11 @@ Context.prototype.html = function(data) {
   this.next(null, data);
 }
 
+Context.prototype.plain = function(data) {
+  this.contentType = 'text/plain';
+  this.next(null, data);
+}
+
 Context.prototype.fieldError = function(field, message) {
   var data = {};
   if (field) data.field = field;

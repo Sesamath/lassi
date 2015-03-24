@@ -168,22 +168,16 @@ Action.prototype.match = function(method, path){
  * @param {Function} next
  */
 Action.prototype.execute = function(context, next) {
-  var timeout = this.timeout || 1000; // 1s par défaut, que l'on peut overrider avec une proprité timeout sur la fct
-  var timer = setTimeout(function() {
-    timer = null;
-    next(new Error('Timeout while executing ('+timeout+'ms)'));
-  }, timeout);
+  var timer = false;
+  var dataReceived = false;
 
+  function fooProtect() {
+    console.log('Attention, un résultat est arrivé de manière innatendue.');
+    console.trace();
+  }
   function processResult(error, result) {
-    // Si le timer est null ici, c'est que le timeout c'est déjà réalisé
-    // avant que le fonction ne réponde, donc tant pis pour elle et son
-    // résultat...
-    if (!timer) {
-      console.log('Attention, un résultat est arrivé hors du temps impartis. Il est donc ignoré...');
-      return;
-    }
-    clearTimeout(timer);
-    delete context.next;
+    context.next = fooProtect;
+    if (timer) clearTimeout(timer);
     if (typeof result === 'undefined' && !(error instanceof Error)) {
       result = error;
       error = null;
@@ -192,8 +186,19 @@ Action.prototype.execute = function(context, next) {
   }
 
   try {
+    // Timeout de 1s par défaut
+    context.timeout = 1000;
     context.next = processResult;
+
     this.callback.call(context, context);
+
+    // Si aucune donnée synchrone n'est reçue, on arme le timeout
+    if (!dataReceived) {
+      timer = setTimeout(function() {
+        timer = false;
+        next(new Error('Timeout while executing ('+context.timeout+'ms)'));
+      }, context.timeout);
+    }
   } catch(e) {
     processResult(e);
   }
