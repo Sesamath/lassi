@@ -41,15 +41,6 @@ Renderer.prototype.helper = function(name, callback) {
 }
 
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
-  // Si le chemin est absolu, le premier élément est un nom de composant.
-  if (unresolvedPath.charAt(0) == '/') {
-    var parts = unresolvedPath.substr(1).split('/');
-    var componentName = parts.shift();
-    unresolvedPath = parts.join('/');
-    if (!lassi[componentName]) return callback(new Error('Can\'t find component '+componentName+" for dust template "+unresolvedPath));
-    viewsPath = pathlib.join(lassi[componentName].path, 'views');
-  }
-
   // Normalize
   var path = unresolvedPath;
   if (pathlib.extname(path)==='') path+='.dust';
