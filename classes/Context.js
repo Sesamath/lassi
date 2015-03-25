@@ -110,7 +110,7 @@ Context.prototype.redirect = function (path, code) {
  */
 Context.prototype.accessDenied = function(message) {
   this.status = 403;
-  this.next(null, {content: message || "access denied"});
+  this.plain(message || "access denied");
 }
 
 /**
@@ -120,7 +120,7 @@ Context.prototype.accessDenied = function(message) {
  */
 Context.prototype.notFound = function(message) {
   this.status = 404;
-  this.next(null, {content: message || "not found"});
+  this.plain(message || "not found");
 }
 
 /**
@@ -165,7 +165,7 @@ Context.prototype.html = function(data) {
 
 Context.prototype.plain = function(data) {
   this.contentType = 'text/plain';
-  this.next(null, data);
+  this.next(null, {content: data});
 }
 
 Context.prototype.fieldError = function(field, message) {
