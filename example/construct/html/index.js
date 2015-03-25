@@ -24,12 +24,26 @@
 
 lassi.component('example-html')
 
-.config(function() {
+.config(function($appSettings) {
+  var _ = require('lodash');
   lassi.on('beforeTransport', function(context, data) {
-    if (context.contentType !== 'application/json' && context.status && context.status > 400 && context.status < 500) {
-      data.$layout = 'layout-'+context.status;
+    if (context.status >= 400 && context.status < 500) {
       context.contentType = 'text/html';
-      data.content = {$view: 'error', message: data.content};
+      data.$layout = 'layout-'+context.status;
+      data.content = {
+        $view: 'error',
+        message: (context.status==404?'not found':'access denied') + ' ' + context.request.url
+      }
+    }
+    if (context.contentType=='text/html') {
+      data.$metas = data.$metas || {};
+      data.$views = __dirname+'/views';
+      _.extend(data.$metas, {
+        title : $appSettings.title(),
+        css   : ['styles/main.css'],
+        js    : ['vendors/jquery.min.js'],
+      });
+      data.$layout = data.$layout || 'layout-page';
     }
   });
 })
@@ -41,47 +55,42 @@ lassi.component('example-html')
 })
 
 .controller(function($appSettings) {
+  var _ = require('lodash');
   this.serve(__dirname+'/public');
 
-  this.get('*', function(context) {
-    if (context.request.url.indexOf('/api/')===0) return context.next();
-    context.contentType = 'text/html';
-    context.next({
-      $views: __dirname+'/views',
-      $metas : {
-        title : $appSettings.title(),
-        css   : ['styles/main.css'],
-        js    : ['vendors/jquery.min.js'],
-      },
-      $layout : 'layout-page',
-      sidebar: {
-        $view: 'sidebar',
-        actions: [
-        '<a href="/">Accueil</a>',
-        '<a href="/error404">404</a>',
-        '<a href="/tagazok">Truc qui existe vraiment pas !</a>',
-        '<a href="/error403">403</a>',
-        '<a href="/error500">500</a>',
-        '<a href="/timeout">timeout KO</a>',
-        '<a href="/timeout1">timeout OK</a>',
-        '<a href="/too-late">too late..</a>',
-        '<a href="/redirect">redirect</a>',
-        '<a href="/api/toto">json</a>',
-        '<a href="/api/person">entities</a>',
-      ]}});
-  });
+  function sidebar(data) {
+    data.sidebar = {
+      $view: 'sidebar',
+      actions: [
+      '<a href="/">Accueil</a>',
+      '<a href="/images/test.jpg">Fichier statique</a>',
+      '<a href="/vraie404">404 réelle</a>',
+      '<a href="/error404">404 programmée</a>',
+      '<a href="/error403">403 programmée</a>',
+      '<a href="/error500">500</a>',
+      '<a href="/timeout">timeout KO</a>',
+      '<a href="/timeout1">timeout OK</a>',
+      '<a href="/too-late">too late..</a>',
+      '<a href="/redirect">redirect</a>',
+      '<a href="/api/toto">json</a>',
+      '<a href="/api/person">entities</a>',
+    ]};
+    return data;
+  }
 
   this.get(function(context) {
-    context.next(null, {
+    var data = {
       $metas : {
         title: 'test',
         css: [ 'aaa' ]
       },
       content: {
         $view: 'home',
-        message: 'Bienvenue !!'}
+        message: 'Bienvenue !!'
       }
-    );
+    }
+    sidebar(data);
+    context.html(data);
   });
 
   this.get('redirect', function(context) {

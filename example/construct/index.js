@@ -31,7 +31,8 @@ require('./entities');
 
 lassi.component('exemple', ['example-html', 'example-entities', 'example-json'])
 
-.config(function($cache) {
+.config(function($cache, $appSettings) {
+  var _ = require('lodash');
   $cache.addEngine('', 'memcache', '127.0.0.1:11211');
 })
 

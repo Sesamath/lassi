@@ -1,3 +1,6 @@
 <div class="formatted">
 <p>{message}</p>
+<form action="/fail" method="POST">
+<input type="submit" value="fail"/>
+</form>
 </div>
