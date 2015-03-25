@@ -1,6 +1,8 @@
 <div class="formatted">
+<h2>Message du template</h2>
 <p>{message}</p>
+<h2>Formulaire POST sur une url n'existant pas</h2>
 <form action="/fail" method="POST">
-<input type="submit" value="fail"/>
+<input type="submit" value="Cliquer pour échouer"/>
 </form>
 </div>
