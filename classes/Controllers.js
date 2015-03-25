@@ -147,7 +147,7 @@ Controllers.prototype.middleware = function() {
         // Si on n'a pas reçu de contenu => 404
         if (!context.status && _.isEmpty(data)) {
           context.status = 404;
-          data = 'not found';
+          data.content = 'not found '+context.request.url;
           context.contentType = 'text/plain';
         }
       }
