@@ -40,8 +40,8 @@ lassi.component('example-html')
       data.$views = __dirname+'/views';
       _.extend(data.$metas, {
         title : $appSettings.title(),
-        css   : ['styles/main.css'],
-        js    : ['vendors/jquery.min.js'],
+        css   : ['/styles/main.css'],
+        js    : ['/vendors/jquery.min.js'],
       });
       data.$layout = data.$layout || 'layout-page';
     }

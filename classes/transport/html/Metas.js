@@ -128,7 +128,7 @@ Metas.prototype.head = function() {
   }
 
   this.css.forEach(function(path) {
-    head.addLink('stylesheet', '/'+path, {type:'text/css', media:'all'});
+    head.addLink('stylesheet', path, {type:'text/css', media:'all'});
   }, this);
 
   var settings;
