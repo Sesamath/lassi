@@ -24,6 +24,7 @@
 
 var pathlib = require('path');
 var fs = require('fs');
+var _ = require('lodash');
 
 function Renderer(options) {
   this.cache = true
@@ -48,6 +49,7 @@ Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals
 
   // on autorise les chemins absolus, sinon c'est relatif a viewsPath
   // @see https://nodejs.org/api/path.html#path_path_resolve_from_to
+  if (!_.isString(viewsPath)) throw new Error('Wrong views path', viewsPath);
   if (path.charAt(0) !== '/') path = pathlib.resolve(viewsPath, path);
 
   // Check if path exists
