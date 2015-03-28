@@ -45,7 +45,6 @@ function Action(controller, methods, path, cb) {
     this.middleware = true;
   } else {
     this.callback = cb;
-    if (cb.timeout) this.timeout = cb.timeout
     this.middleware = undefined;
   }
   if (this.path && this.path.trim()==='') this.path=undefined;
@@ -169,14 +168,15 @@ Action.prototype.match = function(method, path){
  */
 Action.prototype.execute = function(context, next) {
   var timer = false;
-  var dataReceived = false;
+  var isCbCompleted = false;
 
   function fooProtect() {
-    console.log('Attention, un résultat est arrivé de manière innatendue.');
+    console.log('Attention, un résultat est arrivé de manière inatendue (un appel de next en trop ?).');
     console.trace();
   }
   function processResult(error, result) {
     context.next = fooProtect;
+    isCbCompleted = true;
     if (timer) clearTimeout(timer);
     if (typeof result === 'undefined' && !(error instanceof Error)) {
       result = error;
@@ -186,18 +186,20 @@ Action.prototype.execute = function(context, next) {
   }
 
   try {
-    // Timeout de 1s par défaut
-    context.timeout = context.timeout || this.timeout || 1000;
     context.next = processResult;
 
     this.callback.call(context, context);
 
-    // Si aucune donnée synchrone n'est reçue, on arme le timeout
-    if (!dataReceived) {
+    // Timeout de 1s par défaut après le retour synchrone
+    // (ça permet aussi à l'action de modifier son timeout pendant son exécution)
+    var timeout = context.timeout || this.callback.timeout || 1000;
+
+    // Si aucune donnée synchrone n'est déjà reçue, on arme le timeout
+    if (!isCbCompleted) {
       timer = setTimeout(function() {
         timer = false;
-        next(new Error('Timeout while executing ('+context.timeout+'ms)'));
-      }, context.timeout);
+        next(new Error('Timeout while executing ('+timeout+'ms)'));
+      }, timeout);
     }
   } catch(e) {
     processResult(e);
