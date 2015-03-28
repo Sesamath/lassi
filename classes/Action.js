@@ -187,7 +187,7 @@ Action.prototype.execute = function(context, next) {
 
   try {
     // Timeout de 1s par défaut
-    context.timeout = 1000;
+    context.timeout = context.timeout || this.timeout || 1000;
     context.next = processResult;
 
     this.callback.call(context, context);
