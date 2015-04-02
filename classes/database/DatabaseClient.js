@@ -30,7 +30,7 @@ var DatabaseConnection = require('./DatabaseConnection');
 function DatabaseClient(settings) {
   settings.multipleStatements = true;
   settings.pool = settings.pool || 10;
-  settings.waiters = settings.waiters || 10;
+  settings.waiters = settings.waiters || 10000;
   settings.waitTimeout = settings.waitTimeout || 1000;
   this.settings = settings;
   this.pool = [];
@@ -61,7 +61,7 @@ DatabaseClient.prototype.initialize = function(callback) {
  * @param {callback} callback la callback de retour.
  */
 DatabaseClient.prototype.getConnection = function(callback) {
-  if (this.waiting.lengt > this.settings.waiters) return callback(new Error('Trops de personnes attendent...'));
+  if (this.waiting.length > this.settings.waiters) return callback(new Error('Trops de personnes attendent...'));
   var timeout = (
     function(waiters, callback) {
       return function() {
@@ -109,7 +109,7 @@ DatabaseClient.prototype.releaseConnection = function(connection) {
  */
 DatabaseClient.prototype.execute = function(query, callback) {
   this.getConnection(function(error, connection) {
-    if (error) callback(error);
+    if (error) return callback(error);
     connection.query(query, function(error, result) {
       connection.release();
       callback(error, result);

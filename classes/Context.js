@@ -182,4 +182,16 @@ Context.prototype.rest = function(data) {
   this.json(data);
 }
 
+Context.prototype.setHeader = function(name, value) {
+  this.response.setHeader(name, value);
+}
+
+Context.prototype.header = function(name, defaultValue) {
+  if (_.has(this.request.headers, name)) {
+    return this.request.headers[name];
+  } else {
+    return defaultValue;
+  }
+}
+
 module.exports = Context;
