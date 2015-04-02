@@ -30,7 +30,7 @@ var DatabaseConnection = require('./DatabaseConnection');
 function DatabaseClient(settings) {
   settings.multipleStatements = true;
   settings.pool = settings.pool || 10;
-  settings.waiters = settings.waiters || 10000;
+  settings.waiters = settings.waiters || 10;
   settings.waitTimeout = settings.waitTimeout || 1000;
   this.settings = settings;
   this.pool = [];
