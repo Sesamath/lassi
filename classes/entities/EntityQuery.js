@@ -42,22 +42,30 @@ function EntityQuery(entity) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index égale à une
+ * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est égale à une
  * valeur donnée.
  *
- * @param {String|Integer|Date} value La valeur à faire correspondre.
+ * @param {String|Integer|Date} value La valeur cherchée
  * @return {EntityQuery} La requête (chaînable donc}
  */
 EntityQuery.prototype.equals = function(value) {
   return this.alterLastMatch({value: value,  operator: '='});
 }
 
+/**
+ * Limite les enregistrements dont la valeur (de l'index imposé précédemment) ressemble à une
+ * valeur donnée (Cf signification du _ et % avec like).
+ * @see https://dev.mysql.com/doc/refman/5.5/en/pattern-matching.html
+ *
+ * @param {String|Integer|Date} value La valeur cherchée
+ * @return {EntityQuery} La requête (chaînable donc}
+ */
 EntityQuery.prototype.like = function(value) {
   return this.alterLastMatch({value: value,  operator: 'like'});
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur est vraie.
+ * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est vraie.
  *
  * @return {EntityQuery} La requête (chaînable donc}
  */
@@ -66,7 +74,7 @@ EntityQuery.prototype.true = function() {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur est fausse.
+ * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est fausse.
  *
  * @return {EntityQuery} La requête (chaînable donc}
  */
@@ -75,8 +83,7 @@ EntityQuery.prototype.false = function() {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index égale à une
- * valeur donnée.
+ * @alias equals
  *
  * @param {String|Integer|Date} value La valeur à faire correspondre.
  * @return {EntityQuery} La requête (chaînable donc}
@@ -86,7 +93,7 @@ EntityQuery.prototype.with = function(value) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index supérieure à une
+ * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est supérieure à une
  * valeur donnée.
  *
  * @param {String|Integer|Date} value La valeur à faire correspondre.
@@ -99,6 +106,7 @@ EntityQuery.prototype.greaterThan = function(value) {
 /**
  * Fait correspondre les enregistrement dont la valeur d'index supérieure à une
  * date donnée.
+ * @alias greaterThan
  *
  * @param {Date} value La valeur à faire correspondre.
  * @return {EntityQuery} La requête (chaînable donc}
@@ -108,7 +116,7 @@ EntityQuery.prototype.after = function(value) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index inférieure à une
+ * Fait correspondre les enregistrement dont la valeur d'index est inférieure à une
  * valeur donnée.
  *
  * @param {String|Integer|Date} value La valeur à faire correspondre.
@@ -119,8 +127,9 @@ EntityQuery.prototype.lowerThan = function(value) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index inférieure à une
+ * Fait correspondre les enregistrement dont la valeur d'index est inférieure à une
  * date donnée.
+ * @alias lowerThan
  *
  * @param {Date} value La valeur à faire correspondre.
  * @return {EntityQuery} La requête (chaînable donc}
@@ -130,7 +139,7 @@ EntityQuery.prototype.before = function(value) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index supérieure ou
+ * Fait correspondre les enregistrement dont la valeur d'index est supérieure ou
  * égale à une valeur donnée.
  *
  * @param {String|Integer|Date} value La valeur à faire correspondre.
@@ -141,7 +150,7 @@ EntityQuery.prototype.greaterThanOrEquals = function(value) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index inférieure ou
+ * Fait correspondre les enregistrement dont la valeur d'index est inférieure ou
  * égale à une valeur donnée.
  *
  * @param {String|Integer|Date} value La valeur à faire correspondre.
@@ -203,8 +212,7 @@ EntityQuery.prototype.between = function(from, to) {
 }
 
 /**
- * Fait correspondre les enregistrement dont la valeur d'index est comprise
- * entre deux valeurs.
+ * Fait correspondre les enregistrement dont la valeur d'index est dans une liste
  *
  * @param {String[]|Integer[]|Date[]} value Les valeurs à faire correspondre.
  * @return {EntityQuery} La requête (chaînable donc}
@@ -285,8 +293,8 @@ EntityQuery.prototype.finalizeQuery = function(query) {
 }
 
 /**
- * Ordonance le résultat de la requête.
- * @param {String} index L'indexe sur lequel porte l'ordonancement.
+ * Tri le résultat de la requête.
+ * @param {String} index L'index sur lequel trier
  * @param {String=} [order=asc] Comme en SQL, asc ou desc.
  * @return {EntityQuery} chaînable
  */
@@ -305,8 +313,8 @@ EntityQuery.prototype.sort = function(index, order) {
 
 /**
  * Renvoie les objets liés à la requête
- * @param {Integer=} count Ne récupère que ̀count` objet(s).
- * @param {Integer=} from Ne récupère que les objets à partir d'un rang donné.
+ * @param {Integer} [count=0] Ne récupère que les ̀count` objet(s), tous par défaut
+ * @param {Integer} [from=0] Ne récupère que les objets à partir d'un rang donné
  * @param {EntityQuery~GrabCallback} callback La callback.
  *
  * ##### examples
@@ -322,15 +330,15 @@ EntityQuery.prototype.sort = function(index, order) {
  * ```javascript
  *  lassi.Person.match()
  *    .sort('age', 'desc')
- *    .gran(10, function(error, entities) {
+ *    .grab(10, function(error, entities) {
  *  })
  * ```
  *
- * Récupère la page 3 des 10 personnes les plus âgées
+ * Récupère 10 personnes, de la 21e plus agée à la 30e
  * ```javascript
  *  lassi.Person.match()
  *   .sort('age', 'desc')
- *   .grab(10, 3, function(error, entities) {
+ *   .grab(10, 20, function(error, entities) {
  *  })
  * ```
  *
@@ -435,7 +443,7 @@ EntityQuery.prototype.grabOne = function(callback) {
 }
 
 /**
- * Callback de destruction lié requête.
+ * Callback de destruction
  * @callback EntityQuery~DeleteCallback
  * @param {Error} error Une erreur est survenue.
  * @param {Integer} nbObjects Nombre d'objets détruites
