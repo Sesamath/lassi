@@ -65,6 +65,13 @@ CacheManager.prototype.addEngine = function(slot, driver, settings) {
   this.engines.unshift({slot: slot, engine: engine});
 }
 
+/**
+ * Assigne une valeur dans le cache
+ * @param key
+ * @param value
+ * @param ttl
+ * @param callback appelée avec (error)
+ */
 CacheManager.prototype.set = function(key, value, ttl, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
@@ -75,20 +82,30 @@ CacheManager.prototype.set = function(key, value, ttl, callback) {
   }
 }
 
+/**
+ * Récupère une valeur dans le cache
+ * @param key
+ * @param callback appellée avec (error, value)
+ */
 CacheManager.prototype.get = function(key, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
-      return this.engines[i].engine.get(key, callback);
+      this.engines[i].engine.get(key, callback);
     }
   }
 }
 
+/**
+ * Efface une clé dans le cache
+ * @param key
+ * @param callback appelée avec (error)
+ */
 CacheManager.prototype.delete = function(key, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
-      return this.engines[i].engine.delete(key, callback);
+      this.engines[i].engine.delete(key, callback);
     }
   }
 }

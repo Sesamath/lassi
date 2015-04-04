@@ -163,11 +163,21 @@ Context.prototype.html = function(data) {
   this.next(null, data);
 }
 
-Context.prototype.plain = function(data) {
+/**
+ * Renvoie une réponse en text/plain
+ * @param {string} text
+ */
+Context.prototype.plain = function(text) {
   this.contentType = 'text/plain';
-  this.next(null, {content: data});
+  this.next(null, {content: text});
 }
 
+/**
+ * Renvoie en json un message d'erreur attaché à un champ
+ * L'objet envoyé sera de la forme {field:'le nom du champ passé (ou absent)', message:'le message', ok:false}
+ * @param {string|null} field le nom du champ en erreur
+ * @param message Le message d'erreur
+ */
 Context.prototype.fieldError = function(field, message) {
   var data = {};
   if (field) data.field = field;
@@ -176,16 +186,31 @@ Context.prototype.fieldError = function(field, message) {
   this.json(data);
 }
 
+/**
+ * Envoi data (cloné) en json en ajoutant une propriété ok mise à true
+ * @param data Les données à envoyer en json
+ */
 Context.prototype.rest = function(data) {
   data = _.clone(data);
   data.ok = true;
   this.json(data);
 }
 
+/**
+ * Ajoute un header à la réponse
+ * @param name
+ * @param value
+ */
 Context.prototype.setHeader = function(name, value) {
   this.response.setHeader(name, value);
 }
 
+/**
+ * Retourne un header de la requete
+ * @param {string} name Le header que l'on cherche
+ * @param {string} [defaultValue=undefined] Valeur à retourner si le header name n'existe pas
+ * @returns {string|undefined}
+ */
 Context.prototype.header = function(name, defaultValue) {
   if (_.has(this.request.headers, name)) {
     return this.request.headers[name];
