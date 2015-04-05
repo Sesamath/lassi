@@ -91,7 +91,7 @@ CacheManager.prototype.get = function(key, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
-      this.engines[i].engine.get(key, callback);
+      return this.engines[i].engine.get(key, callback);
     }
   }
 }
@@ -105,7 +105,7 @@ CacheManager.prototype.delete = function(key, callback) {
   key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
-      this.engines[i].engine.delete(key, callback);
+      return this.engines[i].engine.delete(key, callback);
     }
   }
 }
