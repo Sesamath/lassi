@@ -442,42 +442,4 @@ EntityQuery.prototype.grabOne = function(callback) {
   });
 }
 
-/**
- * Callback de destruction
- * @callback EntityQuery~DeleteCallback
- * @param {Error} error Une erreur est survenue.
- * @param {Integer} nbObjects Nombre d'objets détruites
- * @param {Integer} nbIndexes Nombre d'indexes détruites
- */
-
-/**
- * Efface les entities sélectionnées par la requete courante et leurs index
- * @param {EntityQuery~DeleteCallback} callback La callback.
- */
-EntityQuery.prototype.delete = function(callback) {
-  var _this = this;
-  var database = _this.entity.entities.database;
-  var query = database(this.entity.table+" as d");
-  this.finalizeQuery(query);
-  query.select();
-  query.exec(function(error, tmp) {
-    if (error) return callback(error);
-    var oids = [];
-    _.each(tmp, function(row) { oids.push(row.oid)});
-    if (oids.length===0) return callback(null,0,0);
-    database(_this.entity.table+"_index")
-      .whereIn('oid', oids)
-      .delete()
-      .exec(function(error, nbIndexes) {
-        if (error) return callback(error);
-        database(_this.entity.table)
-          .whereIn('oid', oids)
-          .delete()
-          .exec(function(error, nbObjects) {
-            callback(error, nbObjects, nbIndexes);
-          })
-      });
-  })
-}
-
 module.exports = EntityQuery;
