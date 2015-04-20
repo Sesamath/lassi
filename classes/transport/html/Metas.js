@@ -76,14 +76,13 @@ Metas.prototype.head = function() {
     head.addLink('shortlink', this.shortlink);
   }
 
-  if (!this.pageTitle) {
-    this.pageTitle = this.title;
-  }
-
   // Titre de la page
-  this.headTitle = this.pageTitle || this.siteName;
-
-  head.add('title', {}, this.headTitle);
+  if (!this.pageTitle) {
+    this.pageTitle = this.title || this.siteName;
+  }
+  if (this.pageTitle) { // sinon un tag <title/> perturbe l'affichage de la page
+    head.add('title', {}, this.pageTitle);
+  }
 
   // Titre du document
   if (this.title) {

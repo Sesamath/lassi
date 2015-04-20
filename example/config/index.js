@@ -34,9 +34,9 @@ module.exports = {
       client: "mysql",
       connection: {
         host: 'localhost',
-        user: "root",
-        password: "app",
-        database: "app"
+        user: "lassi",
+        password: "lassi",
+        database: "lassi"
       }
     },
   },

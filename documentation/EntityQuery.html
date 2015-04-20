@@ -227,6 +227,12 @@
             
                 <li data-name="CacheManager#addEngine"><a href="CacheManager.html#addEngine">addEngine</a></li>
             
+                <li data-name="CacheManager#delete"><a href="CacheManager.html#delete">delete</a></li>
+            
+                <li data-name="CacheManager#get"><a href="CacheManager.html#get">get</a></li>
+            
+                <li data-name="CacheManager#set"><a href="CacheManager.html#set">set</a></li>
+            
             </ul>
             <ul class="events itemMembers">
             
@@ -297,9 +303,13 @@
             
                 <li data-name="Context#accessDenied"><a href="Context.html#accessDenied">accessDenied</a></li>
             
+                <li data-name="Context#fieldError"><a href="Context.html#fieldError">fieldError</a></li>
+            
                 <li data-name="Context#hasGet"><a href="Context.html#hasGet">hasGet</a></li>
             
                 <li data-name="Context#hasPost"><a href="Context.html#hasPost">hasPost</a></li>
+            
+                <li data-name="Context#header"><a href="Context.html#header">header</a></li>
             
                 <li data-name="Context#html"><a href="Context.html#html">html</a></li>
             
@@ -313,7 +323,13 @@
             
                 <li data-name="Context#notFound"><a href="Context.html#notFound">notFound</a></li>
             
+                <li data-name="Context#plain"><a href="Context.html#plain">plain</a></li>
+            
                 <li data-name="Context#redirect"><a href="Context.html#redirect">redirect</a></li>
+            
+                <li data-name="Context#rest"><a href="Context.html#rest">rest</a></li>
+            
+                <li data-name="Context#setHeader"><a href="Context.html#setHeader">setHeader</a></li>
             
             </ul>
             <ul class="events itemMembers">
@@ -486,8 +502,6 @@
             
                 <li data-name="EntityQuery~CountCallback"><a href="EntityQuery.html#~CountCallback">CountCallback</a></li>
             
-                <li data-name="EntityQuery~DeleteCallback"><a href="EntityQuery.html#~DeleteCallback">DeleteCallback</a></li>
-            
                 <li data-name="EntityQuery~GrabCallback"><a href="EntityQuery.html#~GrabCallback">GrabCallback</a></li>
             
                 <li data-name="EntityQuery~GrabOneCallback"><a href="EntityQuery.html#~GrabOneCallback">GrabOneCallback</a></li>
@@ -497,15 +511,9 @@
             
             <span class="subtitle">Methods</span>
             
-                <li data-name="EntityQuery#after"><a href="EntityQuery.html#after">after</a></li>
-            
-                <li data-name="EntityQuery#before"><a href="EntityQuery.html#before">before</a></li>
-            
                 <li data-name="EntityQuery#between"><a href="EntityQuery.html#between">between</a></li>
             
                 <li data-name="EntityQuery#count"><a href="EntityQuery.html#count">count</a></li>
-            
-                <li data-name="EntityQuery#delete"><a href="EntityQuery.html#delete">delete</a></li>
             
                 <li data-name="EntityQuery#equals"><a href="EntityQuery.html#equals">equals</a></li>
             
@@ -521,6 +529,8 @@
             
                 <li data-name="EntityQuery#in"><a href="EntityQuery.html#in">in</a></li>
             
+                <li data-name="EntityQuery#like"><a href="EntityQuery.html#like">like</a></li>
+            
                 <li data-name="EntityQuery#lowerThan"><a href="EntityQuery.html#lowerThan">lowerThan</a></li>
             
                 <li data-name="EntityQuery#lowerThanOrEquals"><a href="EntityQuery.html#lowerThanOrEquals">lowerThanOrEquals</a></li>
@@ -530,8 +540,6 @@
                 <li data-name="EntityQuery#sort"><a href="EntityQuery.html#sort">sort</a></li>
             
                 <li data-name="EntityQuery#true"><a href="EntityQuery.html#true">true</a></li>
-            
-                <li data-name="EntityQuery#with"><a href="EntityQuery.html#with">with</a></li>
             
             </ul>
             <ul class="events itemMembers">
@@ -739,258 +747,6 @@ Entity#match</p>
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="after">
-            
-            after<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            entities/EntityQuery.js, line 106
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index supérieure à une
-date donnée.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>value</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Date</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>La valeur à faire correspondre.</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-
-
-<h5>Returns:</h5>
-requête (chaînable donc}
-<br />
-
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="before">
-            
-            before<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            entities/EntityQuery.js, line 128
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index inférieure à une
-date donnée.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>value</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Date</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>La valeur à faire correspondre.</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-
-
-<h5>Returns:</h5>
-requête (chaînable donc}
-<br />
-
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
         <h4 class="name" id="between">
             
             between<span class="signature">(from, to)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
@@ -998,7 +754,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 201
+            entities/EntityQuery.js, line 210
         </div>
         
     </div>
@@ -1159,7 +915,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 406
+            entities/EntityQuery.js, line 414
         </div>
         
     </div>
@@ -1268,122 +1024,6 @@ requête (chaînable donc}
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="delete">
-            
-            delete<span class="signature">(callback)</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            entities/EntityQuery.js, line 449
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Efface les entities sélectionnées par la requete courante et leurs index</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>callback</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type"><a href="EntityQuery.html#~DeleteCallback">EntityQuery~DeleteCallback</a></span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>La callback.</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
         <h4 class="name" id="equals">
             
             equals<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
@@ -1402,7 +1042,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index égale à une
+        <p>Limite les enregistrements dont la valeur (de l'index imposé précédemment) est égale à une
 valeur donnée.</p>
     </div>
     
@@ -1456,7 +1096,7 @@ valeur donnée.</p>
             
             <td class="description last">
                 
-                <p>La valeur à faire correspondre.</p></td>
+                <p>La valeur cherchée</p></td>
         </tr>
 	
 	
@@ -1523,7 +1163,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 73
+            entities/EntityQuery.js, line 81
         </div>
         
     </div>
@@ -1534,7 +1174,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur est fausse.</p>
+        <p>Limite les enregistrements dont la valeur (de l'index imposé précédemment) est fausse.</p>
     </div>
     
 
@@ -1603,7 +1243,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 339
+            entities/EntityQuery.js, line 347
         </div>
         
     </div>
@@ -1635,6 +1275,8 @@ requête (chaînable donc}
 		<th>Type</th>
 		
 		
+		<th>Default</th>
+		
 		
 		<th class="last">Description</th>
 	</tr>
@@ -1658,6 +1300,12 @@ requête (chaînable donc}
             </td>
             
             
+                <td class="default">
+                
+                    0
+                
+                </td>
+            
             
             <td class="description last">
                 
@@ -1668,7 +1316,7 @@ requête (chaînable donc}
                         
                     
                 
-                <p>Ne récupère que ̀count` objet(s).</p></td>
+                <p>Ne récupère que les ̀count` objet(s), tous par défaut</p></td>
         </tr>
 	
 	
@@ -1688,6 +1336,12 @@ requête (chaînable donc}
             </td>
             
             
+                <td class="default">
+                
+                    0
+                
+                </td>
+            
             
             <td class="description last">
                 
@@ -1698,7 +1352,7 @@ requête (chaînable donc}
                         
                     
                 
-                <p>Ne récupère que les objets à partir d'un rang donné.</p></td>
+                <p>Ne récupère que les objets à partir d'un rang donné</p></td>
         </tr>
 	
 	
@@ -1718,6 +1372,10 @@ requête (chaînable donc}
             </td>
             
             
+                <td class="default">
+                
+                </td>
+            
             
             <td class="description last">
                 
@@ -1734,11 +1392,11 @@ requête (chaînable donc}
  })</code></pre><p>Récupère les 10 personnes les plus âgées</p>
 <pre class="prettyprint source lang-javascript"><code> lassi.Person.match()
    .sort('age', 'desc')
-   .gran(10, function(error, entities) {
- })</code></pre><p>Récupère la page 3 des 10 personnes les plus âgées</p>
+   .grab(10, function(error, entities) {
+ })</code></pre><p>Récupère 10 personnes, de la 21e plus agée à la 30e</p>
 <pre class="prettyprint source lang-javascript"><code> lassi.Person.match()
   .sort('age', 'desc')
-  .grab(10, 3, function(error, entities) {
+  .grab(10, 20, function(error, entities) {
  })</code></pre></td>
         </tr>
 	
@@ -1802,7 +1460,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 429
+            entities/EntityQuery.js, line 437
         </div>
         
     </div>
@@ -1918,7 +1576,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 95
+            entities/EntityQuery.js, line 102
         </div>
         
     </div>
@@ -1929,7 +1587,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index supérieure à une
+        <p>Limite les enregistrements dont la valeur (de l'index imposé précédemment) est supérieure à une
 valeur donnée.</p>
     </div>
     
@@ -2050,7 +1708,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 139
+            entities/EntityQuery.js, line 148
         </div>
         
     </div>
@@ -2061,7 +1719,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index supérieure ou
+        <p>Fait correspondre les enregistrement dont la valeur d'index est supérieure ou
 égale à une valeur donnée.</p>
     </div>
     
@@ -2182,7 +1840,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 212
+            entities/EntityQuery.js, line 220
         </div>
         
     </div>
@@ -2193,8 +1851,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index est comprise
-entre deux valeurs.</p>
+        <p>Fait correspondre les enregistrement dont la valeur d'index est dans une liste</p>
     </div>
     
 
@@ -2307,14 +1964,14 @@ requête (chaînable donc}
             
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="lowerThan">
+        <h4 class="name" id="like">
             
-            lowerThan<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
+            like<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
         </h4>
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 117
+            entities/EntityQuery.js, line 63
         </div>
         
     </div>
@@ -2325,7 +1982,146 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index inférieure à une
+        <p>Limite les enregistrements dont la valeur (de l'index imposé précédemment) ressemble à une
+valeur donnée (Cf signification du _ et % avec like).</p>
+    </div>
+    
+
+    
+    
+    
+    
+    
+        
+
+<table class="params">
+    <thead>
+	<tr>
+		
+		<th>Name</th>
+		
+		
+		<th>Type</th>
+		
+		
+		
+		<th class="last">Description</th>
+	</tr>
+	</thead>
+	
+	<tbody>
+	
+	
+        <tr>
+            
+                <td class="name"><code>value</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">String</span>
+|
+
+<span class="param-type">Integer</span>
+|
+
+<span class="param-type">Date</span>
+
+
+            
+            </td>
+            
+            
+            
+            <td class="description last">
+                
+                <p>La valeur cherchée</p></td>
+        </tr>
+	
+	
+	</tbody>
+</table>
+    
+    
+    
+<dl class="details">
+    
+        
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <dt class="tag-see">See:</dt>
+    <dd class="tag-see">
+        <ul>
+            <li><a href="https://dev.mysql.com/doc/refman/5.5/en/pattern-matching.html">https://dev.mysql.com/doc/refman/5.5/en/pattern-matching.html</a></li>
+        </ul>
+    </dd>
+    
+    
+    
+</dl>
+
+    
+    
+
+    
+
+    
+    
+    
+    
+    
+    
+    
+
+
+<h5>Returns:</h5>
+requête (chaînable donc}
+<br />
+
+    
+    
+    
+</dd>
+
+        
+            
+<dt>
+    <div class="nameContainer">
+        <h4 class="name" id="lowerThan">
+            
+            lowerThan<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
+        </h4>
+    
+        
+        <div class="tag-source">
+            entities/EntityQuery.js, line 125
+        </div>
+        
+    </div>
+
+    
+</dt>
+<dd>
+    
+    
+    <div class="description">
+        <p>Fait correspondre les enregistrement dont la valeur d'index est inférieure à une
 valeur donnée.</p>
     </div>
     
@@ -2446,7 +2242,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 150
+            entities/EntityQuery.js, line 159
         </div>
         
     </div>
@@ -2457,7 +2253,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index inférieure ou
+        <p>Fait correspondre les enregistrement dont la valeur d'index est inférieure ou
 égale à une valeur donnée.</p>
     </div>
     
@@ -2578,7 +2374,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 177
+            entities/EntityQuery.js, line 186
         </div>
         
     </div>
@@ -2711,7 +2507,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 293
+            entities/EntityQuery.js, line 301
         </div>
         
     </div>
@@ -2722,7 +2518,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Ordonance le résultat de la requête.</p>
+        <p>Tri le résultat de la requête.</p>
     </div>
     
 
@@ -2780,7 +2576,7 @@ requête (chaînable donc}
                         
                     
                 
-                <p>L'indexe sur lequel porte l'ordonancement.</p></td>
+                <p>L'index sur lequel trier</p></td>
         </tr>
 	
 	
@@ -2879,7 +2675,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 64
+            entities/EntityQuery.js, line 72
         </div>
         
     </div>
@@ -2890,7 +2686,7 @@ requête (chaînable donc}
     
     
     <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur est vraie.</p>
+        <p>Limite les enregistrements dont la valeur (de l'index imposé précédemment) est vraie.</p>
     </div>
     
 
@@ -2898,138 +2694,6 @@ requête (chaînable donc}
     
     
     
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-
-
-<h5>Returns:</h5>
-requête (chaînable donc}
-<br />
-
-    
-    
-    
-</dd>
-
-        
-            
-<dt>
-    <div class="nameContainer">
-        <h4 class="name" id="with">
-            
-            with<span class="signature">(value)</span><span class="glyphicon glyphicon-circle-arrow-right"></span><span class="type-signature returnType">{<a href="EntityQuery.html">EntityQuery</a>}</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            entities/EntityQuery.js, line 84
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Fait correspondre les enregistrement dont la valeur d'index égale à une
-valeur donnée.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>value</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">String</span>
-|
-
-<span class="param-type">Integer</span>
-|
-
-<span class="param-type">Date</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>La valeur à faire correspondre.</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
     
     
     
@@ -3097,7 +2761,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 395
+            entities/EntityQuery.js, line 403
         </div>
         
     </div>
@@ -3229,168 +2893,6 @@ requête (chaînable donc}
                 
 <dt>
     <div class="nameContainer">
-        <h4 class="name" id="~DeleteCallback">
-            
-            DeleteCallback<span class="signature">(error, nbObjects, nbIndexes)</span>
-        </h4>
-    
-        
-        <div class="tag-source">
-            entities/EntityQuery.js, line 437
-        </div>
-        
-    </div>
-
-    
-</dt>
-<dd>
-    
-    
-    <div class="description">
-        <p>Callback de destruction lié requête.</p>
-    </div>
-    
-
-    
-    
-    
-    
-    
-        
-
-<table class="params">
-    <thead>
-	<tr>
-		
-		<th>Name</th>
-		
-		
-		<th>Type</th>
-		
-		
-		
-		<th class="last">Description</th>
-	</tr>
-	</thead>
-	
-	<tbody>
-	
-	
-        <tr>
-            
-                <td class="name"><code>error</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Error</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Une erreur est survenue.</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>nbObjects</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Integer</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Nombre d'objets détruites</p></td>
-        </tr>
-	
-	
-	
-        <tr>
-            
-                <td class="name"><code>nbIndexes</code></td>
-            
-            
-            <td class="type">
-            
-                
-<span class="param-type">Integer</span>
-
-
-            
-            </td>
-            
-            
-            
-            <td class="description last">
-                
-                <p>Nombre d'indexes détruites</p></td>
-        </tr>
-	
-	
-	</tbody>
-</table>
-    
-    
-    
-<dl class="details">
-    
-        
-    
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-</dl>
-
-    
-    
-
-    
-
-    
-    
-    
-    
-    
-    
-    
-</dd>
-
-            
-                
-<dt>
-    <div class="nameContainer">
         <h4 class="name" id="~GrabCallback">
             
             GrabCallback<span class="signature">(error, entites)</span>
@@ -3398,7 +2900,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 299
+            entities/EntityQuery.js, line 307
         </div>
         
     </div>
@@ -3537,7 +3039,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 418
+            entities/EntityQuery.js, line 426
         </div>
         
     </div>
@@ -3682,7 +3184,7 @@ requête (chaînable donc}
     
         
         <div class="tag-source">
-            entities/EntityQuery.js, line 375
+            entities/EntityQuery.js, line 383
         </div>
         
     </div>
@@ -3755,7 +3257,7 @@ requête (chaînable donc}
         
 
         <footer>
-            Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-beta2</a> on Wed Mar 18 2015 16:38:55 GMT-0500 (COT)
+            Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.3.0-beta3</a> on Tue Apr 14 2015 08:46:15 GMT-0500 (COT)
         </footer>
     </div>
 </div>
