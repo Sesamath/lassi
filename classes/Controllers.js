@@ -136,38 +136,37 @@ Controllers.prototype.middleware = function() {
       }
     })
     .seq(function() {
-      if (!context.error) {
-        //console.log(context.contentType, context.status, context.error, data);
-        // Cas d'une redirection, on passe en fast-track
-        if (context.location) this();
+      // Les redirections passent en fast-track si on a pas eu d'erreur
+      if (!context.error && context.location) {
+        this();
+      } else {
+        lassi.emit('beforeTransport', context, data);
 
         // Content type par défaut
-        context.contentType = context.contentType || 'text/plain';
+        if (!context.contentType) context.contentType = 'text/plain';
 
         // Si on n'a pas reçu de contenu => 404
         if (!context.status && _.isEmpty(data)) {
           context.status = 404;
-          data.content = 'not found '+context.request.url;
+          data.content = 'not found ' + context.request.url;
           context.contentType = 'text/plain';
         }
-      }
-      lassi.emit('beforeTransport', context, data);
 
-      // Si une erreur s'est produite et que rien n'a été fait dans l'event, on envoie
-      // une erreur standard
-      if (context.error) {
-        var head = context.error.toString();
-        lassi.log('Lassi', head.red, context.error.stack.toString().replace(head, ''));
-        context.contentType = 'text/plain';
-        context.status = 500;
-        data.content = 'Server Error';
-      }
+        // Si une erreur s'est produite et que rien n'a été fait dans l'event, on envoie une erreur standard
+        if (context.error) {
+          var head = context.error.toString();
+          lassi.log('Lassi', head.red, context.error.stack.toString().replace(head, ''));
+          context.contentType = 'text/plain';
+          context.status = 500;
+          data.content = 'Server Error';
+        }
 
-      // Sélection du transport et processing
-      if (!context.contentType) return this(new Error('No content type defined'));
-      var transport = lassi.transports[context.contentType];
-      if (!transport) return this(new Error('No renderer found for contentType:'+context.contentType));
-      transport.process(data, this);
+        // Sélection du transport et processing
+        if (!context.contentType) return this(new Error('No content type defined'));
+        var transport = lassi.transports[context.contentType];
+        if (!transport) return this(new Error('No renderer found for contentType:' + context.contentType));
+        transport.process(data, this);
+      }
     })
 
     .seq(function(content) {
