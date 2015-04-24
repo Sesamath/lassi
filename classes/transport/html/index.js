@@ -58,8 +58,9 @@ HtmlTransport.prototype.process = function(data, next) {
   var metas = new Metas(data.$metas || {});
   flow(sections)
     .seqEach(function(key) {
-      // on autorise l'envoi de string|number directement au layout
-      if (!_.isObject) return this();
+      // seul les objets sont traités comme des sections et rendus dans des vues dust,
+      // les string|number sont passés directement au layout
+      if (!_.isObject(data[key])) return this();
       var next = this;
       // si $view n'existe pas on prendra le nom de la section
       var view = data[key].$view || key;
