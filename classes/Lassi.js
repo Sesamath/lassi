@@ -33,6 +33,8 @@ var fs           = require('fs');
 var tty          = require('tty');
 require('colors');
 
+var shutdownRequested = false
+
 /**
  * Callback simple.
  * @callback SimpleCallback
@@ -156,15 +158,34 @@ Lassi.prototype.service = function(name) {
  * @fires Lassi#shutdown
  */
 Lassi.prototype.shutdown = function() {
-  if (this.server) {
-    /**
-     * Évènement généré lorsque l'application est arrêtée par
-     * la méthode shutdown.
-     * @event Lassi#shutdown
-     */
-    this.emit('shutdown');
-    this.server.close();
-    delete this.server;
+  function thisIsTheEnd() {
+    lassi.log('lassi', 'shutdown completed');
+    process.exit();
+  }
+
+  if (!shutdownRequested) {
+    shutdownRequested = true
+
+    try {
+      lassi.log('lassi', 'processing shutdown');
+      /**
+       * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
+       * @event Lassi#shutdown
+       */
+      this.emit('shutdown');
+      // @todo implémenter le shutdown dans DatabaseConnection (ajouter un listener dans son constructeur en créé trop)
+
+      // y'a des cas où this.service n'existe déjà plus !
+      var $server = this.service && this.service('$server');
+      if ($server) $server.stop(thisIsTheEnd);
+      else {
+        lassi.log('$server', 'is already gone');
+        thisIsTheEnd();
+      }
+    } catch (error) {
+      lassi.log('lassi', 'error on shutdown\n' + error.stack);
+      process.exit();
+    }
   }
 }
 
@@ -194,11 +215,42 @@ Lassi.prototype.log = function(){
 };
 
 module.exports = function(root) {
-  if (_.has(GLOBAL, 'lassi')) return lassi;
+  if (_.has(GLOBAL, 'lassi')) {
+    lassi.log('lassi', 'ERROR'.red, ' : lassi already exists')
+    return lassi;
+  }
   new Lassi(root);
   lassi.Context = require('./Context');
   lassi.require = function() {
     return require.apply(this, arguments);
   }
+
+  // un écouteur pour tout ce qui pourrait passer au travers de la raquette
+  // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
+  process.on('uncaughtException', function (error) {
+    // on envoie l'erreur en console mais on va pas planter node pour si peu
+    lassi.log('app', 'uncaughtException : ' +error.stack);
+  })
+
+  // On ajoute nos écouteurs pour le shutdown
+  // visiblement beforeExit arrive jamais, et exit ne sert que sur les sorties "internes"
+  // via un process.exit() car sinon on reçoit normalement un SIG* avant
+  _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], function (signal) {
+    process.on(signal, function () {
+      lassi.log('lassi', 'pid ' + process.pid + ' received signal ' + signal);
+      lassi.shutdown();
+    });
+  })
+
+  // le message 'shutdown' est envoyé par pm2 sur les gracefulReload
+  process.on('message', function (message) {
+    // on récupère bien la string 'shutdown' qui est affichée ici
+    console.log('message #' +message +'# of pid ' +process.pid);
+    if (message === 'shutdown') {
+      // mais on arrive jamais là, le process meurt visiblement avant
+      console.log('launching shutdown');
+      lassi.shutdown();
+    }
+  });
 }
 
