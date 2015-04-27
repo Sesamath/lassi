@@ -26,6 +26,11 @@ var pathlib = require('path');
 var fs = require('fs');
 var _ = require('lodash');
 
+/**
+ * Le moteur de rendu html, accessible via lassi.transports.html.engine
+ * @param options
+ * @constructor Renderer
+ */
 function Renderer(options) {
   this.cache = true
   this.cacheStore = {}
@@ -34,6 +39,12 @@ function Renderer(options) {
   this.dust  = require('dustjs-helpers');
 }
 
+/**
+ * Permet d'ajouter un helper dust
+ * @see http://www.dustjs.com/guides/dust-helpers/
+ * @param {string} name
+ * @param {function} callback La callback (cf doc pour les arguments)
+ */
 Renderer.prototype.helper = function(name, callback) {
   var self = this;
   this.dust.helpers[name] = function() {
@@ -41,6 +52,26 @@ Renderer.prototype.helper = function(name, callback) {
   };
 }
 
+/**
+ * Permet d'ajouter un filtre dust
+ * @see http://www.dustjs.com/docs/filter-api/
+ * @param {string} name le nom du filtre (à utiliser dans les templates avec |monFiltre)
+ * @param {function} callback La callback qui reçoit la valeur et devra la retournée filtrée (contexte dust)
+ */
+Renderer.prototype.addFilter = function(name, callback) {
+  var self = this;
+  this.dust.filters[name] = function(value) {
+    return callback.call(self.dust, value);
+  };
+}
+
+/**
+ * Récupère le chemin absolu du template et le passe à callback
+ * @param viewsPath
+ * @param unresolvedPath
+ * @param locals
+ * @param callback
+ */
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
   // Normalize
   var path = unresolvedPath;
@@ -58,6 +89,13 @@ Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals
   });
 }
 
+/**
+ * Lit un template et le passe à callback
+ * @param viewsPath
+ * @param unresolvedPath
+ * @param locals
+ * @param callback
+ */
 Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, callback) {
   var self = this;
   if (self.cache && self.cacheStore[unresolvedPath]) {
@@ -74,6 +112,13 @@ Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, c
   }
 }
 
+/**
+ * Calcule le rendu et le passe à callback
+ * @param viewsPath
+ * @param unresolvedPath
+ * @param locals
+ * @param callback
+ */
 Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callback) {
   var self = this;
   var template = (this.cache && this.cacheStore[unresolvedPath]) || null;
@@ -96,9 +141,18 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
 }
 
 // @see https://github.com/linkedin/dustjs/wiki/Dust-Tutorial#Controlling_whitespace_suppression
-
+/**
+ * Un dust.optimizers.format qui ne fait rien (pour conserver les espaces)
+ * @private
+ * @param ctx
+ * @param node
+ * @returns {*} node tel quel
+ */
 Renderer.prototype.whiteSpaceKeeper = function(ctx, node) { return node }
 
+/**
+ * Désactive la suppression des espaces
+ */
 Renderer.prototype.disableWhiteSpaceCompression = function () {
   if (this.dust.optimizers.format !== this.whiteSpaceKeeper) {
     this.originalFormat = this.dust.optimizers.format
@@ -106,6 +160,9 @@ Renderer.prototype.disableWhiteSpaceCompression = function () {
   }
 }
 
+/**
+ * Active la suppression des espaces
+ */
 Renderer.prototype.enableWhiteSpaceCompression = function () {
   if (this.originalFormat) {
     this.dust.optimizers.format = this.originalFormat
