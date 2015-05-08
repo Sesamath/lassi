@@ -168,6 +168,11 @@ Lassi.prototype.shutdown = function() {
 
     try {
       lassi.log('lassi', 'processing shutdown');
+      // avant de lancer l'événement on met une limite pour les réponses à 2s
+      setTimeout(function () {
+        lassi.log('lassi', 'shutdown too slow, forced');
+        thisIsTheEnd();
+      }, 2000);
       /**
        * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
        * @event Lassi#shutdown
