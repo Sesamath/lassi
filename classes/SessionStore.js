@@ -71,6 +71,9 @@ SessionStore.prototype.defer = function (fn){
 
 /** @inheritDoc */
 SessionStore.prototype.get = function(sid, callback) {
+  // faut ajouter du defer ici sinon express plante
+  // on verra dans une prochaine version si on peut remplacer tout ça par un simple
+  // this.$cache.get('session::'+sid, callback)
   var self = this;
   self.$cache.get('session::'+sid, function(error, session) {
     if (error) return self.defer(callback, error);
