@@ -125,3 +125,9 @@ Et pour démarrer l'application on appelle bootstrap() sur le composant principa
 ```javascript
 monApplication.bootstrap();
 ```
+
+## tests
+
+```
+mocha --full-trace -b test/entities.js
+```
