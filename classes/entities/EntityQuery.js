@@ -23,7 +23,20 @@
 */
 var _            = require('lodash');
 var flow = require('seq');
-var DatabaseQuery = require('../database/DatabaseQuery');
+var util = require('util');
+
+function DatabaseQuery() { this._buffer = []; }
+
+DatabaseQuery.prototype.push = function(text) {
+  text = util.format.apply(this, Array.prototype.slice.call(arguments));
+  this._buffer.push(text);
+}
+
+DatabaseQuery.prototype.toString = function(separator) {
+  separator = separator || "\n";
+  return this._buffer.join(separator);
+}
+
 
 /**
  * Construction d'une requête sur entité.
@@ -361,7 +374,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     query.push('LIMIT %d', count);
     query.push('OFFSET %d', from);
   }
-  this.entity.entities.database.execute({text: query, parameters: query.args}, function(errors, rows) {
+  this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
     if (errors) return callback(errors);
     var objects = [];
     flow(rows)

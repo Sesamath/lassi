@@ -3,12 +3,10 @@ var entities, TestEntity;
 var assert = require('assert');
 var flow = require('seq');
 var databaseSettings = {
-  client: "mysql",
-  connection: {
-    user: "root",
-    password: "app",
-    database: "app"
-  }
+  connectionLimit: 10,
+  user: "root",
+  password: "app",
+  database: "app"
 }
 
 describe('Database', function() {
@@ -18,6 +16,7 @@ describe('Database', function() {
       entities = new Entities({database: databaseSettings});
       entities.initialize(done);
     });
+
     it("Initialisation de l'entité de test", function(done) {
       TestEntity = entities.define('TestEntity');
       TestEntity.construct(function() {
@@ -35,6 +34,7 @@ describe('Database', function() {
       });
       entities.initializeEntity(TestEntity, done);
     });
+
     it("Ajout de données dans l'entité", function(done) {
       var entity = TestEntity.create({
         i: 12,
@@ -55,6 +55,7 @@ describe('Database', function() {
         done();
       });
     });
+
     it("Sélection d'entités", function(done) {
       TestEntity.match('p').equals(0).grab(function(error, result) {
         if (error) return done(error);
@@ -85,7 +86,6 @@ describe('Database', function() {
         done();
       });
     });
-    
   })
 });
 

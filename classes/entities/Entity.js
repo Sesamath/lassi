@@ -24,7 +24,6 @@
 var _            = require('lodash');
 var flow = require('seq');
 var util = require('util');
-var DatabaseQuery = require('../database/DatabaseQuery');
 
 /**
  * Construction d'une entité. Passez par la méthode {@link EntityDefinition#create} pour créer une entité.
@@ -82,18 +81,20 @@ Entity.prototype.store = function(options, callback) {
       return v;
     });
 
-    var query = new DatabaseQuery();
+    var query = '';
     if (instance.oid) {
-      query.push('UPDATE %s', instance.definition.table);
-      query.push("SET data=?");
-      query.push("WHERE oid=%d", instance.oid);
-      transaction.query({text: query, parameters: [new Buffer(data)]}, next);
+      query = 
+        'UPDATE '+instance.definition.table+
+        ' SET data=?'+
+        ' WHERE oid='+instance.oid;
+      transaction.query(query, [new Buffer(data)], next);
     } else {
-      query.push('INSERT INTO %s(data)', instance.definition.table);
-      query.push("VALUES(?)");
-      transaction.query({text: query, parameters: [new Buffer(data)], return: 'oid'}, function (error, result) {
+      query = 
+        'INSERT INTO '+instance.definition.table+'(data)'+
+        ' VALUES(?)';
+      transaction.query(query, [new Buffer(data)], function (error, result) {
         if (error) return next(error);
-        instance.oid = result[0].oid;
+        instance.oid = result.insertId;
         next();
       });
     }
@@ -102,9 +103,7 @@ Entity.prototype.store = function(options, callback) {
   function cleanIndexes(next) {
     if (!instance.oid) return next();
     if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
-    var query = new DatabaseQuery();
-    query.push('DELETE FROM %s WHERE oid=%d', indexTable, instance.oid);
-    transaction.query(query, next);
+    transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, next);
   }
 
   function buildIndexes(next) {
@@ -138,38 +137,40 @@ Entity.prototype.store = function(options, callback) {
   function storeIndexes(next) {
     if (instance._indexes.length===0) return next();
 
-    var query = {parameters: []};
+    var query = '';
+    var parameters = [];
     var count = instance._indexes.length;
     var params = '';
     var first = true;
     for(var i = 0; i < count; i++) {
-      if (i===0) query.text = 'INSERT INTO '+indexTable+'(';
+      if (i===0) query = 'INSERT INTO '+indexTable+'(';
       for (var key in instance._indexes[i]) {
         if (i===0) {
           if (!first) {
-            query.text+=',';
+            query+=',';
             params+=',';
           } else {
             first = false;
           }
-          query.text+= key;
+          query+= key;
           params+='?';
         }
-        query.parameters.push(instance._indexes[i][key]);
+        parameters.push(instance._indexes[i][key]);
       }
       if (i===0) {
         params = '  ('+params+')'
-        query.text+= ') VALUES\n';
+        query+= ') VALUES ';
       }
-      query.text+= params+(i<(count-1)?',\n':'');
+      query+= params+(i<(count-1)?', ':'');
     }
-    transaction.query(query, next);
+    transaction.query(query, parameters, next);
   }
 
   flow()
-    .seq(function() {
+    .seq(function() { database.getConnection(this); })
+    .seq(function(connection) {
       var _next = this;
-      database.startTransaction(function(error, connection) {
+      connection.query('START TRANSACTION', function(error) {
         if (error) return _next(error);
         transaction = connection;
         _next();
@@ -182,14 +183,14 @@ Entity.prototype.store = function(options, callback) {
     .seq(function()        { if (options.index)  storeIndexes(this); else this(); } )
     .seq(function()        { entity._afterStore.call(instance, this); } )
     .seq(function()        {
-      transaction.commit(function() {
+      transaction.query('COMMIT', function() {
         transaction.release();
         callback(null, instance);
       });
     })
     .catch(function(error) {
       if (transaction) {
-        transaction.rollback(function () {
+        transaction.query('ROLLBACK', function () {
           transaction.release();
           callback(error);
         })
@@ -209,18 +210,31 @@ Entity.prototype.delete = function(callback) {
   var entity = instance.definition;
   var indexTable = entity.table+"_index";
   var database = entity.entities.database;
-  flow().
-    seq(function() { database.startTransaction(this); }).
-    seq(function(transaction) {
+  var transaction;
+  flow()
+    .seq(function() { database.getConnection(this); })
+    .seq(function(connection) { 
+      transaction = connection;
+      connection.query('START TRANSACTION', this); 
+    })
+    .seq(function() {
       var _this = this;
-      flow().
-        par(function() { transaction.query('DELETE FROM '+entity.table+' WHERE oid='+instance.oid, this); }).
-        par(function() { transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, this); }).
-        seq(function() { transaction.commit(_this); }).
-        catch(function(error) { transaction.rollback(function() { _this(error); });});
-    }).
-    seq(function() {callback()}).
-    catch(callback)
+      flow()
+        .par(function() { transaction.query('DELETE FROM '+entity.table+' WHERE oid='+instance.oid, this); })
+        .par(function() { transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, this); })
+        .seq(function() { transaction.query('COMMIT', _this); })
+        .catch(function(error) { 
+          transaction.query('ROLLBACK', function() { 
+            transaction.release();
+            _this(error); 
+          });
+        });
+    })
+    .seq(function() {
+      transaction.release();
+      callback();
+    })
+    .catch(callback)
 }
 
 module.exports = Entity;

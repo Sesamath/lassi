@@ -86,13 +86,11 @@ EntityDefinition.prototype.bless = function(entities) {
 EntityDefinition.prototype.create = function(values) {
   var instance = new Entity();
   instance.setDefinition(this);
-  // Rq DC, on passe les valeurs au constructeur qui saura comment les traiter et controler l'intégrité s'il veut le faire
   if (this._construct) this._construct.call(instance, values);
-  // et on les ajoute ici au cas où il voudrait pas s'en occuper ?
-  // mais on ne veut pas ajouter tout et n'importe quoi, c'est le constructeur qui doit gérer ça
-  // if (values) _.extend(instance, values);
+  if (values) _.extend(instance, values);
   return instance;
 }
+
 /**
  * Retourne un requeteur (sur lequel on pourra chaîner les méthodes de {@link EntityQuery})
  * @param {String=} index Un indexe à matcher en premier.

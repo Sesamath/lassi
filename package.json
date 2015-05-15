@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "1.8.18",
+  "version": "1.8.19",
   "private": true,
   "main": "./classes/Lassi",
   "dependencies": {
@@ -16,6 +16,9 @@
     "memcached": "^0.2.8",
     "mime": "^1.2.11",
     "mkdirp": "^0.5.0",
+    "mocha": "^2.2.5",
+    "mysql": "^2.6.2",
+    "mysql2": "^0.15.7",
     "seq": "git://github.com/yoran-brault/node-seq.git",
     "squel": "^3.10.0",
     "static-favicon": "~1.0.0",

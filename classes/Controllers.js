@@ -172,6 +172,7 @@ Controllers.prototype.middleware = function() {
     })
 
     .seq(function(content) {
+      console.log(content);
       if (context.status) {
         context.response.status(context.status);
         if (context.status > 300 && context.status < 400) {

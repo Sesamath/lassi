@@ -22,13 +22,12 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var _            = require('lodash');
+var _                = require('lodash');
 var flow             = require('seq');
 var EntityDefinition = require('./EntityDefinition');
-var EventEmitter = require('events').EventEmitter
-var util         = require('util');
-var DatabaseManager = require('../database');
-var DatabaseQuery = require('../database/DatabaseQuery');
+var EventEmitter     = require('events').EventEmitter
+var util             = require('util');
+var mysql            = require('mysql2');
 
 
 /**
@@ -41,11 +40,6 @@ var DatabaseQuery = require('../database/DatabaseQuery');
  */
 function Entities(settings) {
   this.entities = {}
-  if (settings.database.client == 'sqlite3') {
-    if (!lassi.fs.existsSync(settings.database.connection.filename)) {
-      lassi.fs.openSync(settings.database.connection.filename, 'w');
-    }
-  }
   this.settings = settings;
   this.database = null;
 }
@@ -64,6 +58,13 @@ Entities.prototype.define = function(name) {
   return this.entities[name] = def;
 }
 
+Entities.prototype.databaseHasTable = function(table, callback) {
+  this.database.query('SELECT * FROM '+table+" LIMIT 1", function(error) {
+    if (error && error.code == 'ER_NO_SUCH_TABLE') return callback(null, false);
+    callback(error, true);
+  })
+}
+
 /**
  * Initialisation du stockage en base de données pour une entité.
  *
@@ -76,24 +77,24 @@ Entities.prototype.initializeEntity = function(entity, next) {
 
   function createStore(next) {
     var table = entity.table;
-    self.database.hasTable(table, function(error, exists) {
+    self.databaseHasTable(table, function(error, exists) {
       if (error || exists) return next(error);
-      var query = new DatabaseQuery();
-      query.push('CREATE TABLE IF NOT EXISTS %s (', table);
+      var query = [];
+      query.push('CREATE TABLE IF NOT EXISTS '+table+' (');
       query.push('  oid INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
       query.push('  data MEDIUMBLOB');
       query.push(') DEFAULT CHARACTER SET utf8');
-      self.database.execute(query, next);
+      self.database.query(query.join(''), next);
     })
   }
 
   function createStoreIndex(next) {
     var table = entity.table+"_index";
-    self.database.hasTable(table, function(error, exists) {
+    self.databaseHasTable(table, function(error, exists) {
       if (error || exists) return next(error);
       var queries = [];
-      var query = new DatabaseQuery();
-      query.push('CREATE TABLE IF NOT EXISTS %s (', table);
+      var query = [];
+      query.push('CREATE TABLE IF NOT EXISTS '+table+' (');
       query.push('  iid INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
       query.push('  name VARCHAR(255),');
       query.push('  _integer INT(11),');
@@ -102,16 +103,16 @@ Entities.prototype.initializeEntity = function(entity, next) {
       query.push('  _boolean TINYINT(1),');
       query.push('  oid BIGINT');
       query.push(') DEFAULT CHARACTER SET utf8;');
-      queries.push(query);
+      queries.push(query.join(''));
       queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_name_index(name);');
-      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nnteger_index(_integer);');
-      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_ntring_index(_string);');
-      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nate_index(_date);');
-      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_noolean_index(_boolean);');
-      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_nid_index(oid);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_integer_index(_integer);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_string_index(_string);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_date_index(_date);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_boolean_index(_boolean);');
+      queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_oid_index(oid);');
 
       flow(queries)
-        .seqEach(function(query) { self.database.execute(query, this); })
+        .seqEach(function(query) { self.database.query(query, this); })
         .empty().seq(next) .catch(next)
     })
   }
@@ -132,17 +133,8 @@ Entities.prototype.initializeEntity = function(entity, next) {
  * @fires Entities#storageInitialized
  */
 Entities.prototype.initialize = function(next) {
-  var self = this
-  flow()
-  .seq(function() {
-    var _next = this;
-    DatabaseManager.instance().createClient(self.settings.database, function(error, client) {
-      if (error) return _next(error);
-      self.database = client;
-      _next();
-    });
-  })
-  .empty().seq(next).catch(next);
+  this.database = mysql.createPool(this.settings.database);
+  next();
 }
 
 /**
