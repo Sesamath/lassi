@@ -1,7 +1,8 @@
 {
   "name": "lassi",
-  "version": "1.8.19",
+  "version": "1.8.20",
   "private": true,
+  "managed": true,
   "main": "./classes/Lassi",
   "dependencies": {
     "body-parser": "~1.0.0",
