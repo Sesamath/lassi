@@ -144,7 +144,8 @@ Lassi.prototype.bootstrap = function(component) {
  * @param {array} dependencies Une liste de composant en dépendance
  */
 Lassi.prototype.component = function(name, dependencies) {
-  return this.components[name] = new Component(name, dependencies);
+  var component = this.components[name] = new Component(name, dependencies);
+  return component;
 }
 
 Lassi.prototype.service = function(name) {

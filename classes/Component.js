@@ -33,13 +33,13 @@ var _            = require('lodash');
  * @param {array} dependencies Dépendances
  */
 function Component(name, dependencies) {
-  this.name = name;
-  this.controllers = [];
+  this.name         = name;
+  this.controllers  = [];
   this.dependencies = dependencies;
-  this.entities = {};
-  this.services = {};
-  this.path = undefined;
-  this.userConfig = [];
+  this.entities     = {};
+  this.services     = {};
+  this.path         = undefined;
+  this.userConfig   = [];
 }
 
 /**
@@ -52,8 +52,14 @@ Component.prototype.config = function(fn) {
   return this;
 }
 
+/**
+ * Configuration du composant
+ */
 Component.prototype.configure = function() {
+
+  // Si on est déjà configuré, on repart
   if (this.configured) return;
+
   var self = this;
   _.each(self.dependencies, function(dependency) {
     var component = lassi.components[dependency];

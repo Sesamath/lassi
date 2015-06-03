@@ -22,10 +22,10 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-var _            = require('lodash');
 var Action       = require('./Action');
 var util         = require('util');
 var EventEmitter = require('events').EventEmitter
+var _    = require('lodash');
 
 /**
  * Cette classe est instanciée par {@link Component#controller}
