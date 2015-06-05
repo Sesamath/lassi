@@ -87,13 +87,13 @@ Entity.prototype.store = function(options, callback) {
 
     var query = '';
     if (instance.oid) {
-      query = 
+      query =
         'UPDATE '+instance.definition.table+
         ' SET data=?'+
         ' WHERE oid='+instance.oid;
       transaction.query(query, [new Buffer(data)], next);
     } else {
-      query = 
+      query =
         'INSERT INTO '+instance.definition.table+'(data)'+
         ' VALUES(?)';
       transaction.query(query, [new Buffer(data)], function (error, result) {
@@ -185,28 +185,13 @@ Entity.prototype.store = function(options, callback) {
         })
       })
       // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-      .seq(function() {
-        var end = this
-        if (options.index) {
-         flow().seq(function () {
-           cleanIndexes(this);
-         }).seq(function () {
-           buildIndexes(this);
-         }).seq(function () {
-           storeIndexes(this);
-         }).seq(function () {
-           end();
-         }).catch(function (error) {
-           end(error);
-         });
-        } else {
-         end();
-        }
-      })
-      .seq(function()        { if (options.object) updateObject(this);  else this(); })
-      .seq(function()        { transaction.query('COMMIT', this); })
-      .seq(function()        { transaction.release(); entity._afterStore.call(instance, this); })
-      .seq(function()        { callback(null, instance); })
+      .seq(function () { cleanIndexes(this); })
+      .seq(function()  { updateObject(this); })
+      .seq(function () { buildIndexes(this); })
+      .seq(function () { storeIndexes(this); })
+      .seq(function()  { transaction.query('COMMIT', this); })
+      .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
+      .seq(function()  { callback(null, instance); })
       .catch(function(error) {
         // rollback && release
         function cancel(next) {
@@ -248,9 +233,9 @@ Entity.prototype.delete = function(callback) {
   var transaction;
   flow()
     .seq(function() { database.getConnection(this); })
-    .seq(function(connection) { 
+    .seq(function(connection) {
       transaction = connection;
-      connection.query('START TRANSACTION', this); 
+      connection.query('START TRANSACTION', this);
     })
     .seq(function() {
       var _this = this;
@@ -258,10 +243,10 @@ Entity.prototype.delete = function(callback) {
         .par(function() { transaction.query('DELETE FROM '+entity.table+' WHERE oid='+instance.oid, this); })
         .par(function() { transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, this); })
         .seq(function() { transaction.query('COMMIT', _this); })
-        .catch(function(error) { 
-          transaction.query('ROLLBACK', function() { 
+        .catch(function(error) {
+          transaction.query('ROLLBACK', function() {
             transaction.release();
-            _this(error); 
+            _this(error);
           });
         });
     })
