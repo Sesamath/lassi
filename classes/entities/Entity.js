@@ -240,8 +240,7 @@ Entity.prototype.delete = function(callback) {
     .seq(function() {
       var _this = this;
       flow()
-        .par(function() { transaction.query('DELETE FROM '+entity.table+' WHERE oid='+instance.oid, this); })
-        .par(function() { transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, this); })
+        .seq(function() { transaction.query('DELETE e, i FROM '+entity.table+' e LEFT JOIN '+indexTable+' i USING(oid) WHERE e.oid = ' +instance.oid, this); })
         .seq(function() { transaction.query('COMMIT', _this); })
         .catch(function(error) {
           transaction.query('ROLLBACK', function() {
