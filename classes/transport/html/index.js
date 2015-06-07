@@ -53,6 +53,7 @@ function HtmlTransport() {
 * @private
 */
 HtmlTransport.prototype.process = function(data, next) {
+  if (data.$layout === false) return next(null, data.content);
   var self = this;
   var sections = _.filter(_.keys(data), function(i) { return i.charAt(0)!=='$' });
   var metas = new Metas(data.$metas || {});

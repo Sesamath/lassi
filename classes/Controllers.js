@@ -124,6 +124,7 @@ Controllers.prototype.middleware = function() {
           if (typeof result === 'string') {
             context.contentType = context.contentType || 'text/plain';
             data.content = result;
+            data.$layout = false;
           }
 
           // Cas général d'un retour objet à merger
