@@ -125,7 +125,9 @@ Context.prototype.notFound = function(message) {
 
 /**
  * Renvoie une réponse de type JSON.
- * @param {object} data données
+ * @param {object} data Les données (attention à renvoyer une liste de propriétés,
+ *                      un array est transformé en objet, un string devient la propriété content
+ *                      et les autres types primitifs sont ignorés)
  */
 Context.prototype.json = function(data) {
   this.contentType = 'application/json';
