@@ -29,7 +29,7 @@ module.exports = function($settings, $rail) {
   function stop(next) {
     if (_http) {
       _http.close(function (error) {
-        if (error) console.log(error.stack || error)
+        if (error) console.error(error.stack || error)
         lassi.log('$server', 'closed')
         if (next) next(error)
       })

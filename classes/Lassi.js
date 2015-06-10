@@ -134,7 +134,7 @@ Lassi.prototype.bootstrap = function(component) {
       $server.start(this);
     })
     .catch(function(error) {
-      console.log(error.stack);
+      console.error(error.stack);
     });
 }
 

@@ -171,7 +171,7 @@ Action.prototype.execute = function(context, next) {
   var isCbCompleted = false;
 
   function fooProtect() {
-    console.log('Attention, un résultat est arrivé de manière inatendue (un appel de next en trop ?).');
+    console.error('Attention, un résultat est arrivé de manière inatendue (un appel de next en trop ?).');
     console.trace();
   }
   function processResult(error, result) {

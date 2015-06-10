@@ -148,7 +148,7 @@ Controllers.prototype.middleware = function() {
         // une erreur standard
         if (context.error) {
           var head = context.error.toString();
-          lassi.log('Lassi', head.red, context.error.stack.toString().replace(head, ''));
+          console.error(head.red, context.error.stack.toString().replace(head, ''));
           context.contentType = 'text/plain';
           context.status = 500;
           data.content = 'Server Error';
