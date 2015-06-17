@@ -31,6 +31,9 @@ JsonTransport.prototype.process = function(data, next) {
   _.each(data, function(v,k) {
     if (k.charAt(0)!=='$') result[k] = v;
   })
+  // si le controleur veut renvoyer un array et pas un objet, il peut mettre son array dans une propriété arrayOnly
+  if (result.arrayOnly && result.arrayOnly instanceof Array) result = result.arrayOnly
+
   next(null, result);
 }
 
