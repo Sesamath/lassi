@@ -2,7 +2,6 @@
   "name": "lassi",
   "version": "1.8.28",
   "private": true,
-  "managed": true,
   "main": "./classes/Lassi",
   "dependencies": {
     "body-parser": "~1.0.0",
@@ -26,7 +25,7 @@
     "validator": "^3.16.0"
   },
   "devDependencies": {
-    "jsdoc": "^3.3.0-beta1",
+    "jsdoc": "^3.3.2",
     "mocha": "^2.2.1"
   },
   "repository": {
@@ -35,27 +34,17 @@
   },
   "jshintConfig": {
     "asi": true,
-    "boss": true,
-    "node": true,
     "strict": false,
     "maxlen": 256,
-    "newcap": false,
     "undef": true,
     "unused": true,
-    "onecase": true,
-    "lastsemic": true,
     "indent": 2,
     "loopfunc": false,
     "validthis": false,
-    "globals": {
-      "jQuery": false,
-      "lassi": false,
-      "describe": false,
-      "it": false,
-      "lfw": false,
-      "packageA": false,
-      "__Class": false
-    }
+    "jquery": true,
+    "node": true,
+    "browser": true,
+    "globals": {}
   },
   "readmeFilename": "README.md",
   "readme": "",
