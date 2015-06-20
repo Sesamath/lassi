@@ -78,9 +78,8 @@ function Action(controller, methods, path, cb) {
   }
 
   this.pathRegexp = pathtoRegexp(this.path, this.keys = [], { sensitive: true, strict: true, end: false });
-  lassi.log(
-    'lassi',
-    (this.methods?this.methods.join(','):'ALL').blue,
+  lassi.log('Add route',
+    (this.methods?this.methods.join(','):'ALL').toUpperCase(),
     this.path.yellow,
     this.pathRegexp,
     this.middleware?' -> '+cb:''

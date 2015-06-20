@@ -1,4 +1,5 @@
 "use strict";
+var log = require('an-log')('$server');
 /**
  * Service de gestion du serveur HTTP
  * @namespace $server
@@ -17,7 +18,7 @@ module.exports = function($settings, $rail) {
     _http = require('http').Server($rail.get());
     lassi.emit('httpReady', _http);
     _http.listen(port, function() {
-      lassi.log('$server', 'started on port', port.toString().blue, 'with pid ' +process.pid);
+      log('started', 'on port', port.toString().blue, 'with pid ' +process.pid);
       next();
     });
   }
@@ -30,11 +31,11 @@ module.exports = function($settings, $rail) {
     if (_http) {
       _http.close(function (error) {
         if (error) console.error(error.stack || error)
-        lassi.log('$server', 'closed')
+        log('closed')
         if (next) next(error)
       })
     } else {
-      lassi.log('$server', 'already closed or never started')
+      log('already closed or never started')
       if (next) next(new Error('Http server already closed or never started'))
     }
   }

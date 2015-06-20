@@ -1,9 +1,11 @@
 {
   "name": "lassi",
-  "version": "1.8.30",
+  "version": "1.8.31",
   "private": true,
   "main": "./classes/Lassi",
   "dependencies": {
+    "an-flow": "^1.0.0",
+    "an-log": "^1.0.4",
     "body-parser": "~1.0.0",
     "colors": "^0.6.2",
     "compression": "^1.0.2",
@@ -19,7 +21,6 @@
     "mocha": "^2.2.5",
     "mysql": "^2.6.2",
     "mysql2": "^0.15.7",
-    "seq": "git://github.com/yoran-brault/node-seq.git",
     "squel": "^3.10.0",
     "static-favicon": "~1.0.0",
     "validator": "^3.16.0"
@@ -44,7 +45,9 @@
     "jquery": true,
     "node": true,
     "browser": true,
-    "globals": {}
+    "globals": {
+      "lassi": true
+    }
   },
   "readmeFilename": "README.md",
   "readme": "",

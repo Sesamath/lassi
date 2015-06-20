@@ -1,4 +1,6 @@
 'use strict';
+
+var log = require('an-log')('$entities');
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -22,7 +24,7 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 var _            = require('lodash');
-var flow = require('seq');
+var flow = require('an-flow');
 var util = require('util');
 
 /**
@@ -207,7 +209,7 @@ Entity.prototype.store = function(options, callback) {
         // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
         // cf https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
         if (attempts < 3) {
-          lassi.log('lassi', "Erreur n°" +attempts +" dans entity.store, on retente pour voir si ça règle le deadlock probable");
+          log.error("Erreur n°" +attempts +" dans entity.store, on retente pour voir si ça règle le deadlock probable");
           cancel(save);
         }
         // ça veut vraiment pas

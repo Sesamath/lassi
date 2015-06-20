@@ -1,3 +1,4 @@
+var log = require('an-log')('$rail');
 /**
  * Service de gestion des middlewares
  * @namespace $rail
@@ -14,7 +15,7 @@ module.exports = function($settings) {
    * @private
    */
   function railUse(name, callback, settings) {
-    lassi.log('$rail', "adding", name.blue, "middleware");
+    log("adding", name.blue, "middleware");
     if (!settings) return;
     settings.mountPoint = settings.mountPoint || '/';
 

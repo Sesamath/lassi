@@ -91,7 +91,7 @@ Component.prototype.configure = function() {
     lassi.services.parseInjections(userConfig, self);
   });
   this.configured = true;
-  lassi.log(this.name, 'initialized');
+  lassi.log('initialized', this.name);
 }
 
 /**

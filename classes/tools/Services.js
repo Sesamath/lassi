@@ -6,7 +6,7 @@ function Services() {
 
 Services.prototype.register = function(name, service) {
   if (this._services[name]) throw new Error('Already registered service '+name);
-  lassi.log("lassi", "service", name.blue, "registered");
+  lassi.log('registered', 'service', name.blue);
   this._services[name] = service;
 }
 

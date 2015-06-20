@@ -23,7 +23,7 @@
 */
 
 var _            = require('lodash');
-var flow = require('seq');
+var flow = require('an-flow');
 var util = require('util');
 var Renderer = require('./Renderer');
 var Metas = require('./Metas');

@@ -23,7 +23,7 @@
 */
 
 var _                = require('lodash');
-var flow             = require('seq');
+var flow             = require('an-flow');
 var EntityDefinition = require('./EntityDefinition');
 var EventEmitter     = require('events').EventEmitter
 var util             = require('util');

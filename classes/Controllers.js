@@ -27,7 +27,7 @@ var _            = require('lodash');
 var Context      = require('./Context');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
-var flow         = require('seq');
+var flow         = require('an-flow');
 
 /**
  * La classe controller est le chef d'orchestre de lassi. Elle gère

@@ -23,14 +23,16 @@
  * 02110-1301 USA, or see the fs. site: http://www.fs..org.
  */
 
-var flow         = require('seq');
+var flow         = require('an-flow');
 var _            = require('lodash');
 var Component    = require('./Component');
 var Services     = require('./tools/Services');
 var EventEmitter = require('events').EventEmitter
 var util         = require('util');
 var fs           = require('fs');
-var tty          = require('tty');
+var log          = require('an-log')('lassi');
+log('mark');
+log.debug('TEST');
 require('colors');
 
 var shutdownRequested = false
@@ -105,7 +107,7 @@ Lassi.prototype.startup = function(component, next) {
       service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
       if (!service) throw new Error("Le service " +name +" n'a pu être résolu (il ne retourne probablement rien)")
       if (service.setup) {
-        lassi.log("lassi", 'setting up', name.blue);
+        log('setting up', name.blue);
         setupables.push(service);
       }
     });
@@ -160,7 +162,7 @@ Lassi.prototype.service = function(name) {
  */
 Lassi.prototype.shutdown = function() {
   function thisIsTheEnd() {
-    lassi.log('lassi', 'shutdown completed');
+    log('shutdown completed');
     process.exit();
   }
 
@@ -168,10 +170,10 @@ Lassi.prototype.shutdown = function() {
     shutdownRequested = true
 
     try {
-      lassi.log('lassi', 'processing shutdown');
+      log('processing shutdown');
       // avant de lancer l'événement on met une limite pour les réponses à 2s
       setTimeout(function () {
-        lassi.log('lassi', 'shutdown too slow, forced');
+        log('shutdown too slow, forced');
         thisIsTheEnd();
       }, 2000);
       /**
@@ -185,11 +187,11 @@ Lassi.prototype.shutdown = function() {
       var $server = this.service && this.service('$server');
       if ($server) $server.stop(thisIsTheEnd);
       else {
-        lassi.log('$server', 'is already gone');
+        log.warning('server is already gone');
         thisIsTheEnd();
       }
     } catch (error) {
-      lassi.log('lassi', 'error on shutdown\n' + error.stack);
+      log('error on shutdown\n' + error.stack);
       process.exit();
     }
   }
@@ -199,30 +201,11 @@ Lassi.prototype.shutdown = function() {
  * Logger
  * @private
  */
-Lassi.prototype.log = function(){
-  var args = Array.prototype.slice.call(arguments);
-  var first = args.shift();
-  //if (level<Levels.info) return;
-  var message = util.format.apply(console, args);
-  var isatty = tty.isatty(1);
-  var color = isatty;
-
-  if (color) {
-    console.log('['.white+first.yellow+']'.white, message);
-  } else {
-    message = '['+ first + '] ' + message;
-    if (!isatty) {
-      message = message.replace(/\x1b\[[^m]+m/g, '');
-      message = message.replace(/\x1b/g, '');
-    }
-    console.log(message);
-  }
-  return this;
-};
+Lassi.prototype.log = log;
 
 module.exports = function(root) {
   if (_.has(GLOBAL, 'lassi')) {
-    lassi.log('lassi', 'ERROR'.red, ' : lassi already exists')
+    log('ERROR'.red, ' : lassi already exists')
     return lassi;
   }
   new Lassi(root);
@@ -235,7 +218,7 @@ module.exports = function(root) {
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
   process.on('uncaughtException', function (error) {
     // on envoie l'erreur en console mais on va pas planter node pour si peu
-    lassi.log('app', 'uncaughtException : ' +error.stack);
+    log.error('uncaughtException : ', error.stack);
   })
 
   // On ajoute nos écouteurs pour le shutdown
@@ -243,7 +226,7 @@ module.exports = function(root) {
   // via un process.exit() car sinon on reçoit normalement un SIG* avant
   _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], function (signal) {
     process.on(signal, function () {
-      lassi.log('lassi', 'pid ' + process.pid + ' received signal ' + signal);
+      log('pid ' + process.pid + ' received signal ' + signal);
       lassi.shutdown();
     });
   })
