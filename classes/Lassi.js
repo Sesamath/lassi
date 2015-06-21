@@ -31,8 +31,6 @@ var EventEmitter = require('events').EventEmitter
 var util         = require('util');
 var fs           = require('fs');
 var log          = require('an-log')('lassi');
-log('mark');
-log.debug('TEST');
 require('colors');
 
 var shutdownRequested = false
