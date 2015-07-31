@@ -77,11 +77,14 @@ HtmlTransport.prototype.process = function(data, next) {
       data.head = metas.head().render();
       data.breadcrumbs = metas.breadcrumbs;
       data.pageTitle = metas.pageTitle;
-
-      self.engine.render(data.$views, data.$layout, data, function(error, result) {
-        if (error) return next(error);
-        next(null, result);
-      });
+      if (data.$layout) {
+        self.engine.render(data.$views, data.$layout, data, function(error, result) {
+          if (error) return next(error);
+          next(null, result);
+        });
+      } else {
+        next(new Error("render impossible sans $layout"))
+      }
     })
     .seq(function(output) { next(null, output); }).catch(next);
 }

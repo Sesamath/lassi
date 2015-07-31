@@ -126,17 +126,21 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
     template(locals, callback);
   } else {
     self.dust.onLoad = function (path, callback) {
-      self.readTemplate(viewsPath+'/partials', path, locals, callback);
+      self.readTemplate(viewsPath + '/partials', path, locals, callback);
     };
-    this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
-      if (err) { callback(err); return }
-      fs.readFile(path, 'utf8', function(err, str) {
+    if (unresolvedPath) {
+      this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
         if (err) { callback(err); return }
-        template = self.dust.compileFn(str);
-        if (self.cache) self.cacheStore[unresolvedPath] = template;
-        template(locals, callback);
+        fs.readFile(path, 'utf8', function(err, str) {
+          if (err) { callback(err); return }
+          template = self.dust.compileFn(str);
+          if (self.cache) self.cacheStore[unresolvedPath] = template;
+          template(locals, callback);
+        });
       });
-    });
+    } else {
+      callback(new Error("render appelé sans path à résoudre"))
+    }
   }
 }
 
