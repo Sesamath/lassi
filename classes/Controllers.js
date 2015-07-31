@@ -109,7 +109,7 @@ Controllers.prototype.middleware = function() {
       if (actionnable.action.middleware) {
         actionnable.action.middleware(request, response, function() { nextAction();  });
 
-      // L'acttionnable est une action
+      // L'actionnable est une action
       } else {
         actionnable.action.execute(context, function(error, result) {
           if (error) {

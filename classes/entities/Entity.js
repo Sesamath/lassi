@@ -28,7 +28,7 @@ var flow = require('an-flow');
 var util = require('util');
 
 /**
- * Construction d'une entité. Passez par la méthode {@link EntityDefinition#create} pour créer une entité.
+ * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
  * @constructor
  * @param {Object} settings
  */

@@ -140,8 +140,8 @@ Lassi.prototype.bootstrap = function(component) {
 
 /**
  * Enregistre un {@link Component} dans le système.
- * @param {String} name Le nom du component
- * @param {array} dependencies Une liste de composant en dépendance
+ * @param {String} name           Le nom du component
+ * @param {array}  [dependencies] Une liste de composant en dépendance
  */
 Lassi.prototype.component = function(name, dependencies) {
   var component = this.components[name] = new Component(name, dependencies);
