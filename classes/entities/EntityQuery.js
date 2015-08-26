@@ -375,7 +375,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     query.push('OFFSET %d', from);
   }
   var i = 0;
-  lassi.log("requete", query.toString().replace(/\?/g, function () { var arg = query.args[i++]; return (typeof arg === "number") ? arg : "'" +arg +"'"}));
+  //lassi.log("requete", query.toString().replace(/\?/g, function () { var arg = query.args[i++]; return (typeof arg === "number") ? arg : "'" +arg +"'"}));
   this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
     if (errors) return callback(errors);
     var objects = [];
@@ -405,7 +405,6 @@ EntityQuery.prototype.grab = function(count, from, callback) {
             _next();
           });
         } catch (error) {
-          console.log(error.stack)
           _next(error)
         }
       })
