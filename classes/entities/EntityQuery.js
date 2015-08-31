@@ -74,7 +74,7 @@ EntityQuery.prototype.equals = function(value) {
  * @return {EntityQuery} La requête (chaînable donc}
  */
 EntityQuery.prototype.like = function(value) {
-  return this.alterLastMatch({value: value,  operator: 'like'});
+  return this.alterLastMatch({value: value,  operator: 'LIKE'});
 }
 
 /**
@@ -283,6 +283,12 @@ EntityQuery.prototype.finalizeQuery = function(query) {
           query.args.push(clause.value[0]);
           query.args.push(clause.value[1]);
           break;
+
+        case 'LIKE':
+          where.push('%s LIKE ?', clause.field);
+          query.args.push(clause.value);
+          break;
+
 
         case 'IN':
           var keys = [];
