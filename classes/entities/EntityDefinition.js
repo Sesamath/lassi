@@ -59,7 +59,8 @@ function EntityDefinition(name) {
 EntityDefinition.prototype.defineIndex = function(fieldName, fieldType, callback) {
   this.indexes[fieldName] = {
     callback: callback?callback:function() { return this[fieldName]; },
-    fieldType: fieldType
+    fieldType: fieldType,
+    fieldName: fieldName
   };
   return this;
 }

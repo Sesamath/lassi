@@ -435,7 +435,8 @@ EntityQuery.prototype.count = function(callback) {
   var query = new DatabaseQuery();
   query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
   this.finalizeQuery(query);
-  this.entity.entities.database.execute({text: query, parameters: query.args}, function(error, rows) {
+  console.log(query);
+  this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
     if (error) return callback(error);
     if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));
     callback(null, rows[0].count);

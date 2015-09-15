@@ -187,14 +187,15 @@ Entity.prototype.store = function(options, callback) {
         })
       })
       // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-      .seq(function () { cleanIndexes(this); })
-      .seq(function()  { updateObject(this); })
-      .seq(function () { buildIndexes(this); })
-      .seq(function () { storeIndexes(this); })
+      .seq(function () { if (options.index) cleanIndexes(this); else this(); })
+      .seq(function()  { if (options.object) updateObject(this); else this(); })
+      .seq(function () { if (options.index) buildIndexes(this); else this(); })
+      .seq(function () { if (options.index) storeIndexes(this); else this(); })
       .seq(function()  { transaction.query('COMMIT', this); })
       .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
       .seq(function()  { callback(null, instance); })
       .catch(function(error) {
+        console.log(error.stack);
         // rollback && release
         function cancel(next) {
           if (transaction) {
@@ -220,6 +221,10 @@ Entity.prototype.store = function(options, callback) {
   } // save
 
   save();
+}
+
+Entity.prototype.reindex = function(callback) {
+  this.store({object: false, index: true}, callback);
 }
 
 /**

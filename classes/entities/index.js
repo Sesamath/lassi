@@ -58,6 +58,10 @@ Entities.prototype.define = function(name) {
   return this.entities[name] = def;
 }
 
+Entities.prototype.definitions = function() {
+  return this.entities;
+}
+
 Entities.prototype.databaseHasTable = function(table, callback) {
   this.database.query('SELECT * FROM '+table+" LIMIT 1", function(error) {
     if (error && error.code == 'ER_NO_SUCH_TABLE') return callback(null, false);
