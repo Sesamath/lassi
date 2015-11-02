@@ -116,17 +116,15 @@ Entities.prototype.initializeEntity = function(entity, next) {
       queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_oid_index(oid);');
 
       flow(queries)
-        .seqEach(function(query) { self.database.query(query, this); })
-        .empty().seq(next) .catch(next)
+      .seqEach(function(query) { self.database.query(query, this); })
+      .done(next)
     })
   }
 
   flow()
-    .seq(function() { createStore(this); })
-    .seq(function() { createStoreIndex(this); })
-    .empty()
-    .seq(next)
-    .catch(next);
+  .seq(function() { createStore(this); })
+  .seq(function() { createStoreIndex(this); })
+  .done(next);
 }
 
 /**
@@ -160,8 +158,8 @@ Entities.prototype.dropEntityIndexes = function(entity, next) {
   }
 
   flow()
-    .seq(function() { dropStoreIndex(this); })
-    .seq(function() { next() })
+  .seq(function() { dropStoreIndex(this); })
+  .done(next);
 }
 
 /**
@@ -209,12 +207,10 @@ Entities.prototype.rebuildEntityIndexes = function(entity, next) {
   }
 
   flow()
-    .seq(function() { dropStoreIndex(this); })
-    .seq(function() { loadObjects(this);  })
-    .flatten()
-    .seqEach(function(object) { storeObject(object, this); })
-    .seq(function() { next() })
-    .catch(next)
+  .seq(function() { dropStoreIndex(this); })
+  .seq(function() { loadObjects(this);  })
+  .seqEach(function(object) { storeObject(object, this); })
+  .done(next)
 }
 
 /**

@@ -261,9 +261,13 @@ EntityQuery.prototype.finalizeQuery = function(query) {
 
   // Construction des conditions
   if (this.clauses.length) {
-    query.push('WHERE');
+    var init = false;
     var where = new DatabaseQuery();
     _.each(this.clauses, function(clause) {
+      if (!init && clause.type!=='sort') {
+        query.push('WHERE');
+        init = true;
+      }
       if (clause.index != 'oid') {
         where.push("%s.name=?", clause.alias);
         query.args.push(clause.index);
@@ -435,7 +439,6 @@ EntityQuery.prototype.count = function(callback) {
   var query = new DatabaseQuery();
   query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
   this.finalizeQuery(query);
-  console.log(query);
   this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
     if (error) return callback(error);
     if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));

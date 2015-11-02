@@ -4,7 +4,7 @@
   "private": true,
   "main": "./classes/Lassi",
   "dependencies": {
-    "an-flow": "^1.0.1",
+    "an-flow": "^1.1.5",
     "an-log": "^1.0.11",
     "body-parser": "~1.14.1",
     "colors": "^1.1.2",
