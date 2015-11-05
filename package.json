@@ -1,10 +1,6 @@
 {
   "name": "lassi",
-<<<<<<< HEAD
-  "version": "1.8.33",
-=======
   "version": "1.8.39",
->>>>>>> 7b024d9e20cc8f9344b1717932971fe919974dc6
   "private": true,
   "main": "./classes/Lassi",
   "dependencies": {
