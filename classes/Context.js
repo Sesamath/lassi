@@ -54,6 +54,7 @@ function Context(request, response) {
    * http://expressjs.com/api.html#req.body
    */
   this.post         = this.request.body;
+
   /** La session */
   this.session      = this.request.session;
   /** Le user courant */

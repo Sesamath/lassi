@@ -111,7 +111,7 @@ Lassi.prototype.startup = function(component, next) {
     });
     flow(setupables)
     .seqEach(function(service) { service.setup(this); })
-    .empty().seq(this).catch(this);
+    .done(this);
   })
   .empty().seq(function() {
     self.emit('startup');
@@ -126,22 +126,18 @@ Lassi.prototype.startup = function(component, next) {
 Lassi.prototype.bootstrap = function(component) {
   var self = this;
   flow()
-    .seq(function() {
-      self.startup(component, this);
-    })
-    .seq(function () {
-      var $server = self.service('$server');
-      $server.start(this);
-    })
-    .catch(function(error) {
-      console.error(error.stack);
-    });
+  .seq(function() { self.startup(component, this); })
+  .seq(function () {
+    var $server = self.service('$server');
+    $server.start(this);
+  })
+  .catch(function(error) { console.error(error.stack); });
 }
 
 /**
  * Enregistre un {@link Component} dans le système.
- * @param {String} name Le nom du component
- * @param {array} dependencies Une liste de composant en dépendance
+ * @param {String} name           Le nom du component
+ * @param {array}  [dependencies] Une liste de composant en dépendance
  */
 Lassi.prototype.component = function(name, dependencies) {
   var component = this.components[name] = new Component(name, dependencies);

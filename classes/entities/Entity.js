@@ -28,7 +28,7 @@ var flow = require('an-flow');
 var util = require('util');
 
 /**
- * Construction d'une entité. Passez par la méthode {@link EntityDefinition#create} pour créer une entité.
+ * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
  * @constructor
  * @param {Object} settings
  */
@@ -175,51 +175,56 @@ Entity.prototype.store = function(options, callback) {
   function save() {
     attempts++;
     flow()
-      // le beforeStore avant de réclamer la connexion
-      .seq(function() { entity._beforeStore.call(instance, this); } )
-      .seq(function() { database.getConnection(this); })
-      .seq(function(connection) {
-        var _next = this;
-          connection.query('START TRANSACTION', function(error) {
-          if (error) return _next(error);
-          transaction = connection;
-          _next();
-        })
+    // le beforeStore avant de réclamer la connexion
+    .seq(function() { entity._beforeStore.call(instance, this); } )
+    .seq(function() { database.getConnection(this); })
+    .seq(function(connection) {
+      var _next = this;
+        connection.query('START TRANSACTION', function(error) {
+        if (error) return _next(error);
+        transaction = connection;
+        _next();
       })
-      // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-      .seq(function () { cleanIndexes(this); })
-      .seq(function()  { updateObject(this); })
-      .seq(function () { buildIndexes(this); })
-      .seq(function () { storeIndexes(this); })
-      .seq(function()  { transaction.query('COMMIT', this); })
-      .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
-      .seq(function()  { callback(null, instance); })
-      .catch(function(error) {
-        // rollback && release
-        function cancel(next) {
-          if (transaction) {
-           transaction.rollback(function () {
-             transaction.release();
-             next();
-           });
-          } else {
+    })
+    // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
+    .seq(function () { if (options.index) cleanIndexes(this); else this(); })
+    .seq(function()  { if (options.object) updateObject(this); else this(); })
+    .seq(function () { if (options.index) buildIndexes(this); else this(); })
+    .seq(function () { if (options.index) storeIndexes(this); else this(); })
+    .seq(function()  { transaction.query('COMMIT', this); })
+    .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
+    .seq(function()  { callback(null, instance); })
+    .catch(function(error) {
+      console.log(error.stack);
+      // rollback && release
+      function cancel(next) {
+        if (transaction) {
+         transaction.rollback(function () {
+           transaction.release();
            next();
-          }
+         });
+        } else {
+         next();
         }
-        // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
-        // cf https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
-        if (attempts < 3) {
-          log.error("Erreur n°" +attempts +" dans entity.store, on retente pour voir si ça règle le deadlock probable");
-          cancel(save);
-        }
-        // ça veut vraiment pas
-        else cancel(function () {
-          callback(error)
-        })
+      }
+      // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
+      // cf https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
+      if (attempts < 3) {
+        log.error("Erreur n°" +attempts +" dans entity.store, on retente pour voir si ça règle le deadlock probable");
+        cancel(save);
+      }
+      // ça veut vraiment pas
+      else cancel(function () {
+        callback(error)
       })
+    })
   } // save
 
   save();
+}
+
+Entity.prototype.reindex = function(callback) {
+  this.store({object: false, index: true}, callback);
 }
 
 /**
@@ -234,28 +239,28 @@ Entity.prototype.delete = function(callback) {
   var database = entity.entities.database;
   var transaction;
   flow()
-    .seq(function() { database.getConnection(this); })
-    .seq(function(connection) {
-      transaction = connection;
-      connection.query('START TRANSACTION', this);
-    })
-    .seq(function() {
-      var _this = this;
-      flow()
-        .seq(function() { transaction.query('DELETE e, i FROM '+entity.table+' e LEFT JOIN '+indexTable+' i USING(oid) WHERE e.oid = ' +instance.oid, this); })
-        .seq(function() { transaction.query('COMMIT', _this); })
-        .catch(function(error) {
-          transaction.query('ROLLBACK', function() {
-            transaction.release();
-            _this(error);
-          });
-        });
-    })
-    .seq(function() {
-      transaction.release();
-      callback();
-    })
-    .catch(callback)
+  .seq(function() { database.getConnection(this); })
+  .seq(function(connection) {
+    transaction = connection;
+    connection.query('START TRANSACTION', this);
+  })
+  .seq(function() {
+    var _this = this;
+    flow()
+    .seq(function() { transaction.query('DELETE e, i FROM '+entity.table+' e LEFT JOIN '+indexTable+' i USING(oid) WHERE e.oid = ' +instance.oid, this); })
+    .seq(function() { transaction.query('COMMIT', _this); })
+    .catch(function(error) {
+      transaction.query('ROLLBACK', function() {
+        transaction.release();
+        _this(error);
+      });
+    });
+  })
+  .seq(function() {
+    transaction.release();
+    callback();
+  })
+  .catch(callback)
 }
 
 module.exports = Entity;

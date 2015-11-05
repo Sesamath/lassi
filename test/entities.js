@@ -1,7 +1,7 @@
 var Entities = require('../classes/entities');
 var entities, TestEntity;
 var assert = require('assert');
-var flow = require('seq');
+var flow = require('an-flow');
 var databaseSettings = {
   connectionLimit: 10,
   user: "root",
@@ -73,12 +73,12 @@ describe('Database', function() {
     it("Suppression d'entités", function(done) {
       flow()
       .seq(function() { TestEntity.match('p').equals(0).grab(this); })
-      .flatten()
       .seqEach(function(entity) {
         entity.delete(this);
       })
       .empty().seq(done).catch(done);
     });
+
     it("Vérification des suppressions", function(done) {
       TestEntity.match('p').equals(0).grab(function(error, result) {
         if (error) return done(error);
@@ -86,6 +86,23 @@ describe('Database', function() {
         done();
       });
     });
+
+    it("Une recherche simple ne donnant rien", function(done) {
+      TestEntity.match('p').equals(666).grabOne(function(error, result) {
+        if (error) return done(error);
+        assert(result===undefined);
+        done();
+      });
+    });
+
+    it("Une recherche multiple ne donnant rien", function(done) {
+      TestEntity.match('p').equals(666).grab(function(error, result) {
+        if (error) return done(error);
+        assert(result.length===0);
+        done();
+      });
+    });
+
   })
 });
 

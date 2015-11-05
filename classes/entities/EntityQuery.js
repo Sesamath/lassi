@@ -74,7 +74,7 @@ EntityQuery.prototype.equals = function(value) {
  * @return {EntityQuery} La requête (chaînable donc}
  */
 EntityQuery.prototype.like = function(value) {
-  return this.alterLastMatch({value: value,  operator: 'like'});
+  return this.alterLastMatch({value: value,  operator: 'LIKE'});
 }
 
 /**
@@ -261,9 +261,13 @@ EntityQuery.prototype.finalizeQuery = function(query) {
 
   // Construction des conditions
   if (this.clauses.length) {
-    query.push('WHERE');
+    var init = false;
     var where = new DatabaseQuery();
     _.each(this.clauses, function(clause) {
+      if (!init && clause.type!=='sort') {
+        query.push('WHERE');
+        init = true;
+      }
       if (clause.index != 'oid') {
         where.push("%s.name=?", clause.alias);
         query.args.push(clause.index);
@@ -283,6 +287,12 @@ EntityQuery.prototype.finalizeQuery = function(query) {
           query.args.push(clause.value[0]);
           query.args.push(clause.value[1]);
           break;
+
+        case 'LIKE':
+          where.push('%s LIKE ?', clause.field);
+          query.args.push(clause.value);
+          break;
+
 
         case 'IN':
           var keys = [];
@@ -374,42 +384,42 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     query.push('LIMIT %d', count);
     query.push('OFFSET %d', from);
   }
+  //lassi.log("requete", query.toString().replace(/\?/g, function () { var arg = query.args[i++]; return (typeof arg === "number") ? arg : "'" +arg +"'"}));
   this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
     if (errors) return callback(errors);
     var objects = [];
     flow(rows)
-      .parEach(function(row) {
-        var _next = this;
-        // un plantage du JSON.parse (par ex "Unexpected end of input" si les datas ont étés tronqués à l'insert)
-        // n'arrive pas dans le catch de flow tout seul
-        try {
-          var tmp = JSON.parse(row.data, function (key, value) {
-            if (typeof value === 'string') {
-              if (dateRegExp.exec(value)) {
-                return new Date(value);
-              }
+    .seqEach(function(row) {
+      var _next = this;
+      // un plantage du JSON.parse (par ex "Unexpected end of input" si les datas ont étés tronqués à l'insert)
+      // n'arrive pas dans le catch de flow tout seul
+      try {
+        var tmp = JSON.parse(row.data, function (key, value) {
+          if (typeof value === 'string') {
+            if (dateRegExp.exec(value)) {
+              return new Date(value);
             }
-            return value;
-          });
-          tmp.oid = row.oid;
-          var instance = _this.entity.create(tmp);
-          /**
-           * Évènement déclenché après le chargement d'une entité
-           * @event EntityQuery#afterLoad
-           */
-          _this.entity._afterLoad.call(instance, function (error) {
-            if (error) return _next(error);
-            objects.push(instance);
-            _next();
-          });
-        } catch (error) {
-          console.log(error.stack)
-          _next(error)
-        }
-      })
-      .empty()
-      .seq(function() { callback(null, objects)})
-      .catch(callback)
+          }
+          return value;
+        });
+        tmp.oid = row.oid;
+        var instance = _this.entity.create(tmp);
+        /**
+         * Évènement déclenché après le chargement d'une entité
+         * @event EntityQuery#afterLoad
+         */
+        _this.entity._afterLoad.call(instance, function (error) {
+          if (error) return _next(error);
+          objects.push(instance);
+          _next();
+        });
+      } catch (error) {
+        _next(error)
+      }
+    })
+    .empty()
+    .seq(function() { callback(null, objects)})
+    .catch(callback)
   });
 }
 
@@ -428,7 +438,7 @@ EntityQuery.prototype.count = function(callback) {
   var query = new DatabaseQuery();
   query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
   this.finalizeQuery(query);
-  this.entity.entities.database.execute({text: query, parameters: query.args}, function(error, rows) {
+  this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
     if (error) return callback(error);
     if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));
     callback(null, rows[0].count);

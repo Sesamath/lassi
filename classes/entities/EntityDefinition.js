@@ -59,7 +59,8 @@ function EntityDefinition(name) {
 EntityDefinition.prototype.defineIndex = function(fieldName, fieldType, callback) {
   this.indexes[fieldName] = {
     callback: callback?callback:function() { return this[fieldName]; },
-    fieldType: fieldType
+    fieldType: fieldType,
+    fieldName: fieldName
   };
   return this;
 }
@@ -112,27 +113,32 @@ EntityDefinition.prototype.construct = function(fn) {
 
 /**
  * Ajoute un traitement avant stockage.
- * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
+ * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
  */
 EntityDefinition.prototype.beforeStore = function(fn) {
   this._beforeStore = fn;
 }
 
 /**
- * Ajoute une traitement après stockage.
- * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
+ * Ajoute un traitement après stockage.
+ * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
  */
 EntityDefinition.prototype.afterStore = function(fn) {
   this._afterStore = fn;
 }
 
 /**
- * Ajoute une traitement après chargement.
- * @param {function} fn fonction à exécuter qui doit avoir une callback en paramètre
+ * Ajoute un traitement après chargement.
+ * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
  */
 EntityDefinition.prototype.afterLoad = function(fn) {
   this._afterLoad = fn;
 }
+
+/**
+ * Callback à rappeler sans argument
+ * @callback simpleCallback
+ */
 
 
 module.exports = EntityDefinition;
