@@ -35,8 +35,7 @@ function fooCb(cb) { cb(); }
 function EntityDefinition(name) {
   this.name = name;
   this.indexes = {};
-  this._beforeStore = this._afterStore = this._afterLoad = fooCb;
-  this._construct = function() {};
+  this._beforeStore = this._afterStore = fooCb;
 }
 
 /**
@@ -87,8 +86,14 @@ EntityDefinition.prototype.bless = function(entities) {
 EntityDefinition.prototype.create = function(values) {
   var instance = new Entity();
   instance.setDefinition(this);
-  if (this._construct) this._construct.call(instance, values);
-  if (values) _.extend(instance, values);
+  if (this._defaults) {
+    this._defaults.call(instance);
+  }
+  if (this._construct) {
+    this._construct.call(instance, values);
+  } else {
+    if (values) _.extend(instance, values);
+  }
   return instance;
 }
 
@@ -111,6 +116,11 @@ EntityDefinition.prototype.construct = function(fn) {
   this._construct = fn;
 }
 
+EntityDefinition.prototype.defaults = function(fn) {
+  this._defaults = fn;
+}
+
+
 /**
  * Ajoute un traitement avant stockage.
  * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
@@ -125,14 +135,6 @@ EntityDefinition.prototype.beforeStore = function(fn) {
  */
 EntityDefinition.prototype.afterStore = function(fn) {
   this._afterStore = fn;
-}
-
-/**
- * Ajoute un traitement après chargement.
- * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
- */
-EntityDefinition.prototype.afterLoad = function(fn) {
-  this._afterLoad = fn;
 }
 
 /**

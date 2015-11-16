@@ -384,42 +384,19 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     query.push('LIMIT %d', count);
     query.push('OFFSET %d', from);
   }
-  //lassi.log("requete", query.toString().replace(/\?/g, function () { var arg = query.args[i++]; return (typeof arg === "number") ? arg : "'" +arg +"'"}));
   this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
     if (errors) return callback(errors);
-    var objects = [];
-    flow(rows)
-    .seqEach(function(row) {
-      var _next = this;
-      // un plantage du JSON.parse (par ex "Unexpected end of input" si les datas ont étés tronqués à l'insert)
-      // n'arrive pas dans le catch de flow tout seul
-      try {
-        var tmp = JSON.parse(row.data, function (key, value) {
-          if (typeof value === 'string') {
-            if (dateRegExp.exec(value)) {
-              return new Date(value);
-            }
-          }
-          return value;
-        });
-        tmp.oid = row.oid;
-        var instance = _this.entity.create(tmp);
-        /**
-         * Évènement déclenché après le chargement d'une entité
-         * @event EntityQuery#afterLoad
-         */
-        _this.entity._afterLoad.call(instance, function (error) {
-          if (error) return _next(error);
-          objects.push(instance);
-          _next();
-        });
-      } catch (error) {
-        _next(error)
-      }
-    })
-    .empty()
-    .seq(function() { callback(null, objects)})
-    .catch(callback)
+    for(var i=0,ii=rows.length; i<ii; i++) {
+      var tmp = JSON.parse(rows[i].data, function (key, value) {
+        if (typeof value === 'string' && dateRegExp.exec(value)) {
+          return new Date(value);
+        }
+        return value;
+      });
+      tmp.oid = rows[i].oid;
+      rows[i] = _this.entity.create(tmp);
+    }
+    callback(null, rows);
   });
 }
 
