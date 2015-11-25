@@ -79,7 +79,8 @@ EntityDefinition.prototype.bless = function(entities) {
 }
 
 /**
- * Retourne une instance {@link Entity} à partir de la définition.
+ * Retourne une instance {@link Entity} à partir de la définition
+ * (appelera defaults s'il existe, puis construct s'il existe et _.extend sinon)
  * @param {Object=} values Des valeurs à injecter dans l'objet.
  * @return {Entity} Une instance d'entité
  */
@@ -109,13 +110,18 @@ EntityDefinition.prototype.match = function() {
 }
 
 /**
- * Ajoute un constructeur.
+ * Ajoute un constructeur (appelé par create avec l'objet qu'on lui donne), s'il n'existe pas
+ * le create affectera toutes les valeurs qu'on lui passe à l'entité
  * @param {function} fn Constructeur
  */
 EntityDefinition.prototype.construct = function(fn) {
   this._construct = fn;
 }
 
+/**
+ * Ajoute un initialisateur, qui sera toujours appelé par create (avant un éventuel construct)
+ * @param {function} fn La fonction qui initialisera des valeurs par défaut (sera appelée sans arguments)
+ */
 EntityDefinition.prototype.defaults = function(fn) {
   this._defaults = fn;
 }
