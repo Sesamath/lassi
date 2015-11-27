@@ -39,10 +39,11 @@ var _            = require('lodash');
 function Action(controller, methods, path, cb) {
   this.path = path;
   this.methods = methods;
-  if (_.isString(cb)) {
-    this.fsPath = cb;
+  if (!_.isFunction(cb)) {
+    _.extend(this, cb);
     this.callback = undefined;
     this.middleware = true;
+    console.log(this);
   } else {
     this.callback = cb;
     this.middleware = undefined;
@@ -62,7 +63,7 @@ function Action(controller, methods, path, cb) {
 
   if (this.middleware) {
     var express = require('express');
-    var serveStatic = express.static(cb);
+    var serveStatic = express.static(this.fsPath, {'max-age': undefined});
     this.middleware = (function(base) {
       return function(request, response, next) {
         var saveUrl = request.url;

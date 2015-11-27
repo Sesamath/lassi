@@ -131,8 +131,11 @@ Controller.prototype.all = function(path, cb) {
  * @param {String} fsPath Le chemin physique
  * @return {Controller} Chaînable
  */
-Controller.prototype.serve = function(path, fsPath) {
-  return this.on('get', path, fsPath);
+Controller.prototype.serve = function(path, options) {
+  if (typeof options==='string') {
+    options = {fsPath: options}
+  }
+  return this.on('get', path, options);
 }
 
 module.exports = function(path) {
