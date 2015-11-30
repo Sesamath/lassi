@@ -1,11 +1,11 @@
 {
   "name": "lassi",
-  "version": "1.8.43",
+  "version": "1.8.44",
   "private": true,
   "main": "./classes/Lassi",
   "dependencies": {
     "an-flow": "^1.1.6",
-    "an-log": "^1.0.11",
+    "an-log": "^1.0.18",
     "body-parser": "~1.14.1",
     "colors": "^1.1.2",
     "compression": "^1.6.0",
