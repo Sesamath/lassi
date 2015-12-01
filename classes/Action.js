@@ -43,7 +43,6 @@ function Action(controller, methods, path, cb) {
     _.extend(this, cb);
     this.callback = undefined;
     this.middleware = true;
-    console.log(this);
   } else {
     this.callback = cb;
     this.middleware = undefined;
@@ -63,7 +62,11 @@ function Action(controller, methods, path, cb) {
 
   if (this.middleware) {
     var express = require('express');
-    var serveStatic = express.static(this.fsPath, {'max-age': undefined});
+    var options = {};
+    if (lassi.settings.pathProperties[this.path]) {
+      _.extend(options, lassi.settings.pathProperties[this.path]);
+    }
+    var serveStatic = express.static(this.fsPath, options);
     this.middleware = (function(base) {
       return function(request, response, next) {
         var saveUrl = request.url;
