@@ -32,16 +32,6 @@ function CacheManager() {
 }
 
 /**
- * Vire les espaces et les caractères de contrôle d'une chaine
- * @see http://unicode-table.com/en/
- * @param {string} source La chaîne à nettoyer
- * @returns {string} La chaîne nettoyée
- */
-function sanitizeHashKey(source) {
-  return source.replace(/\x00-\x20\x7F-\xA0]/, '');
-}
-
-/**
  * Ajoute un nouvel engine sur un slot.
  * @param {String} slot le chemin de clef pris en charge par l'engine.
  * @param {String} drive le pilote à utiliser (memory, memcache)
@@ -56,13 +46,20 @@ CacheManager.prototype.addEngine = function(slot, driver, settings) {
       break;
     case 'memcache':
       var MemcacheEngine = require('./MemcacheEngine');
-      engine = new MemcacheEngine(settings);
+      var url = settings.host+':'+settings.port;
+      engine = new MemcacheEngine(url);
       break;
     default:
       throw new Error('Unknow cache engine '+driver);
   }
 
-  this.engines.unshift({slot: slot, engine: engine});
+  this.engines.unshift({slot: slot, engine: engine, prefix: settings.prefix});
+}
+
+CacheManager.prototype.generateKey = function(engine, key) {
+  key = key.replace(/\x00-\x20\x7F-\xA0]/, '');
+  if (!engine.prefix) return key;
+  return engine.prefix+'::'+key;
 }
 
 /**
@@ -73,9 +70,9 @@ CacheManager.prototype.addEngine = function(slot, driver, settings) {
  * @param callback appelée avec (error)
  */
 CacheManager.prototype.set = function(key, value, ttl, callback) {
-  key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
+      key = this.generateKey(this.engines[i], key);
       this.engines[i].engine.set(key, value, ttl, callback);
       break;
     }
@@ -88,9 +85,9 @@ CacheManager.prototype.set = function(key, value, ttl, callback) {
  * @param callback appellée avec (error, value)
  */
 CacheManager.prototype.get = function(key, callback) {
-  key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
+      key = this.generateKey(this.engines[i], key);
       return this.engines[i].engine.get(key, callback);
     }
   }
@@ -102,9 +99,9 @@ CacheManager.prototype.get = function(key, callback) {
  * @param callback appelée avec (error)
  */
 CacheManager.prototype.delete = function(key, callback) {
-  key = sanitizeHashKey(key);
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
+      key = this.generateKey(this.engines[i], key);
       return this.engines[i].engine.delete(key, callback);
     }
   }
