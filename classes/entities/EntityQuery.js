@@ -22,7 +22,6 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 var _            = require('lodash');
-var flow = require('an-flow');
 var util = require('util');
 
 function DatabaseQuery() { this._buffer = []; }
