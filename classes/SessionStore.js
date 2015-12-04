@@ -60,12 +60,14 @@ function SessionStore(options) {
 util.inherits(SessionStore, Store)
 
 /**
- * Helper pour lancer une fonction sur le prochain tick dans
- * le contexte de SessionStore.
+ * Helper pour lancer une fonction sur le prochain tick
  * @private
  */
 SessionStore.prototype.defer = function (fn){
   if (typeof fn === 'undefined') return;
+  // fn va se retrouver avec elle-même en contexte, cela revient à
+  // var args = arguments; process.nextTick(function () { fn.apply(args)); }
+  // donc passer fn en 1er arg, le contexte, pas grave ici car les callback ne doivent pas utiliser de contexte
   process.nextTick(fn.bind.apply(fn, arguments));
 }
 
