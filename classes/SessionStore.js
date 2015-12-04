@@ -41,21 +41,6 @@ function SessionStore(options) {
   this.$cache = lassi.service('$cache');
   options = options || {};
   Store.call(this, options)
-  /*
-  var file = lassi.fs.join(this.application.settings.layout.temp, "sessions.json");
-  lassi.fs.readFile(file, function(error, data) {
-  if (error) {
-  if (error.code=='ENOENT') return;
-  throw error;
-  }
-  lassi.log.info('Loading sessions from '+file);
-  if (data) {
-  try { data = JSON.parse(data); }
-  catch (error) { data = {}; }
-  lassi.sessions = data;
-  }
-  });
-  */
 }
 util.inherits(SessionStore, Store)
 

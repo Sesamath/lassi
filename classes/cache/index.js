@@ -23,6 +23,7 @@
 */
 
 var MemoryEngine = require('./MemoryEngine');
+var MAX_TTL = 24*3600;
 /**
  * @constructor
  */
@@ -70,6 +71,14 @@ CacheManager.prototype.generateKey = function(engine, key) {
  * @param callback appelée avec (error)
  */
 CacheManager.prototype.set = function(key, value, ttl, callback) {
+  if (typeof ttl === 'function') {
+    callback = ttl;
+    ttl = MAX_TTL;
+  }
+  ttl = ttl || MAX_TTL;
+  if (ttl > MAX_TTL) {
+    ttl = MAX_TTL;
+  }
   for(var i in this.engines) {
     if (key.indexOf(this.engines[i].slot)===0) {
       key = this.generateKey(this.engines[i], key);
