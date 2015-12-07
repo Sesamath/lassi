@@ -174,6 +174,7 @@ Controllers.prototype.middleware = function() {
 
     .seq(function(content) {
       if (context.status) {
+        console.log(context.request.url, context.status);
         context.response.status(context.status);
         if (context.status > 300 && context.status < 400) {
           context.response.redirect(context.location);
