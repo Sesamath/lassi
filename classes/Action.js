@@ -85,7 +85,8 @@ function Action(controller, methods, path, cb) {
   lassi.log('Add route',
     (this.methods?this.methods.join(','):'ALL').toUpperCase(),
     this.path.yellow,
-    this.middleware?' -> '+JSON.stringify(cb):''
+    this.pathRegexp,
+    this.middleware?' -> '+cb:''
    );
 }
 
@@ -138,6 +139,7 @@ Action.prototype.match = function(method, path){
   method = method.toLowerCase();
   if (this.methods && !_.contains(this.methods, method)) return null;
   var match = this.pathRegexp.exec(path);
+  //console.log(path, this.pathRegexp, match);
   if (!match) return null;
 
   var paramIndex = 0;
