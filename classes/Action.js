@@ -63,7 +63,7 @@ function Action(controller, methods, path, cb) {
   if (this.middleware) {
     var express = require('express');
     var options = {};
-    if (lassi.settings.pathProperties[this.path]) {
+    if (lassi.settings && lassi.settings.pathProperties && lassi.settings.pathProperties[this.path]) {
       _.extend(options, lassi.settings.pathProperties[this.path]);
     }
     var serveStatic = express.static(this.fsPath, options);
