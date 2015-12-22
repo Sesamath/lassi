@@ -385,7 +385,6 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     query.push('OFFSET %d', from);
   }
 
-  console.log(log);
   if (log.logDebug) {
     var i = 0;
     log.debug("grab", "\n"+query.toString().replace(/\?/g, function () {
