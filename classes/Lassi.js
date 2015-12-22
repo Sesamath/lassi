@@ -195,7 +195,7 @@ Lassi.prototype.shutdown = function() {
  * Logger
  * @private
  */
-Lassi.prototype.log = log;
+Lassi.prototype.log = require('an-log')('lassi.log est DEPRECATED, fait ton propre `var log=require("an-log")("MonModule")` :-)');
 
 module.exports = function(root) {
   if (_.has(GLOBAL, 'lassi')) {

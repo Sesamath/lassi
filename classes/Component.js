@@ -23,7 +23,8 @@
  */
 
 var Controller = require('./Controller');
-var _            = require('lodash');
+var _          = require('lodash');
+var log        = require('an-log')('lassi-components');
 
 /**
  * Construction d'un composant.
@@ -91,7 +92,7 @@ Component.prototype.configure = function() {
     lassi.services.parseInjections(userConfig, self);
   });
   this.configured = true;
-  lassi.log('initialized', this.name);
+  log('initialized', this.name);
 }
 
 /**

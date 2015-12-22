@@ -21,8 +21,9 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _            = require('lodash');
+var _    = require('lodash');
 var util = require('util');
+var log  = require('an-log')('$entities');
 
 function DatabaseQuery() { this._buffer = []; }
 
@@ -382,6 +383,15 @@ EntityQuery.prototype.grab = function(count, from, callback) {
   if (count) {
     query.push('LIMIT %d', count);
     query.push('OFFSET %d', from);
+  }
+
+  console.log(log);
+  if (log.logDebug) {
+    var i = 0;
+    log.debug("grab", "\n"+query.toString().replace(/\?/g, function () {
+      var arg = query.args[i++];
+      return (typeof arg === "number") ? arg : "'" +arg +"'";
+    }));
   }
   this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
     if (errors) return callback(errors);

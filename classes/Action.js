@@ -22,7 +22,8 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var _            = require('lodash');
+var _   = require('lodash');
+var log = require('an-log')('lassi-actions');
 
 /**
  * Callback d'une action.
@@ -82,7 +83,7 @@ function Action(controller, methods, path, cb) {
   }
 
   this.pathRegexp = pathtoRegexp(this.path, this.keys = [], { sensitive: true, strict: true, end: false });
-  lassi.log('Add route',
+  log('Add route',
     (this.methods?this.methods.join(','):'ALL').toUpperCase(),
     this.path.yellow,
     this.pathRegexp,
