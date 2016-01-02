@@ -1,8 +1,8 @@
 {
   "name": "lassi",
-  "version": "1.8.57",
+  "version": "1.8.58",
   "private": true,
-  "main": "./classes/Lassi",
+  "main": "./source/Lassi",
   "dependencies": {
     "an-flow": "^1.1.6",
     "an-log": "^1.0.23",
