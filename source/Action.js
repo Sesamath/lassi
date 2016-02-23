@@ -196,7 +196,7 @@ Action.prototype.execute = function(context, next) {
 
     // Timeout de 1s par défaut après le retour synchrone
     // (ça permet aussi à l'action de modifier son timeout pendant son exécution)
-    var timeout = context.timeout || this.callback.timeout || 1000;
+    var timeout = context.timeout || this.callback.timeout || 60000;
 
     // Si aucune donnée synchrone n'est déjà reçue, on arme le timeout
     if (!isCbCompleted) {

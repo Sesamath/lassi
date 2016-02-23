@@ -28,6 +28,7 @@ var util = require('util');
 var Renderer = require('./Renderer');
 var Metas = require('./Metas');
 var pathlib = require('path');
+var log = require('an-log')('LassiHtml');
 
 /**
  * Gestion du transport HTML.
@@ -66,6 +67,10 @@ HtmlTransport.prototype.process = function(data, next) {
       // si $view n'existe pas on prendra le nom de la section
       var view = data[key].$view || key;
       // et on remplace chaque section par son rendu
+      if (!_.isString(data.$views)) {
+        log.error('Il semble que le $view de ce data ne soit pas correctement renseigné', data);
+        throw new Error('Wrong views path');
+      }
       self.engine.render(data.$views, view, data[key], function(error, result) {
         if (error) return next(error);
         data[key] = result;

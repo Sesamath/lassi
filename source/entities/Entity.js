@@ -23,7 +23,7 @@ var log = require('an-log')('$entities');
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _            = require('lodash');
+var _    = require('lodash');
 var flow = require('an-flow');
 var util = require('util');
 

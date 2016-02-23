@@ -24,6 +24,7 @@
 var _            = require('lodash');
 var Entity = require('./Entity');
 var EntityQuery = require('./EntityQuery');
+var flow = require('an-flow');
 
 function fooCb(cb) { cb(); }
 
@@ -96,6 +97,14 @@ EntityDefinition.prototype.create = function(values) {
     if (values) _.extend(instance, values);
   }
   return instance;
+}
+
+EntityDefinition.prototype.flush = function(cb) {
+  var self = this;
+  flow()
+  .seq(function() { self.entities.database.query('DELETE FROM '+self.table+';', this); })
+  .seq(function() { self.entities.database.query('DELETE FROM '+self.table+'_index;', this); })
+  .done(cb);
 }
 
 /**

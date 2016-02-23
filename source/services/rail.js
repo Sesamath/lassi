@@ -69,6 +69,7 @@ module.exports = function($settings) {
         return bodyParser(settings);
       },
       railConfig.bodyParser || {
+        limit: '100mb',
         reviver: function (key, value) {
           if (typeof value === 'string') {
             if (dateRegExp.exec(value)) {

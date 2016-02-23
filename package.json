@@ -50,5 +50,24 @@
   },
   "readmeFilename": "README.md",
   "readme": "",
-  "description": ""
+  "description": "",
+  "eslintConfig": {
+    "plugins": [],
+    "env": {
+      "node": false,
+      "browser": false
+    },
+    "settings": {},
+    "rules": {
+      "strict": 1,
+      "quotes": 0,
+      "no-unused-vars": 1,
+      "no-undef": 1,
+      "camelcase": 1,
+      "no-underscore-dangle": 1
+    },
+    "globals": {
+      "lassi": true
+    }
+  }
 }
