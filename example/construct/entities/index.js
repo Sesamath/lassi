@@ -21,7 +21,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-var seq = require('seq');
+var flow = require('an-flow');
 lassi.component('example-entities')
   .entity('Person', function() {
     this.construct(function() {
@@ -39,16 +39,16 @@ lassi.component('example-entities')
       cb();
     })
 
-    this.afterLoad(function(cb) {
-      this.$loaded = new Date();
-      cb();
-    })
+    //this.afterLoad(function(cb) {
+      //this.$loaded = new Date();
+      //cb();
+    //})
 
     this.defineIndex('name', 'string');
   })
   .controller('api', function(Person) {
     this.get('person', function(context) {
-      seq()
+      flow()
         .seq(function() { Person.create({name:'gaston'}).store(this); })
         .seq(function() { Person.match('name').equals('gaston').grab(this); })
         .seq(function(gastons) {

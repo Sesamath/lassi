@@ -26,23 +26,26 @@ module.exports = {
   application : {
     name: 'Bang Lassi',
     staging: 'dev',
-    mail: 'toto'
+    mail: 'toto',
+    defaultViewsPath: 'test'
   },
 
   $entities : {
     database : {
-      client: "mysql",
-      connection: {
-        host: 'localhost',
-        user: "lassi",
-        password: "lassi",
-        database: "lassi"
-      }
+      user: "root",
+      password: "app",
+      database: "app"
     },
   },
 
   $server : {
     port: 3000
+  },
+
+  memcache : {
+    host: '127.0.0.1',
+    port: 11211,
+    prefix: 'tagazok'
   },
 
   $rail : {

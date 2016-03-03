@@ -33,8 +33,9 @@ var log = require('an-log')('LassiHtml');
 /**
  * Gestion du transport HTML.
  */
-function HtmlTransport() {
+function HtmlTransport(lassi) {
   this.engine = new Renderer();
+  this.lassi = lassi;
 }
 
 /**
@@ -67,8 +68,9 @@ HtmlTransport.prototype.process = function(data, next) {
       // si $view n'existe pas on prendra le nom de la section
       var view = data[key].$view || key;
       // et on remplace chaque section par son rendu
+      var viewsPath = data.$views || lassi.settings.application.defaultViewsPath;
       if (!_.isString(data.$views)) {
-        log.error('Il semble que le $view de ce data ne soit pas correctement renseigné', data);
+        log.error('Il semble que le $views de ce data ne soit pas correctement renseigné', data);
         throw new Error('Wrong views path');
       }
       self.engine.render(data.$views, view, data[key], function(error, result) {
