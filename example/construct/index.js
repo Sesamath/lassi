@@ -23,7 +23,7 @@
  */
 
 // Récupération du module lassi
-require('../../classes/Lassi.js')(__dirname+'/..');
+require('../../source/Lassi.js')(__dirname+'/..');
 
 require('./html');
 require('./json');
@@ -31,10 +31,10 @@ require('./entities');
 
 lassi.component('exemple', ['example-html', 'example-entities', 'example-json'])
 
-.config(function($cache, $appSettings) {
-  var _ = require('lodash');
-  $cache.addEngine('', 'memcache', '127.0.0.1:11211');
-})
+//.config(function($cache, $appSettings) {
+  //var _ = require('lodash');
+  //$cache.addEngine('', 'memcache', '127.0.0.1:11211');
+//})
 
 .bootstrap();
 
