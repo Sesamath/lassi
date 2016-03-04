@@ -73,7 +73,6 @@ Renderer.prototype.addFilter = function(name, callback) {
  * @param callback
  */
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
-  console.log('resolveTemplate avec', viewsPath, unresolvedPath)
   // Normalize
   var path = unresolvedPath;
   // ajout de l'extension si elle n'y est pas
