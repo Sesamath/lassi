@@ -73,6 +73,7 @@ Renderer.prototype.addFilter = function(name, callback) {
  * @param callback
  */
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
+  console.log('resolveTemplate avec', viewsPath, unresolvedPath)
   // Normalize
   var path = unresolvedPath;
   // ajout de l'extension si elle n'y est pas
@@ -80,8 +81,10 @@ Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals
 
   // on autorise les chemins absolus, sinon c'est relatif a viewsPath
   // @see https://nodejs.org/api/path.html#path_path_resolve_from_to
-  if (!_.isString(viewsPath)) throw new Error('Wrong views path', viewsPath);
-  if (path.charAt(0) !== '/') path = pathlib.resolve(viewsPath, path);
+  if (path.charAt(0) !== '/') {
+    if (!_.isString(viewsPath)) throw new Error('Wrong views path', viewsPath);
+    path = pathlib.resolve(viewsPath, path);
+  }
 
   // Check if path exists
   fs.lstat(path, function(err) {
