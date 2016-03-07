@@ -35,7 +35,7 @@ function Renderer(options) {
   this.cache = true
   this.cacheStore = {}
   this.keepWhiteSpace = false
-  for(var key in options) this[key] = options[key];
+  for (var key in options) this[key] = options[key];
   this.dust  = require('dustjs-helpers');
 }
 
@@ -128,7 +128,11 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
     template(locals, callback);
   } else {
     self.dust.onLoad = function (path, callback) {
-      self.readTemplate(viewsPath + '/partials', path, locals, callback);
+      // lassi.settings.application.partialsPath peut être une chaîne vide
+      var partialsPath
+      if (lassi.settings.application.hasOwnProperty('partialsPath')) partialsPath = lassi.settings.application.partialsPath;
+      else partialsPath = '/partials';
+      self.readTemplate(viewsPath + partialsPath, path, locals, callback);
     };
     if (unresolvedPath) {
       this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
