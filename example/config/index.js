@@ -27,7 +27,11 @@ module.exports = {
     name: 'Bang Lassi',
     staging: 'dev',
     mail: 'toto',
-    defaultViewsPath: 'test'
+    defaultViewsPath: 'test',
+    // nom du dossier où on ira chercher les vues partielles {>vuePartielle}, concaténé à $views,
+    // peut être une chaîne vide ou une chaîne démarrant avec /
+    // sera mis à /partials si absent
+    partialsPath : '/partials'
   },
 
   $entities : {

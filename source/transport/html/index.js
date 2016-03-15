@@ -67,13 +67,14 @@ HtmlTransport.prototype.process = function(data, next) {
       var next = this;
       // si $view n'existe pas on prendra le nom de la section
       var view = data[key].$view || key;
-      // et on remplace chaque section par son rendu
+      // le dossier où chercher view
       var viewsPath = data.$views || lassi.settings.application.defaultViewsPath;
-      if (!_.isString(data.$views)) {
+      // et on remplace chaque section par son rendu
+      if (!_.isString(viewsPath)) {
         log.error('Il semble que le $views de ce data ne soit pas correctement renseigné', data);
         throw new Error('Wrong views path');
       }
-      self.engine.render(data.$views, view, data[key], function(error, result) {
+      self.engine.render(viewsPath, view, data[key], function(error, result) {
         if (error) return next(error);
         data[key] = result;
         next();

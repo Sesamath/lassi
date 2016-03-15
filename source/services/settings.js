@@ -25,9 +25,9 @@ module.exports = function() {
 
   /**
    * Chargement des réglages à partir de la racine.
-   * @param {String} path Le chemin du réglage (ex. application.mail)
-   * @param {mixed} def La valeur à renvoyer si le chemin n'existe pas.
-   * @return {mixed} la valeur du réglage
+   * @param {string} path  Le chemin du réglage (ex. application.mail)
+   * @param {*}      [def] La valeur à renvoyer si le chemin n'existe pas.
+   * @return {*} la valeur du réglage
    * @memberof $settings
    */
   function get(path, def) {
