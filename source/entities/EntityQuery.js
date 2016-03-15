@@ -234,6 +234,11 @@ EntityQuery.prototype.in = function(values) {
   return this.alterLastMatch({value: values,  operator: 'IN'});
 }
 
+EntityQuery.prototype.notIn = function(values) {
+  return this.alterLastMatch({value: values,  operator: 'NOT IN'});
+}
+
+
 /**
  * Applique les clauses  à la requête.
  * @param {KnexQuery} query La requête à altérer.
@@ -293,6 +298,14 @@ EntityQuery.prototype.finalizeQuery = function(query) {
           query.args.push(clause.value);
           break;
 
+        case 'NOT IN':
+          var keys = [];
+          _.each(clause.value, function(value) {
+            keys.push('?');
+            query.args.push(value);
+          });
+          where.push('%s NOT IN (%s)', clause.field, keys.join(','));
+          break;
 
         case 'IN':
           var keys = [];
