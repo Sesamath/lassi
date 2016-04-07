@@ -137,11 +137,12 @@ Controllers.prototype.middleware = function() {
       }
     })
     .seq(function() {
+      // le contrôleur a le droit de se débrouiller avec context.response et demander l'abandon du processing
+      if (context.transport === 'done') return
       // Une redirection passe en fast-track
       if (!context.error && context.location) {
         this();
       } else {
-
         lassi.emit('beforeTransport', context, data);
 
         // Si une erreur s'est produite et que rien n'a été fait dans l'event, on envoie
@@ -165,8 +166,10 @@ Controllers.prototype.middleware = function() {
         }
 
         // Sélection du transport et processing
-        if (!context.contentType) return this(new Error('No content type defined'));
-        var transport = lassi.transports[context.contentType];
+        var transport
+        if (context.transport && lassi.transports[context.transport]) transport = lassi.transports[context.transport]
+        else if (!context.contentType) return this(new Error('No content type defined'));
+        else transport = lassi.transports[context.contentType];
         if (!transport) return this(new Error('No renderer found for contentType:' + context.contentType));
         transport.process(data, this);
       }

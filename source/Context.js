@@ -176,6 +176,23 @@ Context.prototype.plain = function(text) {
 }
 
 /**
+ * Renvoie une réponse raw
+ * @param {string} text
+ */
+Context.prototype.raw = function(content, options) {
+  if (options.attachment) this.response.attachment(options.attachment);
+  if (options.headers) {
+    for (var prop in options.headers) {
+      this.response.append(prop, options.headers[prop]);
+      if (prop === 'Content-Type') this.contentType = options.headers[prop];
+    }
+  }
+  // on force le transport
+  this.transport = 'raw';
+  this.next(null, {content: content});
+}
+
+/**
  * Renvoie en json un message d'erreur attaché à un champ
  * L'objet envoyé sera de la forme {field:'le nom du champ passé (ou absent)', message:'le message', ok:false}
  * @param {string|null} field le nom du champ en erreur
