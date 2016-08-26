@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "1.8.64",
+  "version": "2.0.0",
   "private": true,
   "main": "./source/Lassi",
   "dependencies": {
@@ -21,7 +21,6 @@
     "mocha": "^2.2.5",
     "mysql": "^2.9.0",
     "mysql2": "^0.15.8",
-    "static-favicon": "~2.0.0-alpha",
     "validator": "^4.1.0"
   },
   "devDependencies": {
