@@ -118,6 +118,18 @@ EntityDefinition.prototype.match = function() {
   return query;
 }
 
+for (var method in EntityQuery.prototype) {
+  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch'].indexOf(method)===-1) {
+    EntityDefinition.prototype[method] = (function(method) { return function() {
+        var args = Array.prototype.slice.call(arguments);
+        var field = args.shift();
+        var matcher = this.match(field);
+        return matcher[method].apply(matcher, args);
+      }
+    })(method);
+  }
+}
+
 /**
  * Ajoute un constructeur (appelé par create avec l'objet qu'on lui donne), s'il n'existe pas
  * le create affectera toutes les valeurs qu'on lui passe à l'entité

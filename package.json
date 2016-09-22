@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "private": true,
   "main": "./source/Lassi",
   "dependencies": {
@@ -54,10 +54,13 @@
   "eslintConfig": {
     "plugins": [],
     "env": {
-      "node": false,
+      "node": true,
       "browser": false
     },
     "settings": {},
+    "parserOptions": {
+      "ecmaVersion": 6
+    },
     "rules": {
       "strict": 1,
       "quotes": 0,

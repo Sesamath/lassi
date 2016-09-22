@@ -25,16 +25,19 @@ var _    = require('lodash');
 var util = require('util');
 var log  = require('an-log')('$entities');
 
-function DatabaseQuery() { this._buffer = []; }
+class DatabaseQuery {
+  constructor() {
+    this.buffer = [];
+  }
+  push(text) {
+    text = util.format.apply(this, Array.prototype.slice.call(arguments));
+    this.buffer.push(text);
+  }
 
-DatabaseQuery.prototype.push = function(text) {
-  text = util.format.apply(this, Array.prototype.slice.call(arguments));
-  this._buffer.push(text);
-}
-
-DatabaseQuery.prototype.toString = function(separator) {
-  separator = separator || "\n";
-  return this._buffer.join(separator);
+  toString(separator) {
+    separator = separator || "\n";
+    return this.buffer.join(separator);
+  }
 }
 
 
@@ -61,7 +64,11 @@ function EntityQuery(entity) {
  * @param {String|Integer|Date} value La valeur cherchée
  * @return {EntityQuery} La requête (chaînable donc}
  */
-EntityQuery.prototype.equals = function(value) {
+EntityQuery.prototype.equals = function(value, fieldValue) {
+  if (typeof fieldValue !== 'undefined') {
+    this.match(value);
+    value = fieldValue;
+  }
   return this.alterLastMatch({value: value,  operator: '='});
 }
 
@@ -250,13 +257,13 @@ EntityQuery.prototype.finalizeQuery = function(query) {
   query.args = [];
 
   // Construction des jointures
-  var alias_index = 0;
+  var aliasIndex = 0;
   for (i in this.clauses) {
     clause = this.clauses[i];
     if (clause.index != 'oid') {
       record = this.entity.indexes[clause.index];
       if (!record) throw new Error("L'index "+clause.index+" est inconnu sur l'entité "+this.entity.name);
-      clause.alias = '_'+(alias_index++);
+      clause.alias = '_'+(aliasIndex++);
       query.push('JOIN %s AS %s ON %s.oid=d.oid', this.entity.table+'_index', clause.alias, clause.alias);
       clause.field = clause.alias+'._'+record.fieldType;
     } else {
@@ -389,7 +396,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
     callback = from;
     from = 0;
   }
-  var _this = this;
+  var self = this;
   var query = new DatabaseQuery();
   query.push('SELECT * FROM %s AS d', this.entity.table);
   this.finalizeQuery(query);
@@ -415,7 +422,7 @@ EntityQuery.prototype.grab = function(count, from, callback) {
         return value;
       });
       tmp.oid = rows[i].oid;
-      rows[i] = _this.entity.create(tmp);
+      rows[i] = self.entity.create(tmp);
     }
     callback(null, rows);
   });
