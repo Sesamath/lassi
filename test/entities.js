@@ -1,5 +1,6 @@
 var Entities = require('../source/entities');
-var entities, TestEntity;
+var entities;
+var TestEntity;
 var assert = require('assert');
 var flow = require('an-flow');
 // valeurs par défaut
@@ -31,6 +32,12 @@ var databaseSettings = {
 console.log('lancement avec les paramètres de connexion', databaseSettings)
 
 describe('Database', function() {
+  // data source du test
+  var src = {
+    i: 12,
+    s: 'truc',
+    d: new Date('01/02/2003 04:05:06')
+  }
 
   describe('#indexOf()', function(){
     it('Initialisation des entités', function(done){
@@ -45,6 +52,7 @@ describe('Database', function() {
         this.i = undefined;
         this.s = undefined;
         this.d = undefined;
+        // int, nb de secondes de d modulo 2
         this.p = undefined;
       });
       TestEntity.defineIndex('i', 'integer');
@@ -57,20 +65,21 @@ describe('Database', function() {
     });
 
     it("Ajout de données dans l'entité", function(done) {
-      var entity = TestEntity.create({
-        i: 12,
-        s: 'truc',
-        d: new Date('01/02/2003 04:05:06')
-      });
-      assert.equal(entity.i, 12);
-      assert.equal(entity.s, 'truc');
-      assert.equal(entity.d.getTime(), 1041476706000);
+      var entity = TestEntity.create(src);
+      // valeurs de src inchangées
+      // console.log('source', src); // ok
+      // console.log('entity créée', entity); // i, s, d et p valent undefined
+      assert.equal(entity.i, src.i);
+      assert.equal(entity.s, src.s);
+      assert.equal(entity.d.getTime(), src.d.getTime());
+      assert.equal(entity.d.constructor.name, 'Date');
+      // ajout de created
       assert.equal(entity.created.constructor.name, 'Date');
       entity.store(function(error, entity)  {
         if (error) return done(error);
-        assert.equal(entity.i, 12);
-        assert.equal(entity.s, 'truc');
-        assert.equal(entity.d.getTime(), 1041476706000);
+        assert.equal(entity.i, src.i);
+        assert.equal(entity.s, src.s);
+        assert.equal(entity.d.getTime(), src.d.getTime());
         assert.equal(entity.created.constructor.name, 'Date');
         assert(entity.oid>0);
         done();
@@ -83,9 +92,9 @@ describe('Database', function() {
 
         assert(result && result.length>0);
         var entity = result[0];
-        assert.equal(entity.i, 12);
-        assert.equal(entity.s, 'truc');
-        assert.equal(entity.d.getTime(), 1041476706000);
+        assert.equal(entity.i, src.i);
+        assert.equal(entity.s, src.s);
+        assert.equal(entity.d.getTime(), src.d.getTime());
         assert.equal(entity.created.constructor.name, 'Date');
         assert(entity.oid>0);
         done();
