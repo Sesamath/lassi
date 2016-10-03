@@ -1,13 +1,34 @@
-var Entities = require('../classes/entities');
+var Entities = require('../source/entities');
 var entities, TestEntity;
 var assert = require('assert');
 var flow = require('an-flow');
+// valeurs par défaut
+var dbUser = 'root'
+var dbPass = 'app'
+var dbHost = 'localhost'
+var db = 'app'
+
+// console.log(process.argv)
+// on est lancé par mocha, node est l'arg 0, mocha 1, ce script 2, donc ça démarre à 3
+var i = 3
+var a
+while (process.argv[i]) {
+  a = process.argv[i];
+  if (a === '--user') dbUser = process.argv[i + 1]
+  if (a === '--pass') dbPass = process.argv[i + 1]
+  if (a === '--host') dbHost = process.argv[i + 1]
+  if (a === '--db') db = process.argv[i + 1]
+  i += 2
+}
+
 var databaseSettings = {
   connectionLimit: 10,
-  user: "root",
-  password: "app",
-  database: "app"
+  user: dbUser,
+  password: dbPass,
+  host: dbHost,
+  database: db
 }
+console.log('lancement avec les paramètres de connexion', databaseSettings)
 
 describe('Database', function() {
 
