@@ -67,7 +67,7 @@
       "no-unused-vars": 1,
       "no-undef": 1,
       "camelcase": 1,
-      "no-underscore-dangle": 1
+      "no-underscore-dangle": 0
     },
     "globals": {
       "lassi": true

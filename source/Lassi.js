@@ -28,7 +28,6 @@ var _            = require('lodash');
 var Component    = require('./Component');
 var Services     = require('./tools/Services');
 var EventEmitter = require('events').EventEmitter
-var util         = require('util');
 var fs           = require('fs');
 var log          = require('an-log')('lassi');
 require('colors');
@@ -50,146 +49,160 @@ var shutdownRequested = false
  * @param {String=} root La racine du projet. Par défaut il s'agit du dossier d'exécution du script.
  * @extends Emitter
  */
-function Lassi(root) {
-  GLOBAL.lassi = this;
+class Lassi extends EventEmitter {
 
-  this.transports = {};
-  var HtmlTransport = require('./transport/html');
-  var JsonTransport = require('./transport/json');
-  var RawTransport = require('./transport/raw');
-  /**
-   * Liste de transports (html, json et raw au bootstrap,
-   * avec les alias 'text/html', 'application/json' et 'text/plain')
-   */
-  this.transports.html = new HtmlTransport(this);
-  this.transports.json = new JsonTransport(this);
-  this.transports.raw = new RawTransport(this);
-  this.transports['text/plain'] = this.transports.raw;
-  this.transports['text/html'] = this.transports.html;
-  this.transports['application/json'] = this.transports.json;
-  this.transports['application/javascript'] = this.transports.raw;
+  constructor(options) {
+    super();
+    GLOBAL.lassi = this;
 
-  this.components = {};
-  this.services = new Services();
-  lassi.root = root;
-  lassi.component('lassi')
-    .service('$settings', require('./services/settings'))
-    .service('$cache', require('./services/cache'))
-    .service('$entities', require('./services/entities'))
-    .service('$rail', require('./services/rail'))
-    .service('$server', require('./services/server'));
+    this.transports = {};
+    var HtmlTransport = require('./transport/html');
+    var JsonTransport = require('./transport/json');
+    var RawTransport = require('./transport/raw');
+    /**
+     * Liste de transports (html, json et raw au bootstrap,
+     * avec les alias 'text/html', 'application/json' et 'text/plain')
+     */
+    this.transports.html = new HtmlTransport(this);
+    this.transports.json = new JsonTransport(this);
+    this.transports.raw = new RawTransport(this);
+    this.transports['text/plain'] = this.transports.raw;
+    this.transports['text/html'] = this.transports.html;
+    this.transports['application/json'] = this.transports.json;
+    this.transports['application/javascript'] = this.transports.raw;
 
-  root = fs.realpathSync(root);
-  var settingsPath = root+'/config';
-  lassi.settings = require(settingsPath);
-  lassi.settings.root = root;
-  // on ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
-  if (!lassi.settings.basePath) lassi.settings.basePath = '/'
-  // et les composants par défaut en premier
-  this.defaultDependencies = _.keys(lassi.components);
-}
+    this.components = {};
+    this.services = new Services();
+    lassi.options = options;
+    var lassiComponent = lassi.component('lassi');
+    lassiComponent.service('$settings', require('./services/settings'))
+    lassiComponent.service('$cache', require('./services/cache'))
+    lassiComponent.service('$entities', require('./services/entities'))
+    if (!lassi.options.cli) {
+      lassiComponent.service('$rail', require('./services/rail'))
+      lassiComponent.service('$server', require('./services/server'));
+    }
 
-util.inherits(Lassi, EventEmitter)
-
-Lassi.prototype.startup = function(component, next) {
-  var self = this;
-  component.dependencies = this.defaultDependencies.concat(component.dependencies);
-  flow()
-  // Configuration des composants
-  .seq(function() { component.configure(); this(); })
-
-  // Configuration des services
-  .seq(function() {
-    var setupables = [];
-    _.each(self.services.services(), function(service, name) {
-      service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
-      if (!service) throw new Error("Le service " +name +" n'a pu être résolu (il ne retourne probablement rien)")
-      if (service.setup) {
-        log('setting up', name.blue);
-        setupables.push(service);
-      }
-    });
-    flow(setupables)
-    .seqEach(function(service) { service.setup(this); })
-    .done(this);
-  })
-  .empty().seq(function() {
-    self.emit('startup');
-    next();
-  }).catch(next);
-}
-/**
- * Démarre l'application d'un composant.
- * @param {Component} component Le composant
- * @private
- */
-Lassi.prototype.bootstrap = function(component) {
-  var self = this;
-  flow()
-  .seq(function() { self.startup(component, this); })
-  .seq(function () {
-    var $server = self.service('$server');
-    $server.start(this);
-  })
-  .catch(function(error) { console.error(error.stack); });
-}
-
-/**
- * Enregistre un {@link Component} dans le système.
- * @param {String} name           Le nom du component
- * @param {array}  [dependencies] Une liste de composant en dépendance
- */
-Lassi.prototype.component = function(name, dependencies) {
-  var component = this.components[name] = new Component(name, dependencies);
-  return component;
-}
-
-Lassi.prototype.service = function(name) {
-  return this.services.resolve(name);
-}
-
-
-/**
- * Arrêt de l'application.
- * @private
- * @fires Lassi#shutdown
- */
-Lassi.prototype.shutdown = function() {
-  function thisIsTheEnd() {
-    log('shutdown completed');
-    process.exit();
+    options.root = fs.realpathSync(options.root);
+    var settingsPath = options.root+'/config';
+    lassi.settings = require(settingsPath);
+    lassi.settings.root = options.root;
+    // on ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
+    if (!lassi.settings.basePath) lassi.settings.basePath = '/'
+    // et les composants par défaut en premier
+    this.defaultDependencies = _.keys(lassi.components);
   }
 
-  if (!shutdownRequested) {
-    shutdownRequested = true
+  startup(component, next) {
+    var self = this;
+    component.dependencies = this.defaultDependencies.concat(component.dependencies);
+    flow()
+    // Configuration des composants
+    .seq(function() { component.configure(); this(); })
 
-    try {
-      log('processing shutdown');
-      // avant de lancer l'événement on met une limite pour les réponses à 2s
-      setTimeout(function () {
-        log('shutdown too slow, forced');
-        thisIsTheEnd();
-      }, 2000);
-      /**
-       * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
-       * @event Lassi#shutdown
-       */
-      this.emit('shutdown');
-      // @todo implémenter le shutdown dans DatabaseConnection (ajouter un listener dans son constructeur en créé trop)
+    // Configuration des services
+    .seq(function() {
+      var setupables = [];
+      _.each(self.services.services(), function(service, name) {
+        service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
+        if (!service) throw new Error("Le service " +name +" n'a pu être résolu (il ne retourne probablement rien)")
+        if (service.setup) {
+          if (!self.options.cli) log('setting up', name.blue);
+          setupables.push(service);
+        }
+      });
+      flow(setupables)
+      .seqEach(function(service) { service.setup(this); })
+      .done(this);
+    })
+    .empty().seq(function() {
+      self.emit('startup');
+      next();
+    }).catch(next);
+  }
+  /**
+   * Démarre l'application d'un composant.
+   * @param {Component} component Le composant
+   * @private
+   */
+  bootstrap(component, cb) {
+    var self = this;
+    flow()
+    .seq(function() {
+      self.startup(component, this);
+    })
+    .seq(function () {
+      if (self.options.cli) return this();
+      var $server = self.service('$server');
+      $server.start(this);
+    })
+    .done(function(error) {
+      if (error) console.error(error.stack);
+      if (cb) cb(error);
+    });
+  }
 
-      // y'a des cas où this.service n'existe déjà plus !
-      var $server = this.service && this.service('$server');
-      if ($server) $server.stop(thisIsTheEnd);
-      else {
-        log.warning('server is already gone');
-        thisIsTheEnd();
-      }
-    } catch (error) {
-      log('error on shutdown\n' + error.stack);
+  /**
+   * Enregistre un {@link Component} dans le système.
+   * @param {String} name           Le nom du component
+   * @param {array}  [dependencies] Une liste de composant en dépendance
+   */
+  component(name, dependencies) {
+    var component = this.components[name] = new Component(name, dependencies);
+    return component;
+  }
+
+  service(name) {
+    return this.services.resolve(name);
+  }
+
+  allServices() {
+    return this.services.services();
+  }
+
+  /**
+   * Arrêt de l'application.
+   * @private
+   * @fires Lassi#shutdown
+   */
+  shutdown() {
+    function thisIsTheEnd() {
+      log('shutdown completed');
       process.exit();
+    }
+
+    if (!shutdownRequested) {
+      shutdownRequested = true
+
+      try {
+        log('processing shutdown');
+        // avant de lancer l'événement on met une limite pour les réponses à 2s
+        setTimeout(function () {
+          log('shutdown too slow, forced');
+          thisIsTheEnd();
+        }, 2000);
+        /**
+         * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
+         * @event Lassi#shutdown
+         */
+        this.emit('shutdown');
+        // @todo implémenter le shutdown dans DatabaseConnection (ajouter un listener dans son constructeur en créé trop)
+
+        // y'a des cas où this.service n'existe déjà plus !
+        var $server = this.service && this.service('$server');
+        if ($server) $server.stop(thisIsTheEnd);
+        else {
+          log.warning('server is already gone');
+          thisIsTheEnd();
+        }
+      } catch (error) {
+        log('error on shutdown\n' + error.stack);
+        process.exit();
+      }
     }
   }
 }
+
 
 /**
  * Logger
@@ -197,12 +210,18 @@ Lassi.prototype.shutdown = function() {
  */
 Lassi.prototype.log = require('an-log')('lassi.log est DEPRECATED, fait ton propre `var log=require("an-log")("MonModule")` :-)');
 
-module.exports = function(root) {
+module.exports = function(options) {
+  if (typeof options=='string') {
+    options = {
+      root: options
+    }
+  }
+  options.cli = !!options.cli;
   if (_.has(GLOBAL, 'lassi')) {
     log('ERROR'.red, ' : lassi already exists')
     return lassi;
   }
-  new Lassi(root);
+  new Lassi(options);
   lassi.Context = require('./Context');
   lassi.require = function() {
     return require.apply(this, arguments);
@@ -218,12 +237,14 @@ module.exports = function(root) {
   // On ajoute nos écouteurs pour le shutdown
   // visiblement beforeExit arrive jamais, et exit ne sert que sur les sorties "internes"
   // via un process.exit() car sinon on reçoit normalement un SIG* avant
-  _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], function (signal) {
-    process.on(signal, function () {
-      log('pid ' + process.pid + ' received signal ' + signal);
-      lassi.shutdown();
-    });
-  })
+  if (!lassi.options.cli) {
+    _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], function (signal) {
+      process.on(signal, function () {
+        log('pid ' + process.pid + ' received signal ' + signal);
+        lassi.shutdown();
+      });
+    })
+  }
 
   // le message 'shutdown' est envoyé par pm2 sur les gracefulReload
   process.on('message', function (message) {

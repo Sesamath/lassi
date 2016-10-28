@@ -33,112 +33,118 @@ var log        = require('an-log')('lassi-components');
  * @param {string} name Le nom du composant.
  * @param {array} dependencies Dépendances
  */
-function Component(name, dependencies) {
-  this.name         = name;
-  this.controllers  = [];
-  this.dependencies = dependencies;
-  this.entities     = {};
-  this.services     = {};
-  this.path         = undefined;
-  this.userConfig   = [];
-}
-
-/**
- * Ajoute un configurateur au composant.
- * @param {Function} fn le configurateur.
- * @return {Component} chaînable
- */
-Component.prototype.config = function(fn) {
-  this.userConfig.push(fn);
-  return this;
-}
-
-/**
- * Configuration du composant
- */
-Component.prototype.configure = function() {
-
-  // Si on est déjà configuré, on repart
-  if (this.configured) return;
-
-  var self = this;
-  _.each(self.dependencies, function(dependency) {
-    var component = lassi.components[dependency];
-    component.configure();
-  });
-  _.each(self.services, function(service, name) {
-    lassi.services.register(name, service);
-  });
-  _.each(self.entities, function(entity, name) {
-    var cons = (function(name, entity) {
-      return function($entities) {
-        var def = $entities.define(name);
-        lassi.services.parseInjections(entity, def);
-        def.setup = function(cb) {
-          $entities.initializeEntity(def, cb);
-        }
-        return def;
-      }
-    })(name, entity);
-    lassi.services.register(name, cons);
-  });
-  _.each(self.controllers, function(fn, name) {
-    var controller = new Controller(fn.$$path);
-    lassi.services.parseInjections(fn, controller);
-    self.controllers[name] = controller;
-  });
-
-  _.each(self.userConfig, function(userConfig) {
-    lassi.services.parseInjections(userConfig, self);
-  });
-  this.configured = true;
-  log('initialized', this.name);
-}
-
-/**
- * Définition d'un controleur dans le composant.
- * @param {String} [path] le chemin des actions de ce contrôleur.
- * @param {function} fn La fonction du controleur.
- * @return {Component} chaînable
- */
-Component.prototype.controller = function(path, fn) {
-  if (typeof path === 'function') {
-    fn = path;
-    path = undefined;
+class Component {
+  constructor(name, dependencies) {
+    this.name         = name;
+    this.controllers  = [];
+    this.dependencies = dependencies;
+    this.entities     = {};
+    this.services     = {};
+    this.path         = undefined;
+    this.userConfig   = [];
   }
-  fn.$$path = path;
-  this.controllers.push(fn);
-  return this;
-}
 
-/**
- * Ajoute une {@link EntityDefinition} au composant.
- * @param {String} name le nom de l'entité.
- * @param {Function} fn La fonction de l'entité
- * @return {Component} chaînable
- */
-Component.prototype.entity = function(name, fn) {
-  this.entities[name] = fn;
-  return this;
-}
+  /**
+   * Ajoute un configurateur au composant.
+   * @param {Function} fn le configurateur.
+   * @return {Component} chaînable
+   */
+  config(fn) {
+    this.userConfig.push(fn);
+    return this;
+  }
 
-/**
- * Définition d'un service.
- * @param String name Le nom du service.
- * @param function name Le service (paramètres injectables).
- * @return Lassi chaînable
- */
-Component.prototype.service = function(name, fn) {
-  this.services[name] = fn;
-  return this;
-}
+  /**
+   * Configuration du composant
+   */
+  configure() {
 
-/**
- * Démarre l'application.
- * @fires Lassi#bootstrap
- */
-Component.prototype.bootstrap = function() {
-  lassi.bootstrap(this);
+    // Si on est déjà configuré, on repart
+    if (this.configured) return;
+
+    var self = this;
+    _.each(self.dependencies, function(dependency) {
+      var component = lassi.components[dependency];
+      component.configure();
+    });
+    _.each(self.services, function(service, name) {
+      lassi.services.register(name, service);
+    });
+    _.each(self.entities, function(entity, name) {
+      var cons = (function(name, entity) {
+        return function($entities) {
+          var def = $entities.define(name);
+          lassi.services.parseInjections(entity, def);
+          def.setup = function(cb) {
+            $entities.initializeEntity(def, cb);
+          }
+          return def;
+        }
+      })(name, entity);
+      lassi.services.register(name, cons);
+    });
+    if (!lassi.options.cli) {
+      _.each(self.controllers, function(fn, name) {
+        var controller = new Controller(fn.$$path);
+        lassi.services.parseInjections(fn, controller);
+        self.controllers[name] = controller;
+      });
+    }
+
+    _.each(self.userConfig, function(userConfig) {
+      lassi.services.parseInjections(userConfig, self);
+    });
+    this.configured = true;
+    if (!lassi.options.cli) {
+      log('initialized', this.name);
+    }
+  }
+
+  /**
+   * Définition d'un controleur dans le composant.
+   * @param {String} [path] le chemin des actions de ce contrôleur.
+   * @param {function} fn La fonction du controleur.
+   * @return {Component} chaînable
+   */
+  controller(path, fn) {
+    if (typeof path === 'function') {
+      fn = path;
+      path = undefined;
+    }
+    fn.$$path = path;
+    this.controllers.push(fn);
+    return this;
+  }
+
+  /**
+   * Ajoute une {@link EntityDefinition} au composant.
+   * @param {String} name le nom de l'entité.
+   * @param {Function} fn La fonction de l'entité
+   * @return {Component} chaînable
+   */
+  entity(name, fn) {
+    this.entities[name] = fn;
+    return this;
+  }
+
+  /**
+   * Définition d'un service.
+   * @param String name Le nom du service.
+   * @param function name Le service (paramètres injectables).
+   * @return Lassi chaînable
+   */
+  service(name, fn) {
+    this.services[name] = fn;
+    return this;
+  }
+
+  /**
+   * Démarre l'application.
+   * @fires Lassi#bootstrap
+   */
+  bootstrap() {
+    lassi.bootstrap(this);
+  }
 }
 
 module.exports = Component;

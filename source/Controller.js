@@ -23,7 +23,6 @@
  */
 
 var Action       = require('./Action');
-var util         = require('util');
 var EventEmitter = require('events').EventEmitter
 var _    = require('lodash');
 
@@ -31,115 +30,118 @@ var _    = require('lodash');
  * Cette classe est instanciée par {@link Component#controller}
  * @constructor
  */
-function Controller(path) {
-  this.path = '/' + (path || '');
-  this.actions = [];
-  return this;
-}
-util.inherits(Controller, EventEmitter)
-
-Controller.prototype.on = function(methods, path, callback) {
-  if (typeof callback === 'undefined') {
-    callback = path;
-    path = undefined;
+class Controller extends EventEmitter {
+  constructor(path) {
+    this.path = '/' + (path || '');
+    this.actions = [];
+    return this;
   }
-  if (methods && !_.isArray(methods)) methods = [ methods ];
-  this.actions.push(new Action(this, methods, path, callback))
-  return this;
-}
 
-/**
- * Évènement généré avant l'expédition des données
- * sur la couche de transport et avant que la couche
- * de transport ne soit déterminée via context.contentTYpe
- * @event Lassi#beforeTransport
- * @param {Context} context le context de la requête
- * @param {Object} data les données modifiables
- */
-
-/**
- * Réponse à une méthode PUT
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {Action~callback} cb La callback
- * @fires Lassi#beforeTransport
- * @return {Controller} Chaînable
- */
-Controller.prototype.put = function(path, cb) {
-  this.on('put', path, cb);
-  return this;
-}
-
-/**
- * Réponse à une méthode POST
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {Action~callback} cb La callback
- * @fires Lassi#beforeTransport
- * @return {Controller} Chaînable
- */
-Controller.prototype.post = function(path, cb) {
-  return this.on('post', path, cb);
-}
-
-/**
- * Réponse à une méthode GET
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {Action~callback} cb La callback
- * @fires Lassi#beforeTransport
- * @return {Controller} Chaînable
- */
-Controller.prototype.get = function(path, cb) {
-  return this.on('get', path, cb);
-}
-
-/**
- * Réponse à une méthode DELETE
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {Action~callback} cb La callback
- * @fires Lassi#beforeTransport
- * @return {Controller} Chaînable
- */
-Controller.prototype.delete = function(path, cb) {
-  return this.on('delete', path, cb);
-}
-
-/**
- * Réponse à une méthode OPTIONS
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {Action~callback} cb La callback
- * @fires Lassi#beforeTransport
- * @return {Controller} Chaînable
- */
-Controller.prototype.options = function(path, cb) {
-  return this.on('options', path, cb);
-}
-
-/**
- * Réponse à une méthode ALL
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {Action~callback} cb La callback
- * @fires Lassi#beforeTransport
- * @return {Controller} Chaînable
- */
-Controller.prototype.all = function(path, cb) {
-  return this.on(undefined, path, cb);
-}
-
-
-/**
- * Publie l'ensemble des fichiers d'un dossier physique.
- * @param {String} [path] le chemin absolu ou relatif au controller .
- * @param {String} fsPath Le chemin physique
- * @return {Controller} Chaînable
- */
-Controller.prototype.serve = function(path, options) {
-  if (typeof options==='undefined') {
-    options = {fsPath: path}
-    path = undefined;
-  } else if (typeof options==='string') {
-    options = {fsPath: options}
+  on(methods, path, callback) {
+    if (typeof callback === 'undefined') {
+      callback = path;
+      path = undefined;
+    }
+    if (methods && !_.isArray(methods)) methods = [ methods ];
+    this.actions.push(new Action(this, methods, path, callback))
+    return this;
   }
-  return this.on('get', path, options);
+
+  /**
+   * Évènement généré avant l'expédition des données
+   * sur la couche de transport et avant que la couche
+   * de transport ne soit déterminée via context.contentTYpe
+   * @event Lassi#beforeTransport
+   * @param {Context} context le context de la requête
+   * @param {Object} data les données modifiables
+   */
+
+  /**
+   * Réponse à une méthode PUT
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {Action~callback} cb La callback
+   * @fires Lassi#beforeTransport
+   * @return {Controller} Chaînable
+   */
+  put(path, cb) {
+    this.on('put', path, cb);
+    return this;
+  }
+
+  /**
+   * Réponse à une méthode POST
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {Action~callback} cb La callback
+   * @fires Lassi#beforeTransport
+   * @return {Controller} Chaînable
+   */
+  post(path, cb) {
+    return this.on('post', path, cb);
+  }
+
+  /**
+   * Réponse à une méthode GET
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {Action~callback} cb La callback
+   * @fires Lassi#beforeTransport
+   * @return {Controller} Chaînable
+   */
+  get(path, cb) {
+    return this.on('get', path, cb);
+  }
+
+  /**
+   * Réponse à une méthode DELETE
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {Action~callback} cb La callback
+   * @fires Lassi#beforeTransport
+   * @return {Controller} Chaînable
+   */
+  delete(path, cb) {
+    return this.on('delete', path, cb);
+  }
+
+  /**
+   * Réponse à une méthode OPTIONS
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {Action~callback} cb La callback
+   * @fires Lassi#beforeTransport
+   * @return {Controller} Chaînable
+   */
+  options(path, cb) {
+    return this.on('options', path, cb);
+  }
+
+  /**
+   * Réponse à une méthode ALL
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {Action~callback} cb La callback
+   * @fires Lassi#beforeTransport
+   * @return {Controller} Chaînable
+   */
+  all(path, cb) {
+    return this.on(undefined, path, cb);
+  }
+
+
+  /**
+   * Publie l'ensemble des fichiers d'un dossier physique.
+   * @param {String} [path] le chemin absolu ou relatif au controller .
+   * @param {String} fsPath Le chemin physique
+   * @return {Controller} Chaînable
+   */
+  serve(path, options) {
+    if (typeof options==='undefined') {
+      options = {fsPath: path}
+      path = undefined;
+    } else if (typeof options==='string') {
+      options = {fsPath: options}
+    }
+    return this.on('get', path, options);
+  }
+
 }
+
 
 module.exports = function(path) {
   return new Controller(path);

@@ -7,7 +7,6 @@ module.exports = function($settings) {
   var express = require('express');
   var _rail = express();
 
-
   /**
    * Wrapper permettant d'enregistrer un middleware sur le rail Express.
    * @fires Lassi#beforeRailUse
@@ -15,7 +14,6 @@ module.exports = function($settings) {
    * @private
    */
   function railUse(name, callback, settings) {
-    log("adding", name.blue, "middleware");
     if (!settings) return;
     settings.mountPoint = settings.mountPoint || '/';
 
