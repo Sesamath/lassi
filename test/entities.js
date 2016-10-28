@@ -69,6 +69,7 @@ describe('Database', function() {
       // valeurs de src inchangées
       // console.log('source', src); // ok
       // console.log('entity créée', entity); // i, s, d et p valent undefined
+      console.log(src, entity);
       assert.equal(entity.i, src.i);
       assert.equal(entity.s, src.s);
       assert.equal(entity.d.getTime(), src.d.getTime());

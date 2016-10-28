@@ -32,6 +32,7 @@ var _    = require('lodash');
  */
 class Controller extends EventEmitter {
   constructor(path) {
+    super();
     this.path = '/' + (path || '');
     this.actions = [];
     return this;

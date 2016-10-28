@@ -93,6 +93,9 @@ EntityDefinition.prototype.create = function(values) {
   }
   if (this._construct) {
     this._construct.call(instance, values);
+    if(values && this._construct.length===0) {
+      _.extend(instance, values);
+    }
   } else {
     if (values) _.extend(instance, values);
   }
