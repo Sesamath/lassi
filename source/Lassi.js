@@ -51,9 +51,9 @@ var shutdownRequested = false
  */
 class Lassi extends EventEmitter {
 
-  constructor(options) {
+  constructor (options) {
     super();
-    GLOBAL.lassi = this;
+    global.lassi = this;
 
     this.transports = {};
     var HtmlTransport = require('./transport/html');
@@ -93,7 +93,7 @@ class Lassi extends EventEmitter {
     this.defaultDependencies = _.keys(lassi.components);
   }
 
-  startup(component, next) {
+  startup (component, next) {
     var self = this;
     component.dependencies = this.defaultDependencies.concat(component.dependencies);
     flow()
@@ -217,7 +217,7 @@ module.exports = function(options) {
     }
   }
   options.cli = !!options.cli;
-  if (_.has(GLOBAL, 'lassi')) {
+  if (_.has(global, 'lassi')) {
     log('ERROR'.red, ' : lassi already exists')
     return lassi;
   }
