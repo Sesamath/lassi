@@ -173,62 +173,52 @@ Entity.prototype.store = function(options, callback) {
   }
 
   function save() {
-    flow()
-      // le beforeStore avant de réclamer la connexion
-      .seq(function() { entity._beforeStore.call(instance, this); } )
-      .seq(function() { database.getConnection(this); })
-      .seq(tryToSave)
-      .catch(callback)
-  } // save
-
-  function tryToSave (connection) {
     attempts++;
-    // on a une connexion, on fait un 2e flow pour traiter les deadlock
     flow()
-      .seq(function () {
-        var _next = this;
+    // le beforeStore avant de réclamer la connexion
+    .seq(function() { entity._beforeStore.call(instance, this); } )
+    .seq(function() { database.getConnection(this); })
+    .seq(function(connection) {
+      var _next = this;
         connection.query('START TRANSACTION', function(error) {
-          if (error) return _next(error);
-          transaction = connection;
-          _next();
-        })
+        if (error) return _next(error);
+        transaction = connection;
+        _next();
       })
-      // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-      .seq(function () { if (options.index) cleanIndexes(this); else this(); })
-      .seq(function()  { if (options.object) updateObject(this); else this(); })
-      .seq(function () { if (options.index) buildIndexes(this); else this(); })
-      .seq(function () { if (options.index) storeIndexes(this); else this(); })
-      .seq(function()  { transaction.query('COMMIT', this); })
-      .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
-      .seq(function()  { callback(null, instance); })
-      .catch(function(error) {
-        console.error(error.stack);
-        // rollback && release
-        function cancel (next) {
-          if (transaction) {
-            transaction.rollback(function () {
-              transaction.release();
-              next();
-            });
-          } else {
-            next();
-          }
-        }
-        // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
-        // https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
-        // https://dev.mysql.com/doc/refman/5.5/en/innodb-locking.html#innodb-next-key-locks
-        if (attempts < 3) {
-          log.error("Erreur n°" + attempts + " dans entity.store, on retente pour voir si ça règle le deadlock probable");
-          // on met un prochain essai en bout de pile
-          setTimeout(function () {
-            cancel(save);
-          }, 0)
-        } else cancel(function () {
-          // ça veut vraiment pas
-          callback(error)
-        })
     })
-  }
+    // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
+    .seq(function () { if (options.index) cleanIndexes(this); else this(); })
+    .seq(function()  { if (options.object) updateObject(this); else this(); })
+    .seq(function () { if (options.index) buildIndexes(this); else this(); })
+    .seq(function () { if (options.index) storeIndexes(this); else this(); })
+    .seq(function()  { transaction.query('COMMIT', this); })
+    .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
+    .seq(function()  { callback(null, instance); })
+    .catch(function(error) {
+      console.log(error.stack);
+      // rollback && release
+      function cancel(next) {
+        if (transaction) {
+         transaction.rollback(function () {
+           transaction.release();
+           next();
+         });
+        } else {
+         next();
+        }
+      }
+      // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
+      // cf https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
+      if (attempts < 3) {
+        log.error("Erreur n°" +attempts +" dans entity.store, on retente pour voir si ça règle le deadlock probable");
+        cancel(save);
+      }
+      // ça veut vraiment pas
+      else cancel(function () {
+        callback(error)
+      })
+    })
+  } // save
 
   save();
 }
