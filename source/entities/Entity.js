@@ -32,245 +32,248 @@ var util = require('util');
  * @constructor
  * @param {Object} settings
  */
-function Entity() { }
+class Entity { 
 
-Entity.prototype.setDefinition = function(entity) {
-  Object.defineProperty(this, 'definition', {value: entity});
-}
-
-/**
- * Répond true si l'instance de cette Entity n'a jamais été insérée en base de donnée
- * @return {boolean} true si l'instance n'a jamais été sauvegardée
- */
-Entity.prototype.isNew = function() {
-  return !this.oid;
-}
-
-/**
- * Callback de rendu d'une vue.
- * @callback EntityInstance~StoreCallback
- * @param {Error} error Une erreur est survenue.
- * @param {Entity} entity L'entité un fois sauvegardée.
- */
-
-/**
- * Stockage d'une instance d'entité.
- * @param {Object=} options Spécification des options de stockage. Les options par défaut sont :
- *  - `options.object = true` : insertion ou mise à jour de l'objet ,
- *  - `options.index = true` : mise à jour des indexes.
- *
- * Attention: Ce paramètre est **surtout utilisé** à des fins d'optimisations (notamment
- * dans la commande de reindexation). Dans 99% des cas ce paramètre peut (et
- * doit) être omis.
- */
-Entity.prototype.store = function(options, callback) {
-  if (_.isFunction(options)) {
-    callback = options;
-    options = undefined;
+  setDefinition(entity) {
+    Object.defineProperty(this, 'definition', {value: entity});
   }
-  // on peut demander la mise à jour des index seulement (si un index calculé a changé sans modif de l'objet)
-  // ou de l'objet seulement (modif d'une propriété non indexée)
-  options = options || {object: true, index: true}
-  callback = callback || function() {};
-  var instance = this;
-  var entity = this.definition;
-  var database = entity.entities.database;
-  var transaction;
-  var indexTable = entity.table+"_index";
-  // en cas de deadlock on recommence
-  var attempts = 0;
 
-  function updateObject(next) {
-    var data = JSON.stringify(instance, function(k,v) {
-      if (_.isFunction(v)) return;
-      if (k[0]=='_') return;
-      return v;
-    });
+  /**
+   * Répond true si l'instance de cette Entity n'a jamais été insérée en base de donnée
+   * @return {boolean} true si l'instance n'a jamais été sauvegardée
+   */
+  isNew() {
+    return !this.oid;
+  }
 
-    var query = '';
-    if (instance.oid) {
-      query =
-        'UPDATE '+instance.definition.table+
-        ' SET data=?'+
-        ' WHERE oid='+instance.oid;
-      transaction.query(query, [new Buffer(data)], next);
-    } else {
-      query =
-        'INSERT INTO '+instance.definition.table+'(data)'+
-        ' VALUES(?)';
-      transaction.query(query, [new Buffer(data)], function (error, result) {
-        if (error) return next(error);
-        instance.oid = result.insertId;
-        next();
+  /**
+   * Callback de rendu d'une vue.
+   * @callback EntityInstance~StoreCallback
+   * @param {Error} error Une erreur est survenue.
+   * @param {Entity} entity L'entité un fois sauvegardée.
+   */
+
+  /**
+   * Stockage d'une instance d'entité.
+   * @param {Object=} options Spécification des options de stockage. Les options par défaut sont :
+   *  - `options.object = true` : insertion ou mise à jour de l'objet ,
+   *  - `options.index = true` : mise à jour des indexes.
+   *
+   * Attention: Ce paramètre est **surtout utilisé** à des fins d'optimisations (notamment
+   * dans la commande de reindexation). Dans 99% des cas ce paramètre peut (et
+   * doit) être omis.
+   */
+  store(options, callback) {
+    if (_.isFunction(options)) {
+      callback = options;
+      options = undefined;
+    }
+    // on peut demander la mise à jour des index seulement (si un index calculé a changé sans modif de l'objet)
+    // ou de l'objet seulement (modif d'une propriété non indexée)
+    options = options || {object: true, index: true}
+    callback = callback || function() {};
+    var instance = this;
+    var entity = this.definition;
+    var database = entity.entities.database;
+    var transaction;
+    var indexTable = entity.table+"_index";
+    // en cas de deadlock on recommence
+    var attempts = 0;
+
+    function updateObject(next) {
+      var data = JSON.stringify(instance, function(k,v) {
+        if (_.isFunction(v)) return;
+        if (k[0]=='_') return;
+        return v;
       });
-    }
-  }
 
-  function cleanIndexes(next) {
-    if (!instance.oid) return next();
-    if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
-    transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, next);
-  }
-
-  function buildIndexes(next) {
-    if (!instance.hasOwnProperty('_indexes')) {
-      var indexes = [];
-      Object.defineProperty(instance, '_indexes', {value: indexes, writable: true});
-    }
-    for (var field in entity.indexes) {
-      var index = entity.indexes[field];
-      var values = index.callback.apply(instance);
-      if ('undefined' === typeof instance[field]) {
-        Object.defineProperty(instance, field, {value: values});
-      }
-      if (!util.isArray(values)) values = [ values ];
-      for(var i in values) {
-        var record = {
-          name     : field,
-          oid      : instance.oid,
-          _string  : null,
-          _date    : null,
-          _integer : null,
-          _boolean : null
-        };
-        record["_"+index.fieldType] = values[i];
-        instance._indexes.push(record);
+      var query = '';
+      if (instance.oid) {
+        query =
+          'UPDATE '+instance.definition.table+
+          ' SET data=?'+
+          ' WHERE oid='+instance.oid;
+        transaction.query(query, [new Buffer(data)], next);
+      } else {
+        query =
+          'INSERT INTO '+instance.definition.table+'(data)'+
+          ' VALUES(?)';
+        transaction.query(query, [new Buffer(data)], function (error, result) {
+          if (error) return next(error);
+          instance.oid = result.insertId;
+          next();
+        });
       }
     }
-    next();
-  }
 
-  function storeIndexes(next) {
-    if (instance._indexes.length===0) return next();
+    function cleanIndexes(next) {
+      if (!instance.oid) return next();
+      if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
+      transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, next);
+    }
 
-    var query = '';
-    var parameters = [];
-    var count = instance._indexes.length;
-    var params = '';
-    var first = true;
-    for(var i = 0; i < count; i++) {
-      if (i===0) query = 'INSERT INTO '+indexTable+'(';
-      for (var key in instance._indexes[i]) {
+    function buildIndexes(next) {
+      if (!instance.hasOwnProperty('_indexes')) {
+        var indexes = [];
+        Object.defineProperty(instance, '_indexes', {value: indexes, writable: true});
+      }
+      for (var field in entity.indexes) {
+        var index = entity.indexes[field];
+        var values = index.callback.apply(instance);
+        if ('undefined' === typeof instance[field]) {
+          Object.defineProperty(instance, field, {value: values});
+        }
+        if (!util.isArray(values)) values = [ values ];
+        for(var i in values) {
+          var record = {
+            name     : field,
+            oid      : instance.oid,
+            _string  : null,
+            _date    : null,
+            _integer : null,
+            _boolean : null
+          };
+          record["_"+index.fieldType] = values[i];
+          instance._indexes.push(record);
+        }
+      }
+      next();
+    }
+
+    function storeIndexes(next) {
+      if (instance._indexes.length===0) return next();
+
+      var query = '';
+      var parameters = [];
+      var count = instance._indexes.length;
+      var params = '';
+      var first = true;
+      for(var i = 0; i < count; i++) {
+        if (i===0) query = 'INSERT INTO '+indexTable+'(';
+        for (var key in instance._indexes[i]) {
+          if (i===0) {
+            if (!first) {
+              query+=',';
+              params+=',';
+            } else {
+              first = false;
+            }
+            query+= key;
+            params+='?';
+          }
+          parameters.push(instance._indexes[i][key]);
+        }
         if (i===0) {
-          if (!first) {
-            query+=',';
-            params+=',';
-          } else {
-            first = false;
-          }
-          query+= key;
-          params+='?';
+          params = '  ('+params+')'
+          query+= ') VALUES ';
         }
-        parameters.push(instance._indexes[i][key]);
+        query+= params+(i<(count-1)?', ':'');
       }
-      if (i===0) {
-        params = '  ('+params+')'
-        query+= ') VALUES ';
-      }
-      query+= params+(i<(count-1)?', ':'');
+      transaction.query(query, parameters, next);
     }
-    transaction.query(query, parameters, next);
-  }
 
-  function save() {
-    flow()
-      // le beforeStore avant de réclamer la connexion
-      .seq(function() { entity._beforeStore.call(instance, this); } )
-      .seq(function() { database.getConnection(this); })
-      .seq(tryToSave)
-      .catch(callback)
-  } // save
+    function save() {
+      flow()
+        // le beforeStore avant de réclamer la connexion
+        .seq(function() { entity._beforeStore.call(instance, this); } )
+        .seq(function() { database.getConnection(this); })
+        .seq(tryToSave)
+        .catch(callback)
+    } // save
 
-  function tryToSave (connection) {
-    attempts++;
-    // on a une connexion, on fait un 2e flow pour traiter les deadlock
-    flow()
-      .seq(function () {
-        var _next = this;
-        connection.query('START TRANSACTION', function(error) {
-          if (error) return _next(error);
-          transaction = connection;
-          _next();
+    function tryToSave (connection) {
+      attempts++;
+      // on a une connexion, on fait un 2e flow pour traiter les deadlock
+      flow()
+        .seq(function () {
+          var _next = this;
+          connection.query('START TRANSACTION', function(error) {
+            if (error) return _next(error);
+            transaction = connection;
+            _next();
+          })
         })
-      })
-      // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-      .seq(function () { if (options.index) cleanIndexes(this); else this(); })
-      .seq(function()  { if (options.object) updateObject(this); else this(); })
-      .seq(function () { if (options.index) buildIndexes(this); else this(); })
-      .seq(function () { if (options.index) storeIndexes(this); else this(); })
-      .seq(function()  { transaction.query('COMMIT', this); })
-      .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
-      .seq(function()  { callback(null, instance); })
-      .catch(function(error) {
-        console.error(error.stack);
-        // rollback && release
-        function cancel (next) {
-          if (transaction) {
-            transaction.rollback(function () {
-              transaction.release();
+        // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
+        .seq(function () { if (options.index) cleanIndexes(this); else this(); })
+        .seq(function()  { if (options.object) updateObject(this); else this(); })
+        .seq(function () { if (options.index) buildIndexes(this); else this(); })
+        .seq(function () { if (options.index) storeIndexes(this); else this(); })
+        .seq(function()  { transaction.query('COMMIT', this); })
+        .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
+        .seq(function()  { callback(null, instance); })
+        .catch(function(error) {
+          console.error(error.stack);
+          // rollback && release
+          function cancel (next) {
+            if (transaction) {
+              transaction.rollback(function () {
+                transaction.release();
+                next();
+              });
+            } else {
               next();
-            });
-          } else {
-            next();
+            }
           }
-        }
-        // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
-        // https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
-        // https://dev.mysql.com/doc/refman/5.5/en/innodb-locking.html#innodb-next-key-locks
-        if (attempts < 3) {
-          log.error("Erreur n°" + attempts + " dans entity.store, on retente pour voir si ça règle le deadlock probable");
-          // on met un prochain essai en bout de pile
-          setTimeout(function () {
-            cancel(save);
-          }, 0)
-        } else cancel(function () {
-          // ça veut vraiment pas
-          callback(error)
-        })
-    })
+          // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
+          // https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
+          // https://dev.mysql.com/doc/refman/5.5/en/innodb-locking.html#innodb-next-key-locks
+          if (attempts < 3) {
+            log.error("Erreur n°" + attempts + " dans entity.store, on retente pour voir si ça règle le deadlock probable");
+            // on met un prochain essai en bout de pile
+            setTimeout(function () {
+              cancel(save);
+            }, 0)
+          } else cancel(function () {
+            // ça veut vraiment pas
+            callback(error)
+          })
+      })
+    }
+
+    save();
   }
 
-  save();
-}
+  reindex(callback) {
+    this.store({object: false, index: true}, callback);
+  }
 
-Entity.prototype.reindex = function(callback) {
-  this.store({object: false, index: true}, callback);
-}
-
-/**
- * Efface cette instance d'entité en base (et ses index) puis appelle callback
- * sans argument (ou l'argument "Delete failed" si c'est le cas)
- * @param {SimpleCallback} callback La callback d'exécution
- */
-Entity.prototype.delete = function(callback) {
-  var instance = this;
-  var entity = instance.definition;
-  var indexTable = entity.table+"_index";
-  var database = entity.entities.database;
-  var transaction;
-  flow()
-  .seq(function() { database.getConnection(this); })
-  .seq(function(connection) {
-    transaction = connection;
-    connection.query('START TRANSACTION', this);
-  })
-  .seq(function() {
-    var _this = this;
+  /**
+   * Efface cette instance d'entité en base (et ses index) puis appelle callback
+   * sans argument (ou l'argument "Delete failed" si c'est le cas)
+   * @param {SimpleCallback} callback La callback d'exécution
+   */
+  delete(callback) {
+    var instance = this;
+    var entity = instance.definition;
+    var indexTable = entity.table+"_index";
+    var database = entity.entities.database;
+    var transaction;
     flow()
-    .seq(function() { transaction.query('DELETE e, i FROM '+entity.table+' e LEFT JOIN '+indexTable+' i USING(oid) WHERE e.oid = ' +instance.oid, this); })
-    .seq(function() { transaction.query('COMMIT', _this); })
-    .catch(function(error) {
-      transaction.query('ROLLBACK', function() {
-        transaction.release();
-        _this(error);
+    .seq(function() { database.getConnection(this); })
+    .seq(function(connection) {
+      transaction = connection;
+      connection.query('START TRANSACTION', this);
+    })
+    .seq(function() {
+      var _this = this;
+      flow()
+      .seq(function() { transaction.query('DELETE e, i FROM '+entity.table+' e LEFT JOIN '+indexTable+' i USING(oid) WHERE e.oid = ' +instance.oid, this); })
+      .seq(function() { transaction.query('COMMIT', _this); })
+      .catch(function(error) {
+        transaction.query('ROLLBACK', function() {
+          transaction.release();
+          _this(error);
+        });
       });
-    });
-  })
-  .seq(function() {
-    transaction.release();
-    callback();
-  })
-  .catch(callback)
+    })
+    .seq(function() {
+      transaction.release();
+      callback();
+    })
+    .catch(callback)
+  }
+
 }
+
 
 module.exports = Entity;

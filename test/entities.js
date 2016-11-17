@@ -135,7 +135,7 @@ describe('Database', function() {
 
     it('violent', function(done) {
       this.timeout(100000000);
-      var count = 10000;
+      var count = 100;
       var objs = [];
       for (var i=0; i < count; i++) {
         objs.push(TestEntity.create({
