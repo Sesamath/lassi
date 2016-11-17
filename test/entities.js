@@ -133,6 +133,43 @@ describe('Database', function() {
       });
     });
 
+    it('violent', function(done) {
+      this.timeout(100000000);
+      var count = 10000;
+      var objs = [];
+      for (var i=0; i < count; i++) {
+        objs.push(TestEntity.create({
+          i: i,
+          s: 'truc'+i,
+          d: new Date(new Date().getTime()+1000*i)
+        }))
+      }
+      flow(objs)
+      .callbackWrapper(process.nextTick)
+      .parEach(function(obj) {
+        obj.store(this);
+      })
+      .seqEach(function(obj) {
+        obj.i *= 2;
+        obj.tag = 'updated';
+        obj.store(this);
+      })
+      .seqEach(function(obj) {
+        //console.log(obj.i+':'+obj.tag);
+        obj.delete(this);
+      })
+      .seq(function() {
+        done();
+      })
+      .catch(function(error) {
+        console.error(error);
+      })
+
+
+
+
+    })
+
   })
 });
 
