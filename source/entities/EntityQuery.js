@@ -29,6 +29,7 @@ class DatabaseQuery {
   constructor() {
     this.buffer = [];
   }
+
   push(text) {
     text = util.format.apply(this, Array.prototype.slice.call(arguments));
     this.buffer.push(text);
@@ -101,6 +102,14 @@ class EntityQuery {
    */
   false() {
     return this.equals(false);
+  }
+
+  isNull() {
+    return this.alterLastMatch({operator: 'ISNULL'});
+  }
+
+  isNotNull() {
+    return this.alterLastMatch({operator: 'ISNOTNULL'});
   }
 
   /**
@@ -305,6 +314,15 @@ class EntityQuery {
             where.push('%s LIKE ?', clause.field);
             query.args.push(clause.value);
             break;
+
+          case 'ISNULL':
+            where.push('%s IS NULL', clause.field);
+            break;
+
+          case 'ISNOTNULL':
+            where.push('%s IS NOT NULL', clause.field);
+            break;
+
 
           case 'NOT IN':
             var keys = [];
