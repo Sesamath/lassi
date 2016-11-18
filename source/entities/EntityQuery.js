@@ -108,6 +108,8 @@ class EntityQuery {
     return this.alterLastMatch({operator: 'ISNULL'});
   }
 
+
+  
   isNotNull() {
     return this.alterLastMatch({operator: 'ISNOTNULL'});
   }
