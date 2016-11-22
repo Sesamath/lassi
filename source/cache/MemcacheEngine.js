@@ -33,6 +33,8 @@ MemcacheEngine.prototype.get = function(key, callback) {
 }
 
 MemcacheEngine.prototype.set = function(key, value, ttl, callback) {
+  // attention, memcache ne fait rien si on lui donne pas de callback
+  if (!callback) callback = (error) => error && console.error(error)
   this.memcached.set(key, value, ttl, callback);
 }
 
