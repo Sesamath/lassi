@@ -2,6 +2,7 @@
   "name": "lassi",
   "version": "2.0.9",
   "private": true,
+  "license": "GPL-3.0",
   "main": "./source/Lassi",
   "dependencies": {
     "an-flow": "^2.0.1",
