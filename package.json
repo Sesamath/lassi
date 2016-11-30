@@ -1,12 +1,12 @@
 {
   "name": "lassi",
-  "version": "2.0.9",
+  "version": "2.0.11",
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
   "dependencies": {
-    "an-flow": "^2.0.1",
-    "an-log": "^3.0.1",
+    "an-flow": "http://apm.arnumeral.fr/releases/node-an-flow-2.0.7.tgz",
+    "an-log": "http://apm.arnumeral.fr/releases/node-an-log-3.0.9.tgz",
     "body-parser": "~1.14.1",
     "colors": "^1.1.2",
     "compression": "^1.6.0",
