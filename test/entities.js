@@ -42,7 +42,7 @@ describe('Database', function() {
   describe('#indexOf()', function(){
     it('Initialisation des entités', function(done){
       entities = new Entities({database: databaseSettings});
-      entities.initialize(done);
+      done()
     });
 
     it("Initialisation de l'entité de test", function(done) {

@@ -186,12 +186,22 @@ class Lassi extends EventEmitter {
          * @event Lassi#shutdown
          */
         this.emit('shutdown');
-        // @todo implémenter le shutdown dans DatabaseConnection (ajouter un listener dans son constructeur en créé trop)
+
+        // que l'on ferme avant de partir
+        var $entities = this.service && this.service('$entities')
+        if ($entities) {
+          $entities.database.end(function (error) {
+            if (error) console.error(error)
+            else console.log('Entities DB pool is closed')
+          })
+        }
+
 
         // y'a des cas où this.service n'existe déjà plus !
         var $server = this.service && this.service('$server');
-        if ($server) $server.stop(thisIsTheEnd);
-        else {
+        if ($server) {
+          $server.stop(thisIsTheEnd);
+        } else {
           log.warning('server is already gone');
           thisIsTheEnd();
         }

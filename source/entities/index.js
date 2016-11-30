@@ -1,26 +1,26 @@
+/**
+ * This file is part of "Lassi".
+ *    Copyright 2009-2012, arNuméral
+ *    Author : Yoran Brault
+ *    eMail  : yoran.brault@arnumeral.fr
+ *    Site   : http://arnumeral.fr
+ *
+ * "Lassi" is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * "Lassi" is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public
+ * License along with "Lassi"; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ */
 "use strict";
-/*
-* This file is part of "Collection".
-*    Copyright 2009-2012, arNuméral
-*    Author : Yoran Brault
-*    eMail  : yoran.brault@arnumeral.fr
-*    Site   : http://arnumeral.fr
-*
-* "Collection" is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; either version 2.1 of
-* the License, or (at your option) any later version.
-*
-* "Collection" is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public
-* License along with "Collection"; if not, write to the Free
-* Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-* 02110-1301 USA, or see the FSF site: http://www.fsf.org.
-*/
 
 var _                = require('lodash');
 var flow             = require('an-flow');
@@ -28,8 +28,7 @@ var EntityDefinition = require('./EntityDefinition');
 var EventEmitter     = require('events').EventEmitter
 var mysql            = require('mysql2');
 
-
-class Entities extends EventEmitter{
+class Entities extends EventEmitter {
   /**
    * Construction du gestionnaire d'entités.
    * À ne jamais utiliser directement.  Cette classe est instanciée par
@@ -42,7 +41,8 @@ class Entities extends EventEmitter{
     super();
     this.entities = {}
     this.settings = settings;
-    this.database = null;
+    /** le pool de connexion */
+    this.database = mysql.createPool(this.settings.database);
   }
 
   /**
@@ -66,6 +66,30 @@ class Entities extends EventEmitter{
       if (error && error.code == 'ER_NO_SUCH_TABLE') return callback(null, false);
       callback(error, true);
     })
+  }
+
+  /**
+   * Tente d'obtenir une connexion du pool et recommence plus tard sinon
+   * (max 6 fois et 2.5s)
+   * C'est complémentaire avec le queueLimit du pool, si la file d'attente est pleine
+   * on attend un peu pour avoir une place dans la queue
+   * @param next
+   */
+  waitConnection (next) {
+    function nextTry () {
+      tries++
+      pool.waitConnection(function (error, cnx) {
+        if (error) {
+          if (tries < 7) setTimeout(nextTry, 500)
+          else next(new Error('DB connection impossible after 6 tries (each 500ms)'))
+        } else {
+          next(null, cnx)
+        }
+      })
+    }
+    var tries = 0
+    var pool = this.database
+    nextTry()
   }
 
   /**
@@ -127,14 +151,12 @@ class Entities extends EventEmitter{
   }
 
   /**
-   * Initialisation des tables dans la base de donénes.
-   *
-   * Cette méthode est appelée par l'application au démarrage.
-   * @param {SimpleCallback} next callback de retour.
-   * @fires Entities#storageInitialized
+   * Ne fait rien
+   * @deprecated
+   * @param {SimpleCallback} next
    */
   initialize(next) {
-    this.database = mysql.createPool(this.settings.database);
+    console.error(new Error('DEPRECATED : Entities.initialize does nothing anymore'))
     next();
   }
 
@@ -228,6 +250,5 @@ class Entities extends EventEmitter{
   }
 
 }
-
 
 module.exports = Entities;

@@ -27,12 +27,155 @@ var _    = require('lodash');
 var flow = require('an-flow');
 var util = require('util');
 
+// met à jour une entité en bdd
+function updateObject (instance, transaction, next) {
+  var data = JSON.stringify(instance, function(k,v) {
+    if (_.isFunction(v)) return;
+    if (k[0]=='_') return;
+    return v;
+  });
+
+  var query = '';
+  if (instance.oid) {
+    query =
+      'UPDATE '+instance.definition.table+
+      ' SET data=?'+
+      ' WHERE oid='+instance.oid;
+    transaction.query(query, [new Buffer(data)], next);
+  } else {
+    query =
+      'INSERT INTO '+instance.definition.table+'(data)'+
+      ' VALUES(?)';
+    transaction.query(query, [new Buffer(data)], function (error, result) {
+      if (error) return next(error);
+      instance.oid = result.insertId;
+      next();
+    });
+  }
+}
+
+// efface les index en bdd et dans instance._indexes
+function cleanIndexes(instance, transaction, next) {
+  var indexTable = instance.definition.table + "_index"
+  if (!instance.oid) return next()
+  if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
+  transaction.query('DELETE FROM ' + indexTable + ' WHERE oid=' + instance.oid, next);
+}
+
+// reconstruit instance._indexes (synchrone)
+function buildIndexes(instance, next) {
+  var entity = instance.definition
+  if (!instance.hasOwnProperty('_indexes')) {
+    var indexes = [];
+    Object.defineProperty(instance, '_indexes', {value: indexes, writable: true});
+  }
+  for (var field in entity.indexes) {
+    var index = entity.indexes[field];
+    var values = index.callback.apply(instance);
+    if ('undefined' === typeof instance[field]) {
+      Object.defineProperty(instance, field, {value: values});
+    }
+    if (!util.isArray(values)) values = [ values ];
+    for(var i in values) {
+      var record = {
+        name     : field,
+        oid      : instance.oid,
+        _string  : null,
+        _date    : null,
+        _integer : null,
+        _boolean : null
+      };
+      record["_"+index.fieldType] = values[i];
+      instance._indexes.push(record);
+    }
+  }
+  next();
+}
+
+// enregistre instance._indexes en bdd
+function storeIndexes(instance, transaction, next) {
+  var indexTable = instance.definition.table + "_index"
+  if (instance._indexes.length===0) return next();
+
+  var query = '';
+  var parameters = [];
+  var count = instance._indexes.length;
+  var params = '';
+  var first = true;
+  for(var i = 0; i < count; i++) {
+    if (i===0) query = 'INSERT INTO '+indexTable+'(';
+    for (var key in instance._indexes[i]) {
+      if (i===0) {
+        if (!first) {
+          query+=',';
+          params+=',';
+        } else {
+          first = false;
+        }
+        query+= key;
+        params+='?';
+      }
+      parameters.push(instance._indexes[i][key]);
+    }
+    if (i===0) {
+      params = '  ('+params+')'
+      query+= ') VALUES ';
+    }
+    query+= params+(i<(count-1)?', ':'');
+  }
+  transaction.query(query, parameters, next);
+}
+
+/**
+ * Démarre la transaction sur une connexion existante et fait toutes les opérations
+ * Ne release pas la connexion
+ * @param options
+ * @param instance
+ * @param connection
+ * @param next
+ */
+function tryToSave (options, instance, connection, next) {
+  flow().seq(function () {
+    var nextStep = this
+    // on gère la callback ici car on a pas encore de transaction
+    connection.query('START TRANSACTION', function (error) {
+      if (error) {
+        // on a une connexion mais on peut pas démarrer de transaction, curieux
+        console.error('plantage du transaction start')
+        next(error)
+      } else {
+        nextStep()
+      }
+    })
+  }).seq(function()  {
+    // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
+    if (options.index) cleanIndexes(instance, connection, this)
+    else this()
+  }).seq(function()  {
+    if (options.object) updateObject(instance, connection, this)
+    else this()
+  }).seq(function () {
+    if (options.index) buildIndexes(instance, this)
+    else this()
+  }).seq(function () {
+    if (options.index) storeIndexes(instance, connection, this)
+    else this()
+  }).seq(function()  {
+    connection.query('COMMIT', next)
+  }).catch(function (error) {
+    connection.query('ROLLBACK', function (rollbackError) {
+      if (rollbackError) next(rollbackError)
+      else next(error)
+    })
+  })
+}
+
 /**
  * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
  * @constructor
  * @param {Object} settings
  */
-class Entity { 
+class Entity {
 
   setDefinition(entity) {
     Object.defineProperty(this, 'definition', {value: entity});
@@ -74,164 +217,43 @@ class Entity {
     callback = callback || function() {};
     var instance = this;
     var entity = this.definition;
-    var database = entity.entities.database;
-    var transaction;
-    var indexTable = entity.table+"_index";
-    // en cas de deadlock on recommence
+    // en cas de deadlock on recommencera
     var attempts = 0;
+    var connection
 
-    function updateObject(next) {
-      var data = JSON.stringify(instance, function(k,v) {
-        if (_.isFunction(v)) return;
-        if (k[0]=='_') return;
-        return v;
-      });
-
-      var query = '';
-      if (instance.oid) {
-        query =
-          'UPDATE '+instance.definition.table+
-          ' SET data=?'+
-          ' WHERE oid='+instance.oid;
-        transaction.query(query, [new Buffer(data)], next);
-      } else {
-        query =
-          'INSERT INTO '+instance.definition.table+'(data)'+
-          ' VALUES(?)';
-        transaction.query(query, [new Buffer(data)], function (error, result) {
-          if (error) return next(error);
-          instance.oid = result.insertId;
-          next();
-        });
-      }
-    }
-
-    function cleanIndexes(next) {
-      if (!instance.oid) return next();
-      if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
-      transaction.query('DELETE FROM '+indexTable+' WHERE oid='+instance.oid, next);
-    }
-
-    function buildIndexes(next) {
-      if (!instance.hasOwnProperty('_indexes')) {
-        var indexes = [];
-        Object.defineProperty(instance, '_indexes', {value: indexes, writable: true});
-      }
-      for (var field in entity.indexes) {
-        var index = entity.indexes[field];
-        var values = index.callback.apply(instance);
-        if ('undefined' === typeof instance[field]) {
-          Object.defineProperty(instance, field, {value: values});
-        }
-        if (!util.isArray(values)) values = [ values ];
-        for(var i in values) {
-          var record = {
-            name     : field,
-            oid      : instance.oid,
-            _string  : null,
-            _date    : null,
-            _integer : null,
-            _boolean : null
-          };
-          record["_"+index.fieldType] = values[i];
-          instance._indexes.push(record);
-        }
-      }
-      next();
-    }
-
-    function storeIndexes(next) {
-      if (instance._indexes.length===0) return next();
-
-      var query = '';
-      var parameters = [];
-      var count = instance._indexes.length;
-      var params = '';
-      var first = true;
-      for(var i = 0; i < count; i++) {
-        if (i===0) query = 'INSERT INTO '+indexTable+'(';
-        for (var key in instance._indexes[i]) {
-          if (i===0) {
-            if (!first) {
-              query+=',';
-              params+=',';
-            } else {
-              first = false;
-            }
-            query+= key;
-            params+='?';
+    // tente l'écriture en bdd et se rappelle une fois en cas de pb
+    // release la connexion dans tous les cas
+    function save (next) {
+      attempts++
+      if (attempts < 3) {
+        tryToSave(options, instance, connection, function (error) {
+          if (error) {
+            console.error(error)
+            save(next)
+          } else {
+            connection.release()
+            next()
           }
-          parameters.push(instance._indexes[i][key]);
-        }
-        if (i===0) {
-          params = '  ('+params+')'
-          query+= ') VALUES ';
-        }
-        query+= params+(i<(count-1)?', ':'');
-      }
-      transaction.query(query, parameters, next);
-    }
-
-    function save() {
-      flow()
-        // le beforeStore avant de réclamer la connexion
-        .seq(function() { entity._beforeStore.call(instance, this); } )
-        .seq(function() { database.getConnection(this); })
-        .seq(tryToSave)
-        .catch(callback)
-    } // save
-
-    function tryToSave (connection) {
-      attempts++;
-      // on a une connexion, on fait un 2e flow pour traiter les deadlock
-      flow()
-        .seq(function () {
-          var _next = this;
-          connection.query('START TRANSACTION', function(error) {
-            if (error) return _next(error);
-            transaction = connection;
-            _next();
-          })
         })
-        // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-        .seq(function () { if (options.index) cleanIndexes(this); else this(); })
-        .seq(function()  { if (options.object) updateObject(this); else this(); })
-        .seq(function () { if (options.index) buildIndexes(this); else this(); })
-        .seq(function () { if (options.index) storeIndexes(this); else this(); })
-        .seq(function()  { transaction.query('COMMIT', this); })
-        .seq(function()  { transaction.release(); entity._afterStore.call(instance, this); })
-        .seq(function()  { callback(null, instance); })
-        .catch(function(error) {
-          console.error(error.stack);
-          // rollback && release
-          function cancel (next) {
-            if (transaction) {
-              transaction.rollback(function () {
-                transaction.release();
-                next();
-              });
-            } else {
-              next();
-            }
-          }
-          // on peut avoir du deadlock en cas d'insert de deux ids consécutifs quasi simultanés
-          // https://dev.mysql.com/doc/refman/5.5/en/innodb-next-key-locking.html
-          // https://dev.mysql.com/doc/refman/5.5/en/innodb-locking.html#innodb-next-key-locks
-          if (attempts < 3) {
-            log.error("Erreur n°" + attempts + " dans entity.store, on retente pour voir si ça règle le deadlock probable");
-            // on met un prochain essai en bout de pile
-            setTimeout(function () {
-              cancel(save);
-            }, 0)
-          } else cancel(function () {
-            // ça veut vraiment pas
-            callback(error)
-          })
-      })
+      } else {
+        connection.release()
+        next(new Error('abandon après 2 tentatives d’écriture en bdd'))
+      }
     }
 
-    save();
-  }
+    flow().seq(function () {
+      // step1 on essaie d'avoir une connexion sur le pool, sinon on attend un peu avant de recommencer
+      entity.entities.database.getConnection(this)
+    }).seq(function (cnx) {
+      // step2 connexion ok, on lance les écritures, ça recommencera une fois (en cas de deadlock)
+      connection = cnx
+      save(this)
+    }).seq(function () {
+      entity._afterStore.call(instance, this)
+    }).seq(function () {
+      callback(null, instance)
+    }).catch(callback)
+  } // store
 
   reindex(callback) {
     this.store({object: false, index: true}, callback);
@@ -239,8 +261,8 @@ class Entity {
 
   /**
    * Efface cette instance d'entité en base (et ses index) puis appelle callback
-   * sans argument (ou l'argument "Delete failed" si c'est le cas)
-   * @param {SimpleCallback} callback La callback d'exécution
+   * avec une éventuelle erreur
+   * @param {SimpleCallback} callback
    */
   delete(callback) {
     var instance = this;

@@ -1,9 +1,10 @@
+var Entities = require('../entities');
+
 /**
  * Service de gestion des entités. Voir les méthodes de l'objet {@link Entities}
- * @namespace $entities
+ * @service $entities
  */
 module.exports = function($settings) {
-  var Entities = require('../entities');
   var entities = new Entities($settings.get('$entities'));
 
   /**
@@ -15,7 +16,9 @@ module.exports = function($settings) {
    * @private
    */
   entities.setup = function(cb) {
-    entities.initialize(cb);
+    // devenu inutile
+    // entities.initialize(cb);
+    cb()
   }
   return entities;
 }
