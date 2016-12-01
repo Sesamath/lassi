@@ -243,7 +243,7 @@ class Entity {
 
     flow().seq(function () {
       // step1 on essaie d'avoir une connexion sur le pool, sinon on attend un peu avant de recommencer
-      entity.entities.database.getConnection(this)
+      entity.entities.database.waitConnection(this)
     }).seq(function (cnx) {
       // step2 connexion ok, on lance les écritures, ça recommencera une fois (en cas de deadlock)
       connection = cnx

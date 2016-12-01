@@ -133,9 +133,9 @@ describe('Database', function() {
       });
     });
 
-    it('violent', function(done) {
-      this.timeout(100000000);
-      var count = 100;
+    it('violent (en // nombreux insert puis update puis delete)', function(done) {
+      this.timeout(30 * 1000); // 30s
+      var count = 1000;
       var objs = [];
       for (var i=0; i < count; i++) {
         objs.push(TestEntity.create({
@@ -149,12 +149,12 @@ describe('Database', function() {
       .parEach(function(obj) {
         obj.store(this);
       })
-      .seqEach(function(obj) {
+      .parEach(function(obj) {
         obj.i *= 2;
         obj.tag = 'updated';
         obj.store(this);
       })
-      .seqEach(function(obj) {
+      .parEach(function(obj) {
         //console.log(obj.i+':'+obj.tag);
         obj.delete(this);
       })
@@ -164,12 +164,6 @@ describe('Database', function() {
       .catch(function(error) {
         console.error(error);
       })
-
-
-
-
     })
-
   })
 });
-

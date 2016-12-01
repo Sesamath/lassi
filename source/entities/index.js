@@ -43,6 +43,29 @@ class Entities extends EventEmitter {
     this.settings = settings;
     /** le pool de connexion */
     this.database = mysql.createPool(this.settings.database);
+    var pool = this.database
+    /**
+     * Tente d'obtenir une connexion du pool et recommence plus tard sinon
+     * (max 6 fois et 2.5s)
+     * C'est complémentaire avec le queueLimit du pool, si la file d'attente est pleine
+     * on attend un peu pour avoir une place dans la queue
+     * @param next
+     */
+    pool.waitConnection = function waitConnection (next) {
+      function nextTry () {
+        tries++
+        pool.getConnection(function (error, cnx) {
+          if (error) {
+            if (tries < 7) setTimeout(nextTry, 500)
+            else next(new Error('DB connection impossible after 6 tries (each 500ms)'))
+          } else {
+            next(null, cnx)
+          }
+        })
+      }
+      var tries = 0
+      nextTry()
+    }
   }
 
   /**
@@ -66,30 +89,6 @@ class Entities extends EventEmitter {
       if (error && error.code == 'ER_NO_SUCH_TABLE') return callback(null, false);
       callback(error, true);
     })
-  }
-
-  /**
-   * Tente d'obtenir une connexion du pool et recommence plus tard sinon
-   * (max 6 fois et 2.5s)
-   * C'est complémentaire avec le queueLimit du pool, si la file d'attente est pleine
-   * on attend un peu pour avoir une place dans la queue
-   * @param next
-   */
-  waitConnection (next) {
-    function nextTry () {
-      tries++
-      pool.waitConnection(function (error, cnx) {
-        if (error) {
-          if (tries < 7) setTimeout(nextTry, 500)
-          else next(new Error('DB connection impossible after 6 tries (each 500ms)'))
-        } else {
-          next(null, cnx)
-        }
-      })
-    }
-    var tries = 0
-    var pool = this.database
-    nextTry()
   }
 
   /**
