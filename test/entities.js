@@ -1,3 +1,6 @@
+/* eslint-env mocha */
+'use strict'
+
 var Entities = require('../source/entities');
 var entities;
 var TestEntity;
