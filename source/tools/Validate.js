@@ -124,7 +124,7 @@ Validate.empty = function(subject) {
 }
 
 Validate.not.empty = function(subject) {
-  return !Validate.empty;
+  return !Validate.empty(subject);
 }
 
 Validate.has.keys = function(subject) {
