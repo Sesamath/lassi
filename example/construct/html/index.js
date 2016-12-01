@@ -55,7 +55,6 @@ lassi.component('example-html')
 })
 
 .controller(function($appSettings) {
-  var _ = require('lodash');
   this.serve(__dirname+'/public');
 
   function sidebar(data) {
@@ -81,7 +80,7 @@ lassi.component('example-html')
   this.get(function(context) {
     var data = {
       $metas : {
-        title: 'test',
+        title: $appSettings.title(),
         css: [ 'aaa' ]
       },
       content: {

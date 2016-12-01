@@ -1,3 +1,4 @@
+'use strict'
 /**
  * Service de gestion des entités. Voir les méthodes de l'objet {@link CacheManager}
  * @namespace $cache

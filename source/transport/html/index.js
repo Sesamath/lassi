@@ -24,10 +24,10 @@
 
 var _            = require('lodash');
 var flow = require('an-flow');
-var util = require('util');
+// var util = require('util');
 var Renderer = require('./Renderer');
 var Metas = require('./Metas');
-var pathlib = require('path');
+// var pathlib = require('path');
 var log = require('an-log')('LassiHtml');
 
 /**

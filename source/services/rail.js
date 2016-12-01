@@ -1,4 +1,5 @@
-var log = require('an-log')('$rail');
+"use strict";
+// var log = require('an-log')('$rail');
 /**
  * Service de gestion des middlewares
  * @namespace $rail

@@ -4,6 +4,10 @@
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
+  "scripts": {
+    "lint": "eslint --ignore-pattern **/vendors/ .",
+    "test": "mocha"
+  },
   "dependencies": {
     "an-flow": "http://apm.arnumeral.fr/releases/node-an-flow-2.0.7.tgz",
     "an-log": "http://apm.arnumeral.fr/releases/node-an-log-3.0.9.tgz",

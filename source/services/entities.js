@@ -1,5 +1,5 @@
+'use strict'
 var Entities = require('../entities');
-
 /**
  * Service de gestion des entités. Voir les méthodes de l'objet {@link Entities}
  * @service $entities
@@ -22,4 +22,3 @@ module.exports = function($settings) {
   }
   return entities;
 }
-
