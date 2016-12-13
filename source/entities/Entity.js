@@ -62,6 +62,17 @@ function cleanIndexes(instance, transaction, next) {
   transaction.query('DELETE FROM ' + indexTable + ' WHERE oid=' + instance.oid, next);
 }
 
+// cast dans le bon type, pour éviter de planter le store en cas de contenu farfelu
+function cast (fieldType, value) {
+  switch (fieldType) {
+    case 'boolean': return !!value
+    case 'string': return String(value)
+    case 'integer': return Math.round(Number(value))
+    case 'date': return Object.prototype.toString.call(value) === '[object Date]' ? value : new Date(value)
+    default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
+  }
+}
+
 // reconstruit instance._indexes (synchrone)
 function buildIndexes(instance, next) {
   var entity = instance.definition
@@ -85,7 +96,7 @@ function buildIndexes(instance, next) {
         _integer : null,
         _boolean : null
       };
-      record["_"+index.fieldType] = values[i];
+      record["_"+index.fieldType] = cast(index.fieldType, values[i]);
       instance._indexes.push(record);
     }
   }
@@ -164,8 +175,13 @@ function tryToSave (options, instance, connection, next) {
     connection.query('COMMIT', next)
   }).catch(function (error) {
     connection.query('ROLLBACK', function (rollbackError) {
-      if (rollbackError) next(rollbackError)
-      else next(error)
+      if (rollbackError) {
+        // on loggue l'erreur initiale avant de faire suivre celle du rollback
+        console.error(error)
+        next(rollbackError)
+      } else {
+        next(error)
+      }
     })
   })
 }
