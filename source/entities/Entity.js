@@ -258,7 +258,10 @@ class Entity {
     }
 
     flow().seq(function () {
-      // step1 on essaie d'avoir une connexion sur le pool, sinon on attend un peu avant de recommencer
+      // le beforeStore avant de réclamer la connexion
+      entity._beforeStore.call(instance, this);
+    }).seq(function () {
+      // step1 on essaie d'avoir une connexion sur le pool
       entity.entities.database.getConnection(this)
     }).seq(function (cnx) {
       // step2 connexion ok, on lance les écritures, ça recommencera une fois (en cas de deadlock)
