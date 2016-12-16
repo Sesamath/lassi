@@ -187,22 +187,22 @@ class Lassi extends EventEmitter {
          */
         this.emit('shutdown');
 
-        // que l'on ferme avant de partir
-        var $entities = this.service && this.service('$entities')
-        if ($entities) {
-          $entities.database.end(function (error) {
-            if (error) console.error(error)
-            else console.log('Entities DB pool is closed')
-          })
-        }
-
+        // si on ferme la connexion à la base ici, les transactions en cours ne peuvent pas se terminer
+        // même sur un reload pm2, on laisse la connexion expirer…
+        // var $entities = this.service && this.service('$entities')
+        // if ($entities) {
+        //   $entities.database.end(function (error) {
+        //     if (error) console.error(error)
+        //     else console.log('Entities DB pool is closed')
+        //   })
+        // }
 
         // y'a des cas où this.service n'existe déjà plus !
         var $server = this.service && this.service('$server');
         if ($server) {
           $server.stop(thisIsTheEnd);
         } else {
-          log.warning('server is already gone');
+          log('server is already gone');
           thisIsTheEnd();
         }
       } catch (error) {
@@ -241,7 +241,7 @@ module.exports = function(options) {
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
   process.on('uncaughtException', function (error) {
     // on envoie l'erreur en console mais on va pas planter node pour si peu
-    log.error('uncaughtException : ', error.stack);
+    console.error('uncaughtException : ', error.stack);
   })
 
   // On ajoute nos écouteurs pour le shutdown
@@ -259,10 +259,10 @@ module.exports = function(options) {
   // le message 'shutdown' est envoyé par pm2 sur les gracefulReload
   process.on('message', function (message) {
     // on récupère bien la string 'shutdown' qui est affichée ici
-    console.log('message #' +message +'# of pid ' +process.pid);
+    log('message #' +message +'# of pid ' +process.pid);
     if (message === 'shutdown') {
       // mais on arrive jamais là, le process meurt visiblement avant
-      console.log('launching shutdown');
+      log('launching shutdown');
       lassi.shutdown();
     }
   });
