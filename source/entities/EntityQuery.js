@@ -109,7 +109,7 @@ class EntityQuery {
   }
 
 
-  
+
   isNotNull() {
     return this.alterLastMatch({operator: 'ISNOTNULL'});
   }
@@ -379,6 +379,7 @@ class EntityQuery {
    * Renvoie les objets liés à la requête
    * @param {Integer} [count=0] Ne récupère que les ̀count` objet(s), tous par défaut
    * @param {Integer} [from=0] Ne récupère que les objets à partir d'un rang donné
+   * @param {Object} [options={}] passer debug:true pour afficher les requêtes en console, ou distinct:true pour ajouter distinct (pour éviter de remonter 5 fois la même ressource si elle match 5 fois)
    * @param {EntityQuery~GrabCallback} callback La callback.
    *
    * ##### examples
@@ -408,27 +409,35 @@ class EntityQuery {
    *
    * @fires EntityQuery#afterLoad
    */
-  grab(count, from, callback) {
+  grab(count, from, options, callback) {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
     if (_.isFunction(count)) {
       callback = count;
       count = from = 0;
+      options = {}
     } else if (_.isFunction(from)) {
       callback = from;
       from = 0;
+      options = {}
+    } else if (_.isFunction(options)) {
+      callback = options
+      options = {}
     }
     var self = this;
     var query = new DatabaseQuery();
-    query.push('SELECT * FROM %s AS d', this.entity.table);
+    var qs = 'SELECT'
+    if (options.distinct) qs += ' DISTINCT'
+    qs += ' d.oid, d.data FROM %s AS d'
+    query.push(qs, this.entity.table);
     this.finalizeQuery(query);
     if (count) {
       query.push('LIMIT %d', count);
       query.push('OFFSET %d', from);
     }
 
-    if (log.logDebug) {
+    if (options.debug) {
       var i = 0;
-      log.debug("grab", "\n"+query.toString().replace(/\?/g, function () {
+      log("grab", "\n" + query.toString().replace(/\?/g, function () {
         var arg = query.args[i++];
         return (typeof arg === "number") ? arg : "'" +arg +"'";
       }));
