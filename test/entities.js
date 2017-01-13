@@ -35,12 +35,9 @@ var databaseSettings = {
 console.log('lancement avec les paramètres de connexion', databaseSettings)
 
 describe('Database', function() {
-  // data source du test
-  var src = {
-    i: 12,
-    s: 'truc',
-    d: new Date('01/02/2003 04:05:06')
-  }
+  var count = 1000;
+  var bt = 1041476706000;
+  var MINUTE = 1000*60;
 
   describe('#indexOf()', function(){
     it('Initialisation des entités', function(done){
@@ -55,57 +52,93 @@ describe('Database', function() {
         this.i = undefined;
         this.s = undefined;
         this.d = undefined;
-        // int, nb de secondes de d modulo 2
         this.p = undefined;
       });
       TestEntity.defineIndex('i', 'integer');
       TestEntity.defineIndex('s', 'string');
       TestEntity.defineIndex('d', 'date');
       TestEntity.defineIndex('p', 'integer', function() {
-        return this.d.getSeconds() % 2;
+        return this.i % 2;
       });
+      TestEntity.defineIndex('q', 'integer', function() {
+        var a = this.d.getSeconds() % 2;
+        var b = this.d.getSeconds() % 3;
+        var c = this.d.getSeconds() % 4;
+        return [a, b, c];
+      });
+      TestEntity.defineIndex('r', 'string', function() {
+        var a = this.d.getSeconds() % 2;
+        var b = this.d.getSeconds() % 3;
+        var c = this.d.getSeconds() % 4;
+        return ['test'+a, 'test'+b, 'test'+c];
+      });
+      TestEntity.defineIndex('r', 'date', function() {
+        var a = new Date(this.d);
+        var b = new Date(this.d+3600000);
+        var c = new Date(this.d+7200000);
+        return [a, b, c];
+      });
+
       entities.initializeEntity(TestEntity, done);
     });
 
-    it("Ajout de données dans l'entité", function(done) {
-      var entity = TestEntity.create(src);
-      // valeurs de src inchangées
-      // console.log('source', src); // ok
-      // console.log('entity créée', entity); // i, s, d et p valent undefined
-      assert.equal(entity.i, src.i);
-      assert.equal(entity.s, src.s);
-      assert.equal(entity.d.getTime(), src.d.getTime());
-      assert.equal(entity.d.constructor.name, 'Date');
-      // ajout de created
-      assert.equal(entity.created.constructor.name, 'Date');
-      entity.store(function(error, entity)  {
-        if (error) return done(error);
-        assert.equal(entity.i, src.i);
-        assert.equal(entity.s, src.s);
-        assert.equal(entity.d.getTime(), src.d.getTime());
+    it("Ajout de "+count+" données dans l'entité", function(done) {
+      this.timeout(30000);
+      var entities = [];
+      for (var i=0; i < count; i++) {
+        entities.push(TestEntity.create({
+          i: i,
+          s: 'truc'+i,
+          d: new Date(bt+MINUTE*i)
+        }));
+      }
+      entities.forEach(function(entity, i) {
+        assert.equal(entity.i, i);
+        assert.equal(entity.s, 'truc'+i);
+        assert.equal(entity.d.getTime(), bt+MINUTE*i);
         assert.equal(entity.created.constructor.name, 'Date');
-        assert(entity.oid>0);
-        done();
-      });
+      })
+      flow(entities)
+      .seqEach(function(entity, i) {
+        var next = this;
+        entity.store(function(error, entity)  {
+          if (error) return next(error);
+          assert.equal(entity.i, i);
+          assert.equal(entity.s, 'truc'+i);
+          assert.equal(entity.d.getTime(), bt+MINUTE*i);
+          assert.equal(entity.created.constructor.name, 'Date');
+          assert(entity.oid>0);
+          next();
+        });
+      })
+      .empty().seq(done).catch(done)
     });
 
     it("Sélection d'entités", function(done) {
-      TestEntity.match('p').equals(0).grab(function(error, result) {
-        if (error) return done(error);
-
-        assert(result && result.length>0);
-        var entity = result[0];
-        assert.equal(entity.i, src.i);
-        assert.equal(entity.s, src.s);
-        assert.equal(entity.d.getTime(), src.d.getTime());
-        assert.equal(entity.created.constructor.name, 'Date');
-        assert(entity.oid>0);
-        done();
-      });
-    });
-    it("Suppression d'entités", function(done) {
+      this.timeout(10000);
       flow()
-      .seq(function() { TestEntity.match('p').equals(0).grab(this); })
+      .seq(function() {
+        TestEntity.match('p').equals(0).grab(this);
+      })
+      .seq(function(entities) {
+        assert(entities && entities.length==(count/2));
+        entities.forEach(function(entity) {
+          var i = entity.i;
+          assert.equal(entity.s, 'truc'+i);
+          assert.equal(entity.d.getTime(), bt+MINUTE*i);
+          assert.equal(entity.created.constructor.name, 'Date');
+          assert(entity.oid>0);
+        })
+        this();
+      })
+      .empty().seq(done).catch(done);
+    });
+
+    it("Suppression d'entités", function(done) {
+      this.timeout(10000);
+      flow()
+      .callbackWrapper(process.nextTick)
+      .seq(function() { TestEntity.match('p').equals(1).grab(this); })
       .seqEach(function(entity) {
         entity.delete(this);
       })
@@ -113,9 +146,17 @@ describe('Database', function() {
     });
 
     it("Vérification des suppressions", function(done) {
-      TestEntity.match('p').equals(0).grab(function(error, result) {
+      TestEntity.match('p').equals(1).grab(function(error, result) {
         if (error) return done(error);
         assert(result.length===0);
+        done();
+      });
+    });
+
+    it("Vérification des non suppressions", function(done) {
+      TestEntity.match('p').equals(0).grab(function(error, result) {
+        if (error) return done(error);
+        assert(result.length===(count/2));
         done();
       });
     });
