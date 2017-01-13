@@ -25,6 +25,16 @@ var _    = require('lodash');
 var util = require('util');
 var log  = require('an-log')('$entities');
 
+function logQuery (query, options) {
+  if (!options || !options.debug) return
+  var i = 0;
+  options.startQuery = (new Date()).getTime()
+  log("query", options.startQuery, "\n", query.toString().replace(/\?/g, function () {
+    var arg = query.args[i++];
+    return (typeof arg === "number") ? arg : "'" +arg +"'";
+  }));
+}
+
 class DatabaseQuery {
   constructor() {
     this.buffer = [];
@@ -434,15 +444,9 @@ class EntityQuery {
       query.push('LIMIT %d', count);
       query.push('OFFSET %d', from);
     }
-
-    if (options.debug) {
-      var i = 0;
-      log("grab", "\n" + query.toString().replace(/\?/g, function () {
-        var arg = query.args[i++];
-        return (typeof arg === "number") ? arg : "'" +arg +"'";
-      }));
-    }
+    if (options.debug) logQuery(query, options)
     this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
+      if (options.debug) log('retour mysql (grab) après', (new Date()).getTime() - options.startQuery, 'ms')
       if (errors) return callback(errors);
       for(var i=0,ii=rows.length; i<ii; i++) {
         var tmp = JSON.parse(rows[i].data, function (key, value) {
@@ -469,11 +473,17 @@ class EntityQuery {
    * Compte le nombre d'objet correpondants.
    * @param {EntityQuery~CountCallback} callback
    */
-  count(callback) {
+  count(options, callback) {
+    if (_.isFunction(options)) {
+      callback = options
+      options = {}
+    }
     var query = new DatabaseQuery();
     query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
     this.finalizeQuery(query);
+    if (options.debug) logQuery(query, options)
     this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
+      if (options.debug) log('retour mysql (count) après', (new Date()).getTime() - options.startQuery, 'ms')
       if (error) return callback(error);
       if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));
       callback(null, rows[0].count);
