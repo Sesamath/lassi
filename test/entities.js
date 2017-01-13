@@ -12,6 +12,8 @@ var dbPass = 'app'
 var dbHost = 'localhost'
 var db = 'app'
 
+// pour passer des arguments de connexion à la base, lancer le script avec par ex
+// mocha test/entities.js --user xxx --pass yyy --db zzz --host hhh
 // console.log(process.argv)
 // on est lancé par mocha, node est l'arg 0, mocha 1, ce script 2, donc ça démarre à 3
 var i = 3
