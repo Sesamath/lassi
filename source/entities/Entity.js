@@ -156,6 +156,10 @@ class Entity {
     .done(callback)
   }
 
+  drop(callback) {
+    this.delete(callback);
+  }
+
 }
 
 
