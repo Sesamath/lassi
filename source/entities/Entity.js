@@ -1,6 +1,3 @@
-'use strict';
-
-var log = require('an-log')('$entities');
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -23,168 +20,12 @@ var log = require('an-log')('$entities');
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
+
+'use strict';
 var _    = require('lodash');
 var flow = require('an-flow');
-var util = require('util');
-
-// met à jour une entité en bdd
-function updateObject (instance, transaction, next) {
-  var data = JSON.stringify(instance, function(k,v) {
-    if (_.isFunction(v)) return;
-    if (k[0]=='_') return;
-    return v;
-  });
-
-  var query = '';
-  if (instance.oid) {
-    query =
-      'UPDATE '+instance.definition.table+
-      ' SET data=?'+
-      ' WHERE oid='+instance.oid;
-    transaction.query(query, [new Buffer(data)], next);
-  } else {
-    query =
-      'INSERT INTO '+instance.definition.table+'(data)'+
-      ' VALUES(?)';
-    transaction.query(query, [new Buffer(data)], function (error, result) {
-      if (error) return next(error);
-      instance.oid = result.insertId;
-      next();
-    });
-  }
-}
-
-// efface les index en bdd et dans instance._indexes
-function cleanIndexes(instance, transaction, next) {
-  var indexTable = instance.definition.table + "_index"
-  if (!instance.oid) return next()
-  if (instance.hasOwnProperty('_indexes')) instance._indexes = [];
-  transaction.query('DELETE FROM ' + indexTable + ' WHERE oid=' + instance.oid, next);
-}
-
-// cast dans le bon type, pour éviter de planter le store en cas de contenu farfelu
-function cast (fieldType, value) {
-  switch (fieldType) {
-    case 'boolean': return !!value
-    case 'string': return String(value)
-    case 'integer': return Math.round(Number(value))
-    case 'date': return Object.prototype.toString.call(value) === '[object Date]' ? value : new Date(value)
-    default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
-  }
-}
-
-// reconstruit instance._indexes (synchrone)
-function buildIndexes(instance, next) {
-  var entity = instance.definition
-  if (!instance.hasOwnProperty('_indexes')) {
-    var indexes = [];
-    Object.defineProperty(instance, '_indexes', {value: indexes, writable: true});
-  }
-  for (var field in entity.indexes) {
-    var index = entity.indexes[field];
-    var values = index.callback.apply(instance);
-    if ('undefined' === typeof instance[field]) {
-      Object.defineProperty(instance, field, {value: values});
-    }
-    if (!util.isArray(values)) values = [ values ];
-    for(var i in values) {
-      var record = {
-        name     : field,
-        oid      : instance.oid,
-        _string  : null,
-        _date    : null,
-        _integer : null,
-        _boolean : null
-      };
-      record["_"+index.fieldType] = cast(index.fieldType, values[i]);
-      instance._indexes.push(record);
-    }
-  }
-  next();
-}
-
-// enregistre instance._indexes en bdd
-function storeIndexes(instance, transaction, next) {
-  var indexTable = instance.definition.table + "_index"
-  if (instance._indexes.length===0) return next();
-
-  var query = '';
-  var parameters = [];
-  var count = instance._indexes.length;
-  var params = '';
-  var first = true;
-  for(var i = 0; i < count; i++) {
-    if (i===0) query = 'INSERT INTO '+indexTable+'(';
-    for (var key in instance._indexes[i]) {
-      if (i===0) {
-        if (!first) {
-          query+=',';
-          params+=',';
-        } else {
-          first = false;
-        }
-        query+= key;
-        params+='?';
-      }
-      parameters.push(instance._indexes[i][key]);
-    }
-    if (i===0) {
-      params = '  ('+params+')'
-      query+= ') VALUES ';
-    }
-    query+= params+(i<(count-1)?', ':'');
-  }
-  transaction.query(query, parameters, next);
-}
-
-/**
- * Démarre la transaction sur une connexion existante et fait toutes les opérations
- * Ne release pas la connexion
- * @param options
- * @param instance
- * @param connection
- * @param next
- */
-function tryToSave (options, instance, connection, next) {
-  flow().seq(function () {
-    var nextStep = this
-    // on gère la callback ici car on a pas encore de transaction
-    connection.query('START TRANSACTION', function (error) {
-      if (error) {
-        // on a une connexion mais on peut pas démarrer de transaction, curieux
-        console.error('plantage du transaction start')
-        next(error)
-      } else {
-        nextStep()
-      }
-    })
-  }).seq(function()  {
-    // on traite d'abord les index, les plus susceptibles de déclencher des pb de deadlock
-    if (options.index) cleanIndexes(instance, connection, this)
-    else this()
-  }).seq(function()  {
-    if (options.object) updateObject(instance, connection, this)
-    else this()
-  }).seq(function () {
-    if (options.index) buildIndexes(instance, this)
-    else this()
-  }).seq(function () {
-    if (options.index) storeIndexes(instance, connection, this)
-    else this()
-  }).seq(function()  {
-    connection.query('COMMIT', next)
-  }).catch(function (error) {
-    connection.query('ROLLBACK', function (rollbackError) {
-      if (rollbackError) {
-        // on loggue l'erreur initiale avant de faire suivre celle du rollback
-        console.error(error)
-        next(rollbackError)
-      } else {
-        next(error)
-      }
-    })
-  })
-}
+var ObjectID = require('mongodb').ObjectID;
+var log = require('an-log')('$entities');
 
 /**
  * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
@@ -205,77 +46,98 @@ class Entity {
     return !this.oid;
   }
 
-  /**
-   * Callback de rendu d'une vue.
-   * @callback EntityInstance~StoreCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Entity} entity L'entité un fois sauvegardée.
-   */
+  getNextSequence(cb) {
+    var self = this;
+    flow()
+    .seq(function() {
+      self.db().collection('counters').findAndModify(
+        { _id: self.definition.name },
+        [],
+        { $inc: { seq: 1 } },
+        { upsert: true, new: true }, this);
+    })
+    .seq(function(seq) {
+      cb(null, seq.value.seq);
+    })
+    .catch(cb);
+  }
 
+  buildIndexes() {
+    function cast(fieldType, value) {
+      switch (fieldType) {
+        case 'boolean': return !!value;
+        case 'string': return String(value);
+        case 'integer': return  Math.round(Number(value));
+        case 'date': return Object.prototype.toString.call(value) === '[object Date]' ? value : new Date(value);
+        default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
+      }
+    }
+    var entity = this.definition
+    var indexes = {};
+    for (var field in entity.indexes) {
+      var index = entity.indexes[field];
+      var values = index.callback.apply(this);
+      if (Array.isArray(values)) {
+        values = values.map(x => cast(index.fieldType, x));
+      } else {
+        values = cast(index.fieldType, values);
+      }
+      indexes[field] = values;
+    }
+    return indexes;
+  }
+
+  db() {
+    return this.definition.entities.connection;
+  }
   /**
    * Stockage d'une instance d'entité.
-   * @param {Object=} options Spécification des options de stockage. Les options par défaut sont :
-   *  - `options.object = true` : insertion ou mise à jour de l'objet ,
-   *  - `options.index = true` : mise à jour des indexes.
-   *
-   * Attention: Ce paramètre est **surtout utilisé** à des fins d'optimisations (notamment
-   * dans la commande de reindexation). Dans 99% des cas ce paramètre peut (et
-   * doit) être omis.
+   * @param {Object=} options non utilisé
    */
   store(options, callback) {
+    var self = this;
+    var entity = this.definition;
+
     if (_.isFunction(options)) {
       callback = options;
       options = undefined;
     }
-    // on peut demander la mise à jour des index seulement (si un index calculé a changé sans modif de l'objet)
-    // ou de l'objet seulement (modif d'une propriété non indexée)
     options = options || {object: true, index: true}
     callback = callback || function() {};
-    var instance = this;
-    var entity = this.definition;
-    // en cas de deadlock on recommencera
-    var attempts = 0;
-    var connection
 
-    // tente l'écriture en bdd et se rappelle une fois en cas de pb
-    // release la connexion dans tous les cas
-    function save (next) {
-      attempts++
-      if (attempts < 3) {
-        tryToSave(options, instance, connection, function (error) {
-          if (error) {
-            console.error(error)
-            save(next)
-          } else {
-            connection.release()
-            next()
-          }
-        })
+    flow()
+
+    .seq(function () {
+      entity._beforeStore.call(self, this);
+    })
+
+    .seq(function() {
+      if (!self.oid) {
+        self.getNextSequence(this)
       } else {
-        connection.release()
-        next(new Error('abandon après 2 tentatives d’écriture en bdd'))
+        this(null, self.oid);
       }
-    }
+    })
 
-    flow().seq(function () {
-      // le beforeStore avant de réclamer la connexion
-      entity._beforeStore.call(instance, this);
+    .seq(function (id) {
+      self.oid = id;
+      var indexes = self.buildIndexes();
+      indexes._id = self.oid;
+      indexes._data = JSON.stringify(self, function(k,v) {
+        if (_.isFunction(v)) return;
+        if (k[0]=='_') return;
+        return v;
+      });
+      self.db().collection(entity.name).save(indexes, { w: 1 }, this);
+    }).seq(function (result) {
+      entity._afterStore.call(self, this)
     }).seq(function () {
-      // step1 on essaie d'avoir une connexion sur le pool
-      entity.entities.database.getConnection(this)
-    }).seq(function (cnx) {
-      // step2 connexion ok, on lance les écritures, ça recommencera une fois (en cas de deadlock)
-      connection = cnx
-      save(this)
-    }).seq(function () {
-      entity._afterStore.call(instance, this)
-    }).seq(function () {
-      callback(null, instance)
+      callback(null, self)
     }).catch(callback)
-  } // store
+  }
 
   reindex(callback) {
-    this.store({object: false, index: true}, callback);
+    this.store(callback);
   }
 
   /**
@@ -284,34 +146,14 @@ class Entity {
    * @param {SimpleCallback} callback
    */
   delete(callback) {
-    var instance = this;
-    var entity = instance.definition;
-    var indexTable = entity.table+"_index";
-    var database = entity.entities.database;
-    var transaction;
+    var self = this;
+    var entity = this.definition;
     flow()
-    .seq(function() { database.getConnection(this); })
-    .seq(function(connection) {
-      transaction = connection;
-      connection.query('START TRANSACTION', this);
-    })
     .seq(function() {
-      var _this = this;
-      flow()
-      .seq(function() { transaction.query('DELETE e, i FROM '+entity.table+' e LEFT JOIN '+indexTable+' i USING(oid) WHERE e.oid = ' +instance.oid, this); })
-      .seq(function() { transaction.query('COMMIT', _this); })
-      .catch(function(error) {
-        transaction.query('ROLLBACK', function() {
-          transaction.release();
-          _this(error);
-        });
-      });
+      if (!self.oid) return this();
+      entity.entities.connection.collection(entity.name).remove({_id: self.oid}, this);
     })
-    .seq(function() {
-      transaction.release();
-      callback();
-    })
-    .catch(callback)
+    .done(callback)
   }
 
 }

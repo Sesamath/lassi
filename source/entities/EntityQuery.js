@@ -22,25 +22,8 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 var _    = require('lodash');
-var util = require('util');
 var log  = require('an-log')('$entities');
-
-class DatabaseQuery {
-  constructor() {
-    this.buffer = [];
-  }
-
-  push(text) {
-    text = util.format.apply(this, Array.prototype.slice.call(arguments));
-    this.buffer.push(text);
-  }
-
-  toString(separator) {
-    separator = separator || "\n";
-    return this.buffer.join(separator);
-  }
-}
-
+var flow = require('an-flow');
 
 class EntityQuery {
   /**
@@ -53,10 +36,7 @@ class EntityQuery {
    */
   constructor(entity) {
     this.entity = entity;
-    this.references = 0;
     this.clauses = [];
-    this.sorts = [];
-    this.joins = [];
   }
 
   /**
@@ -264,96 +244,65 @@ class EntityQuery {
    * @return {KnexQuery} la requête modifiée
    * @private
    */
-  finalizeQuery(query) {
-    var i, clause, record;
-    query.args = [];
+  buildQuery(rec) {
+    var query = rec.query;
+    this.clauses.forEach((clause) => {
+      if (clause.value == '*') return;
 
-    // Construction des jointures
-    var aliasIndex = 0;
-    for (i in this.clauses) {
-      clause = this.clauses[i];
-      if (clause.index != 'oid') {
-        record = this.entity.indexes[clause.index];
-        if (!record) throw new Error("L'index "+clause.index+" est inconnu sur l'entité "+this.entity.name);
-        clause.alias = '_'+(aliasIndex++);
-        query.push('JOIN %s AS %s ON %s.oid=d.oid', this.entity.table+'_index', clause.alias, clause.alias);
-        clause.field = clause.alias+'._'+record.fieldType;
-      } else {
-        clause.field = 'd.oid';
+      if (clause.type=='sort') {
+        rec.options.sort = rec.options.sort || [];
+        rec.options.sort.push([clause.field, clause.order]);
+        return;
       }
-    }
+      if (clause.type != 'match') return;
 
-    // Construction des conditions
-    if (this.clauses.length) {
-      var init = false;
-      var where = new DatabaseQuery();
-      _.each(this.clauses, function(clause) {
-        if (!init && clause.type!=='sort') {
-          query.push('WHERE');
-          init = true;
-        }
-        if (clause.index != 'oid') {
-          where.push("%s.name=?", clause.alias);
-          query.args.push(clause.index);
-        }
+      switch (clause.operator) {
+        case'=':
+          query[clause.index] = clause.value;
+          break;
 
-        if (clause.value == '*') return;
-        if (clause.type != 'match') return;
+        case '>':
+          query[clause.index] = {$gt: clause.value};
+          break;
 
-        switch (clause.operator) {
-          case '>':case'<':case'>=':case'<=':case'=':
-            where.push('%s %s ?', clause.field, clause.operator);
-            query.args.push(clause.value);
-            break;
+        case '>':
+          query[clause.index] = {$lt: clause.value};
+          break;
 
-          case 'BETWEEN':
-            where.push('%s BETWEEN ? AND ?', clause.field);
-            query.args.push(clause.value[0]);
-            query.args.push(clause.value[1]);
-            break;
+        case '>=':
+          query[clause.index] = {$gte: clause.value};
+          break;
 
-          case 'LIKE':
-            where.push('%s LIKE ?', clause.field);
-            query.args.push(clause.value);
-            break;
+        case '<=':
+          query[clause.index] = {$lte: clause.value};
+          break;
 
-          case 'ISNULL':
-            where.push('%s IS NULL', clause.field);
-            break;
+        case 'BETWEEN':
+          query[clause.index] = {$gte: clause.value[0], $lte: clause.value[1]};
+          break;
 
-          case 'ISNOTNULL':
-            where.push('%s IS NOT NULL', clause.field);
-            break;
+        case 'LIKE':
+          query[clause.index] = new RegExp(clause.value.replace(/\%/,'.*'));
+          break;
+
+        case 'ISNULL':
+          query[clause.index] = null;
+          break;
+
+        case 'ISNOTNULL':
+          query[clause.index] = {$ne: null};
+          break;
 
 
-          case 'NOT IN':
-            var keys = [];
-            _.each(clause.value, function(value) {
-              keys.push('?');
-              query.args.push(value);
-            });
-            where.push('%s NOT IN (%s)', clause.field, keys.join(','));
-            break;
+        case 'NOT IN':
+          query[clause.index] = {b$in: clause.value};
+          break;
 
-          case 'IN':
-            var keys = [];
-            _.each(clause.value, function(value) {
-              keys.push('?');
-              query.args.push(value);
-            });
-            where.push('%s IN (%s)', clause.field, keys.join(','));
-            break;
-        }
-      });
-      query.push(where.toString(' AND\n  '));
-    }
-
-    // Tris
-    for (i in this.clauses) {
-      clause = this.clauses[i];
-      if (clause.type!='sort') continue;
-      query.push('ORDER BY %s %s', clause.field, clause.order);
-    }
+        case 'IN':
+          query[clause.index] = {$in: clause.value};
+          break;
+      }
+    })
   }
 
   /**
@@ -424,38 +373,43 @@ class EntityQuery {
       options = {}
     }
     var self = this;
-    var query = new DatabaseQuery();
-    var qs = 'SELECT'
-    if (options.distinct) qs += ' DISTINCT'
-    qs += ' d.oid, d.data FROM %s AS d'
-    query.push(qs, this.entity.table);
-    this.finalizeQuery(query);
+    var record = {query: {}, options: {}};
     if (count) {
-      query.push('LIMIT %d', count);
-      query.push('OFFSET %d', from);
+      record.options.limit = count;
+      record.options.skip = from;
     }
+    this.buildQuery(record);
 
-    if (options.debug) {
-      var i = 0;
-      log("grab", "\n" + query.toString().replace(/\?/g, function () {
-        var arg = query.args[i++];
-        return (typeof arg === "number") ? arg : "'" +arg +"'";
-      }));
-    }
-    this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
-      if (errors) return callback(errors);
+
+    var db = this.entity.entities.connection;
+    var collection = db.collection(this.entity.name);
+    flow()
+    .seq(function() {
+      collection.find(record.query, record.options, this);
+    })
+    .seq(function(cursor) {
+      cursor.toArray(this);
+    })
+    .seq(function(rows) {
       for(var i=0,ii=rows.length; i<ii; i++) {
-        var tmp = JSON.parse(rows[i].data, function (key, value) {
+        var tmp = JSON.parse(rows[i]._data, function (key, value) {
           if (typeof value === 'string' && dateRegExp.exec(value)) {
             return new Date(value);
           }
           return value;
-        });
-        tmp.oid = rows[i].oid;
+        })
+        tmp.oid = rows[i]._id;
         rows[i] = self.entity.create(tmp);
       }
       callback(null, rows);
+    })
+    .catch(callback);
+
+    /*
+    query(query.toString(), query.args, function(errors, rows) {
+      if (errors) return callback(errors);
     });
+    */
   }
 
   /**
@@ -472,7 +426,7 @@ class EntityQuery {
   count(callback) {
     var query = new DatabaseQuery();
     query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
-    this.finalizeQuery(query);
+    this.buildQuery(query);
     this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
       if (error) return callback(error);
       if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));

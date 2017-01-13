@@ -6,32 +6,28 @@ var entities;
 var TestEntity;
 var assert = require('assert');
 var flow = require('an-flow');
-// valeurs par défaut
-var dbUser = 'root'
-var dbPass = 'app'
-var dbHost = 'localhost'
-var db = 'app'
 
 // console.log(process.argv)
 // on est lancé par mocha, node est l'arg 0, mocha 1, ce script 2, donc ça démarre à 3
 var i = 3
+
+var databaseSettings = {
+  name: 'app',
+  host : "localhost",
+  port: 27017,
+  poolSize: 10
+}
 var a
 while (process.argv[i]) {
   a = process.argv[i];
-  if (a === '--user') dbUser = process.argv[i + 1]
-  if (a === '--pass') dbPass = process.argv[i + 1]
-  if (a === '--host') dbHost = process.argv[i + 1]
-  if (a === '--db') db = process.argv[i + 1]
+  if (a === '--user') databaseSettings.user = process.argv[i + 1]
+  if (a === '--pass') databaseSettings.password = process.argv[i + 1]
+  if (a === '--host') databaseSettings.host = process.argv[i + 1]
+  if (a === '--name') databaseSettings.name = process.argv[i + 1]
+  if (a === '--port') databaseSettings.port = process.argv[i + 1]
   i += 2
 }
 
-var databaseSettings = {
-  connectionLimit: 10,
-  user: dbUser,
-  password: dbPass,
-  host: dbHost,
-  database: db
-}
 console.log('lancement avec les paramètres de connexion', databaseSettings)
 
 describe('Database', function() {
@@ -45,7 +41,7 @@ describe('Database', function() {
   describe('#indexOf()', function(){
     it('Initialisation des entités', function(done){
       entities = new Entities({database: databaseSettings});
-      done()
+      entities.initialize(done);
     });
 
     it("Initialisation de l'entité de test", function(done) {
@@ -64,19 +60,34 @@ describe('Database', function() {
       TestEntity.defineIndex('p', 'integer', function() {
         return this.d.getSeconds() % 2;
       });
+      TestEntity.defineIndex('q', 'integer', function() {
+        var a = this.d.getSeconds() % 2;
+        var b = this.d.getSeconds() % 3;
+        var c = this.d.getSeconds() % 4;
+        return [a, b, c];
+      });
+      TestEntity.defineIndex('r', 'string', function() {
+        var a = this.d.getSeconds() % 2;
+        var b = this.d.getSeconds() % 3;
+        var c = this.d.getSeconds() % 4;
+        return ['test'+a, 'test'+b, 'test'+c];
+      });
+      TestEntity.defineIndex('r', 'date', function() {
+        var a = new Date(this.d);
+        var b = new Date(this.d+3600000);
+        var c = new Date(this.d+7200000);
+        return [a, b, c];
+      });
+
       entities.initializeEntity(TestEntity, done);
     });
 
     it("Ajout de données dans l'entité", function(done) {
       var entity = TestEntity.create(src);
-      // valeurs de src inchangées
-      // console.log('source', src); // ok
-      // console.log('entity créée', entity); // i, s, d et p valent undefined
       assert.equal(entity.i, src.i);
       assert.equal(entity.s, src.s);
       assert.equal(entity.d.getTime(), src.d.getTime());
       assert.equal(entity.d.constructor.name, 'Date');
-      // ajout de created
       assert.equal(entity.created.constructor.name, 'Date');
       entity.store(function(error, entity)  {
         if (error) return done(error);
@@ -84,8 +95,13 @@ describe('Database', function() {
         assert.equal(entity.s, src.s);
         assert.equal(entity.d.getTime(), src.d.getTime());
         assert.equal(entity.created.constructor.name, 'Date');
-        assert(entity.oid>0);
-        done();
+        assert(!!entity.oid);
+        var oid = entity.oid;
+        entity.store(function(error, entity) {
+          if (error) return done(error);
+          assert(oid===entity.oid);
+          done();
+        })
       });
     });
 

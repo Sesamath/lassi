@@ -21,10 +21,10 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _            = require('lodash');
-var Entity = require('./Entity');
+var _           = require('lodash');
+var Entity      = require('./Entity');
 var EntityQuery = require('./EntityQuery');
-var flow = require('an-flow');
+var flow        = require('an-flow');
 
 function fooCb(cb) { cb(); }
 
@@ -76,7 +76,6 @@ class EntityDefinition {
   bless(entities) {
     if (this.configure) this.configure();
     this.entities = entities;
-    this.table = this.table || (this.name[0].toLowerCase()+this.name.substr(1)).replace(/([A-Z])/g, function($1){return '_'+$1.toLowerCase();});
     this.entityClass = this.entityClass || function() {};
     return this;
   }
@@ -107,8 +106,9 @@ class EntityDefinition {
   flush(cb) {
     var self = this;
     flow()
-    .seq(function() { self.entities.database.query('DELETE FROM '+self.table+';', this); })
-    .seq(function() { self.entities.database.query('DELETE FROM '+self.table+'_index;', this); })
+    .seq(function() {
+      self.entities.connection.collection(self.name).drop(this);
+    })
     .done(cb);
   }
 

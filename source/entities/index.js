@@ -26,7 +26,9 @@ var _                = require('lodash');
 var flow             = require('an-flow');
 var EntityDefinition = require('./EntityDefinition');
 var EventEmitter     = require('events').EventEmitter
-var mysql            = require('mysql2');
+var Server           = require('mongodb').Server;
+var Db               = require('mongodb').Db;
+var log              = require('an-log')('Entities');
 
 class Entities extends EventEmitter {
   /**
@@ -41,8 +43,6 @@ class Entities extends EventEmitter {
     super();
     this.entities = {}
     this.settings = settings;
-    /** le pool de connexion */
-    this.database = mysql.createPool(this.settings.database);
   }
 
   /**
@@ -61,117 +61,59 @@ class Entities extends EventEmitter {
     return this.entities;
   }
 
-  databaseHasTable(table, callback) {
-    this.database.query('SELECT * FROM '+table+" LIMIT 1", function(error) {
-      if (error && error.code == 'ER_NO_SUCH_TABLE') return callback(null, false);
-      callback(error, true);
-    })
-  }
-
   /**
    * Initialisation du stockage en base de données pour une entité.
    *
    * @param {Entity} entity L'entité
-   * @param {SimpleCallback} next callback de retour
+   * @param {SimpleCallback} cb callback de retour
    * @private
    */
-  initializeEntity(entity, next) {
-    var self = this
-
-    function createStore(next) {
-      var table = entity.table;
-      self.databaseHasTable(table, function(error, exists) {
-        if (error || exists) return next(error);
-        var query = [];
-        query.push('CREATE TABLE IF NOT EXISTS '+table+' (');
-        query.push('  oid INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
-        query.push('  data MEDIUMBLOB');
-        query.push(') DEFAULT CHARACTER SET utf8');
-        self.database.query(query.join(''), next);
-      })
-    }
-
-    function createStoreIndex(next) {
-      var table = entity.table+"_index";
-      self.databaseHasTable(table, function(error, exists) {
-        if (error || exists) return next(error);
-        var queries = [];
-        var query = [];
-        query.push('CREATE TABLE IF NOT EXISTS '+table+' (');
-        query.push('  iid INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
-        query.push('  name VARCHAR(255) DEFAULT NULL,');
-        query.push('  _integer INTEGER DEFAULT NULL,');
-        query.push('  _string VARCHAR(255) DEFAULT NULL,');
-        query.push('  _date DATETIME DEFAULT NULL,');
-        query.push('  _boolean TINYINT(1) DEFAULT NULL,');
-        query.push('  oid INTEGER UNSIGNED NOT NULL ');
-        query.push(') DEFAULT CHARACTER SET utf8;');
-        queries.push(query.join(''));
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_name_index(name);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_integer_index(_integer);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_string_index(_string);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_date_index(_date);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_boolean_index(_boolean);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_oid_index(oid);');
-
-        flow(queries)
-        .seqEach(function(query) { self.database.query(query, this); })
-        .done(next)
-      })
-    }
-
+  initializeEntity(entity, cb) {
+    var self = this;
     flow()
-    .seq(function() { createStore(this); })
-    .seq(function() { createStoreIndex(this); })
-    .done(next);
+    .seq(function() {
+      self.connection.collection('counters').findOne({_id: entity.name}, this)
+    })
+    .seq(function(seq) {
+      if (!seq) {
+        self.connection.collection('counters').save({_id: entity.name, seq: 0}, this)
+      } else {
+        this();
+      }
+    })
+    .done(cb);
   }
 
   /**
-   * Ne fait rien
+   * Initialisation de l'espace de stockage
+   * @param {SimpleCallback} cb
+   */
+  initialize(cb) {
+    var settings = this.settings.database;
+    var self = this;
+    flow()
+    .seq(function() {
+      var server = new Server(settings.host, settings.port, {
+        'auto_reconnect': settings.autoReconnect || true,
+        poolSize        : settings.poolSize || 4
+      });
+      self.connection = new Db(settings.name, server , { w:0, 'native_parser': false });
+      self.connection.open(this);
+    })
+    .seq(function(connection) {
+      if (!settings.user) return this();
+      self.connection.authenticate(settings.user, settings.password, this);
+    })
+    .done(cb);
+  }
+
+
+  /**
    * @deprecated
-   * @param {SimpleCallback} next
-   */
-  initialize(next) {
-    console.error(new Error('DEPRECATED : Entities.initialize does nothing anymore'))
-    next();
-  }
-
-  /**
-   * Suppression des indexes d'une entité.
-   * @param {Entity} entity L'entité dont on supprime l'indexe.
-   * @param {SimpleCallback} next callback de retour
-   * @private
-   */
-  dropEntityIndexes(entity, next) {
-    var self = this
-
-    function dropStoreIndex(next) {
-      var table = entity.table+"_index";
-      self.database.schema.dropTableIfExists(table)
-        .exec(function (error) {
-            console.log('Suppression de la table %s for %s', table.red, entity.name.green);
-            next(error)
-         });
-    }
-
-    flow()
-    .seq(function() { dropStoreIndex(this); })
-    .done(next);
-  }
-
-  /**
-   * Suppression des indexes.
-   *
-   * Cette méthode est appelée par les commandes `lassi entities-XXX`
-   *
-   * @param {SimpleCallback} next callback de retour.
    */
   dropIndexes(next) {
-    var self = this
-
-    flow(_.values(this.entities))
-      .parEach(function(entity) { self.dropEntityIndexes(entity, this) })
-      .seq(function() { next() })
+    log('dropIndexes déprécié');
+    next();
   }
 
   /**
@@ -181,32 +123,13 @@ class Entities extends EventEmitter {
    * @private
    */
   rebuildEntityIndexes(entity, next) {
-    var self = this
-
-    function dropStoreIndex(next) {
-      var table = entity.table+"_index";
-      self.database(table).delete()
-      .exec(function (error) {
-          console.log('Suppression des données de la table %s for %s', table.red, entity.name.green);
-          next(error)
-       });
-    }
-
-    function loadObjects(next) {
-      entity.match().grab(function(error, objects) {
-        if (error) return next(error);
-        next(null, objects);
-      });
-    }
-
-    function storeObject(object, next) {
-      object.store({object: false, index: true}, next);
-    }
-
     flow()
-    .seq(function() { dropStoreIndex(this); })
-    .seq(function() { loadObjects(this);  })
-    .seqEach(function(object) { storeObject(object, this); })
+    .seq(function() {
+      entity.match().grab(this);
+    })
+    .seqEach(function(object) {
+      object.store(this);
+    })
     .done(next)
   }
 
