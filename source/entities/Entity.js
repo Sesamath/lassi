@@ -111,18 +111,12 @@ class Entity {
       entity._beforeStore.call(self, this);
     })
 
-    .seq(function() {
+    .seq(function () {
       if (!self.oid) {
-        self.getNextSequence(this)
-      } else {
-        this(null, self.oid);
+        self.oid = ObjectID().toString();
       }
-    })
-
-    .seq(function (id) {
-      self.oid = id;
       var indexes = self.buildIndexes();
-      indexes._id = self.oid;
+      indexes._id = ObjectID.createFromHexString(self.oid);
       indexes._data = JSON.stringify(self, function(k,v) {
         if (_.isFunction(v)) return;
         if (k[0]=='_') return;
@@ -151,7 +145,8 @@ class Entity {
     flow()
     .seq(function() {
       if (!self.oid) return this();
-      entity.entities.connection.collection(entity.name).remove({_id: self.oid}, this);
+
+      entity.entities.connection.collection(entity.name).remove({_id: ObjectID.createFromHexString(self.oid)}, this);
     })
     .done(callback)
   }

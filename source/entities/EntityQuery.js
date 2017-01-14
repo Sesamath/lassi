@@ -398,7 +398,7 @@ class EntityQuery {
           }
           return value;
         })
-        tmp.oid = rows[i]._id;
+        tmp.oid = rows[i]._id.toString();
         rows[i] = self.entity.create(tmp);
       }
       callback(null, rows);

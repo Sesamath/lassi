@@ -111,7 +111,7 @@ describe('Database', function() {
           assert.equal(entity.s, 'truc'+i);
           assert.equal(entity.d.getTime(), bt+MINUTE*i);
           assert.equal(entity.created.constructor.name, 'Date');
-          assert(entity.oid>0);
+          assert(entity.oid.length==24);
           next();
         });
       })
@@ -131,7 +131,7 @@ describe('Database', function() {
           assert.equal(entity.s, 'truc'+i);
           assert.equal(entity.d.getTime(), bt+MINUTE*i);
           assert.equal(entity.created.constructor.name, 'Date');
-          assert(entity.oid>0);
+          assert(entity.oid.length==24);
         })
         this();
       })
