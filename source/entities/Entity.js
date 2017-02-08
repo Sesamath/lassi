@@ -1,6 +1,3 @@
-'use strict';
-
-var log = require('an-log')('$entities');
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -23,6 +20,9 @@ var log = require('an-log')('$entities');
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
+'use strict';
+
+var log = require('an-log')('$entities');
 var _    = require('lodash');
 var flow = require('an-flow');
 var util = require('util');
@@ -95,8 +95,16 @@ function buildIndexes(instance, next) {
         _date    : null,
         _integer : null,
         _boolean : null
-      };
-      record["_"+index.fieldType] = cast(index.fieldType, values[i]);
+      }
+      if (values[i] !== undefined) {
+        let casted = cast(index.fieldType, values[ i ]);
+        if (_.isNaN(casted)) {
+          log.error(`${entity.name} d’oid ${instance.oid} a un index numérique qui donne NaN`)
+        } else {
+          record[ "_" + index.fieldType ] = casted
+        }
+      }
+      // @FIXME on laisse cet enregistrement même si tous les index sont null, parce que c'était comme ça avant, mais est-ce bien utile ? (à vérifier avec isNull|isNotNull)
       instance._indexes.push(record);
     }
   }

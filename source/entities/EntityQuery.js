@@ -29,10 +29,11 @@ function logQuery (query, options) {
   if (!options || !options.debug) return
   var i = 0;
   options.startQuery = (new Date()).getTime()
-  log("query", options.startQuery, "\n", query.toString().replace(/\?/g, function () {
+  var queryString = query.toString().replace(/\?/g, function () {
     var arg = query.args[i++];
     return (typeof arg === "number") ? arg : "'" +arg +"'";
-  }));
+  })
+  log("query", `at ${options.startQuery}ms`, "\n", queryString)
 }
 
 class DatabaseQuery {
