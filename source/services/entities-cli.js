@@ -121,20 +121,22 @@ function reindexAll (entityName, done) {
   const Entity = lassi.service(entityName)
   if (!Entity) return done(new Error('Aucune entity nommée ' + entityName))
   // on peut y aller
-  const total = Entity.match().count()
-  if (total) {
-    console.log(`ré-indexation de ${total} entités ${entityName} :`)
-    grab(
-      Entity.match(),
-      defaultLimit,
-      (entity, next) => entity.reindex(next),
-      { groupCb: (start, nb) => console.log(`reindex ${entityName} OK (${start} à ${start + nb})`) },
-      done
-    )
-  } else {
-    console.log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrements)`)
-    done()
-  }
+  Entity.match().count(function (error, total) {
+    if (error) return done(error)
+    if (total) {
+      console.log(`ré-indexation de ${total} entités ${entityName} :`)
+      grab(
+        Entity.match(),
+        defaultLimit,
+        (entity, next) => entity.reindex(next),
+        { groupCb: (start, nb) => console.log(`reindex ${entityName} OK (${start} à ${start + nb})`) },
+        done
+      )
+    } else {
+      console.log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrements)`)
+      done()
+    }
+  })
 }
 reindexAll.help = function reindexAllHelp () {
   console.log('La commande reindexAll prend en seul argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)')
