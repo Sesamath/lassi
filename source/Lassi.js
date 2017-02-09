@@ -244,7 +244,7 @@ module.exports = function(options) {
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
   process.on('uncaughtException', function (error) {
     // on envoie l'erreur en console mais on va pas planter node pour si peu
-    console.error('uncaughtException : ', error.stack);
+    log.error('uncaughtException : ', error.stack);
   })
 
   // On ajoute nos écouteurs pour le shutdown
