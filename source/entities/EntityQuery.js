@@ -466,8 +466,8 @@ class EntityQuery {
   /**
    * Callback d'exécution d'une requête.
    * @callback EntityQuery~CountCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Integer} count compote
+   * @param {Error} error
+   * @param {Integer} nbRecords
    */
 
   /**
