@@ -116,7 +116,7 @@ class Entity {
         self.oid = ObjectID().toString();
       }
       var indexes = self.buildIndexes();
-      indexes._id = ObjectID.createFromHexString(self.oid);
+      indexes._id = self.oid;
       indexes._data = JSON.stringify(self, function(k,v) {
         if (_.isFunction(v)) return;
         if (k[0]=='_') return;

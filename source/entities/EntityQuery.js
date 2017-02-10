@@ -358,28 +358,17 @@ class EntityQuery {
    *
    * @fires EntityQuery#afterLoad
    */
-  grab(count, from, options, callback) {
+  grab(options, callback) {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    if (_.isFunction(count)) {
-      callback = count;
-      count = from = 0;
-      options = {}
-    } else if (_.isFunction(from)) {
-      callback = from;
-      from = 0;
-      options = {}
-    } else if (_.isFunction(options)) {
+    if (_.isFunction(options)) {
       callback = options
-      options = {}
+      options = undefined;
     }
+    options = options || {};
     var self = this;
     var record = {query: {}, options: {}};
-    if (count) {
-      record.options.limit = count;
-      record.options.skip = from;
-    }
-    this.buildQuery(record);
-
+    if (typeof options.offset !== 'undefined') record.options.skip = options.offset;
+    if (typeof options.limit !== 'undefined') record.options.limit = options.limit;
 
     var db = this.entity.entities.connection;
     var collection = db.collection(this.entity.name);
@@ -424,14 +413,16 @@ class EntityQuery {
    * @param {EntityQuery~CountCallback} callback
    */
   count(callback) {
-    var query = new DatabaseQuery();
-    query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
-    this.buildQuery(query);
-    this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
-      if (error) return callback(error);
-      if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));
-      callback(null, rows[0].count);
-    });
+    var db = this.entity.entities.connection;
+    var collection = db.collection(this.entity.name);
+    flow()
+    .seq(function() {
+      collection.count(this);
+    })
+    .seq(function(count) {
+      callback(null, count);
+    })
+    .catch(callback);
   }
 
 
@@ -447,7 +438,7 @@ class EntityQuery {
    * @param {EntityQuery~GrabOneCallback} callback La callback.
    */
   grabOne(callback) {
-    this.grab(1, function(error, entities) {
+    this.grab({limit: 1}, function(error, entities) {
       if (error) return callback(error);
       if (entities.length===0) return callback();
       callback(null, entities[0])
