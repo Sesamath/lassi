@@ -82,12 +82,14 @@ function buildIndexes(instance, next) {
   }
   for (var field in entity.indexes) {
     var index = entity.indexes[field];
-    var values = index.callback.apply(instance);
-    if ('undefined' === typeof instance[field]) {
-      Object.defineProperty(instance, field, {value: values});
-    }
+    var values = index.callback.call(instance);
+    // mais pourquoi ajouter une propriété qui serait undefined ?
+    // surtout que ça plante si la propriété est définie avec une valeur undefined
+    // if ('undefined' === typeof instance[field]) {
+    //   Object.defineProperty(instance, field, {value: values});
+    // }
     if (!util.isArray(values)) values = [ values ];
-    for(var i in values) {
+    for (var i in values) {
       var record = {
         name     : field,
         oid      : instance.oid,
