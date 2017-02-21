@@ -255,12 +255,14 @@ select.help = function selectHelp () {
  */
 function count (entityName, wheres, done) {
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande')
+  if (arguments.length === 1) {
+    return entityName(new Error('Il faut passer un nom d’entity (ou "help") en 1er argument'))
+  }
   if (arguments.length === 2) {
     done = wheres
     wheres = ''
   }
   if (typeof done !== 'function') throw new Error('Erreur interne, pas de callback de commande')
-  if (typeof entityName !== 'string') return done(new Error('Il faut passer un nom d’entity (ou "help") en 1er argument'))
 
   if (entityName === 'help') {
     count.help()
