@@ -63,63 +63,68 @@ module.exports = function () {
    * @memberOf $cli
    */
   function run () {
-    // on récupère tous les services
-    const services = lassi.allServices()
-    // filtre sur *-cli
-    const cliServices = Object
-      .keys(services)
-      .filter(k => k.substr(-4) === '-cli')
-      .map(k => lassi.service(k))
-    // appelle pour chaque service *-cli sa méthode commands
-    cliServices.forEach(function(service) {
-      const tmp = service.commands()
-      for (let name in tmp) {
-        commands[name] = tmp[name]
-        if (typeof tmp[name].help !== 'function') {
-          tmp[name].help = () => console.log(`La commande ${name} ne fournit pas d’aide sur son usage`)
-        }
-      }
-    })
-    // on ajoute qq commandes universelles
-    commands.allServices = () => console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
-
-    if (listAsked) {
-      printAllCommands()
-      process.exit(0)
-    }
-    if (helpAsked) {
-      usage()
-      commands[commandName].help()
-      process.exit(0)
-    }
-    if (!commandName) {
-      console.error('Il faut passer une commande à exécuter')
-      usage(1)
-    }
-    // on ajoute debug sur lassi
-    lassi.debug = debug
-
-    const command = commands[commandName]
-    if (!command) {
-      console.error(`Commande "${commandName}" inconnue`)
-      usage(1)
-    }
-
-    // info avant de lancer
-    const msgStart = 'Lancement de la commande ' + commandName
-    if (commandArgs.length) printInfo(msgStart, 'avec les arguments', commandArgs)
-    else printInfo(msgStart, 'sans arguments')
-
-    // on ajoute la callback en dernier argument
-    commandArgs.push(function(error, result) {
-      if (error) printError(error)
-      if (result) console.log(`Retour de la commande ${commandName}\n`, result)
-      else printInfo('Fin ' + commandName)
-      process.exit(error ? 2 : 0)
-    })
-
-    // et on lance la commande
     try {
+      // on récupère tous les services
+      const services = lassi.allServices()
+      // filtre sur *-cli
+      const cliServices = Object
+        .keys(services)
+        .filter(k => k.substr(-4) === '-cli')
+        .map(k => lassi.service(k))
+      // appelle pour chaque service *-cli sa méthode commands
+      cliServices.forEach(function(service) {
+        const tmp = service.commands()
+        for (let name in tmp) {
+          commands[name] = tmp[name]
+          if (typeof tmp[name].help !== 'function') {
+            tmp[name].help = () => console.log(`La commande ${name} ne fournit pas d’aide sur son usage`)
+          }
+        }
+      })
+      // on ajoute qq commandes universelles
+      commands.listAllServices = () => console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
+      commands.listAllServices.help = () => console.log('Liste tous les services déclarés dans cette appli')
+
+      if (listAsked) {
+        printAllCommands()
+        process.exit(0)
+      }
+      if (helpAsked) {
+        if (commands[commandName]) {
+          if (commands[commandName].help) commands[commandName].help()
+          else console.log(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`)
+        } else {
+          usage()
+        }
+        process.exit(0)
+      }
+      if (!commandName) {
+        console.error('Il faut passer une commande à exécuter')
+        usage(1)
+      }
+      // on ajoute debug sur lassi
+      lassi.debug = debug
+
+      const command = commands[commandName]
+      if (!command) {
+        console.error(`Commande "${commandName}" inconnue`)
+        usage(1)
+      }
+
+      // info avant de lancer
+      const msgStart = 'Lancement de la commande ' + commandName
+      if (commandArgs.length) printInfo(msgStart, 'avec les arguments', commandArgs)
+      else printInfo(msgStart, 'sans arguments')
+
+      // on ajoute la callback en dernier argument
+      commandArgs.push(function(error, result) {
+        if (error) printError(error)
+        if (result) console.log(`Retour de la commande ${commandName}\n`, result)
+        else printInfo('Fin ' + commandName)
+        process.exit(error ? 2 : 0)
+      })
+
+      // et on lance la commande
       command.apply(this, commandArgs)
       process.exit(0)
     } catch (error) {
