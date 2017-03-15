@@ -144,7 +144,7 @@ class Entities extends EventEmitter {
     var self = this
 
     flow(_.values(this.entities))
-      .parEach(function(entity) { self.rebuildEntityIndexes(entity, this) })
+      .seqEach(function(entity) { self.rebuildEntityIndexes(entity, this) })
       .seq(function() { next() })
   }
 
