@@ -374,6 +374,7 @@ class EntityQuery {
     var collection = db.collection(this.entity.name);
     flow()
     .seq(function() {
+      self.buildQuery(record);
       collection.find(record.query, record.options, this);
     })
     .seq(function(cursor) {

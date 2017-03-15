@@ -145,8 +145,10 @@ class Entity {
     flow()
     .seq(function() {
       if (!self.oid) return this();
-
-      entity.entities.connection.collection(entity.name).remove({_id: ObjectID.createFromHexString(self.oid)}, this);
+      var id = ObjectID.createFromHexString(self.oid);
+      entity.entities.connection.collection(entity.name).remove({
+        _id: id
+      }, this);
     })
     .done(callback)
   }
