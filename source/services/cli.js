@@ -63,6 +63,12 @@ module.exports = function () {
    * @memberOf $cli
    */
   function run () {
+    function exit (error, result) {
+      if (error) printError(error)
+      if (result) console.log(`Retour de la commande ${commandName}\n`, result)
+      else printInfo('Fin ' + commandName)
+      process.exit(error ? 2 : 0)
+    }
     try {
       // on récupère tous les services
       const services = lassi.allServices()
@@ -117,16 +123,10 @@ module.exports = function () {
       else printInfo(msgStart, 'sans arguments')
 
       // on ajoute la callback en dernier argument
-      commandArgs.push(function(error, result) {
-        if (error) printError(error)
-        if (result) console.log(`Retour de la commande ${commandName}\n`, result)
-        else printInfo('Fin ' + commandName)
-        process.exit(error ? 2 : 0)
-      })
+      commandArgs.push(exit)
 
       // et on lance la commande
       command.apply(this, commandArgs)
-      process.exit(0)
     } catch (error) {
       printError(error)
       process.exit(3);
