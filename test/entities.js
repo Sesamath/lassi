@@ -65,19 +65,25 @@ describe('$entities', function() {
     TestEntity.defineIndex('p', 'integer', function() {
       return this.i % 2;
     });
+    // @todo tester que ce defineIndex fonctionne comme attendu
     TestEntity.defineIndex('q', 'integer', function() {
+      if (!(this.d instanceof Date)) return
       var a = this.d.getSeconds() % 2;
       var b = this.d.getSeconds() % 3;
       var c = this.d.getSeconds() % 4;
       return [a, b, c];
     });
+    // @todo tester que ce defineIndex fonctionne comme attendu
     TestEntity.defineIndex('r', 'string', function() {
+      if (!(this.d instanceof Date)) return
       var a = this.d.getSeconds() % 2;
       var b = this.d.getSeconds() % 3;
       var c = this.d.getSeconds() % 4;
       return ['test'+a, 'test'+b, 'test'+c];
     });
-    TestEntity.defineIndex('r', 'date', function() {
+    // @todo tester que ce defineIndex fonctionne comme attendu
+    TestEntity.defineIndex('t', 'date', function() {
+      if (!(this.d instanceof Date)) return
       var a = new Date(this.d);
       var b = new Date(this.d+3600000);
       var c = new Date(this.d+7200000);
@@ -137,6 +143,54 @@ describe('$entities', function() {
       this();
     })
     .empty().seq(done).catch(done);
+  });
+
+  it("cast automatique au select", function(done) {
+    function check (entity) {
+      assert.equal(entity.i, data.i);
+      assert.equal(entity.s, data.s);
+      assert.equal(entity.d, data.d);
+    }
+    this.timeout(10000);
+    const int = 42
+    const str = String(int)
+    const timestamp = bt + MINUTE * int
+    const date = new Date(timestamp)
+    // on crée un objet avec des propriétés de type différents des index
+    const data = {
+      i: str,
+      s: int,
+      d: date.toString()
+    }
+    flow().seq(function() {
+      // ajout d'une entité avec les mauvais type
+      TestEntity.create(data).store(this)
+    }).seq(function(entity) {
+      // on vérifie la création qui laisse les datas comme on les a mises
+      check(entity)
+      // et on test les selects avec les bons types d'index
+      TestEntity.match('i').equals(int).grab(this);
+    }).seq(function(entity) {
+      check(entity)
+      TestEntity.match('s').equals(str).grab(this);
+    }).seq(function(entity) {
+      check(entity)
+      TestEntity.match('d').equals(date).grab(this);
+    }).seq(function(entity) {
+      check(entity)
+      // on passe au select avec les mauvais types qui devraient être castés automatiquement
+      TestEntity.match('i').equals(str).grab(this);
+    }).seq(function(entity) {
+      check(entity)
+      TestEntity.match('s').equals(int).grab(this);
+    }).seq(function(entity) {
+      check(entity)
+      TestEntity.match('d').equals(date.toString).grab(this);
+    }).seq(function(entity) {
+      check(entity)
+      // on efface cette entité de test pour pas perturber les tests suivants
+      entity.delete(this)
+    }).empty().seq(done).catch(done);
   });
 
   it("Suppression d'entités", function(done) {
