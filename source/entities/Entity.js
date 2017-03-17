@@ -122,6 +122,7 @@ class Entity {
         if (k[0]=='_') return;
         return v;
       });
+      // @todo save est deprecated, utiliser insertMany ou updateMany
       self.db().collection(entity.name).save(indexes, { w: 1 }, this);
     }).seq(function (result) {
       entity._afterStore.call(self, this)
@@ -142,15 +143,9 @@ class Entity {
   delete(callback) {
     var self = this;
     var entity = this.definition;
-    flow()
-    .seq(function() {
-      if (!self.oid) return this();
-      var id = ObjectID.createFromHexString(self.oid);
-      entity.entities.connection.collection(entity.name).remove({
-        _id: id
-      }, this);
-    })
-    .done(callback)
+    if (!self.oid) return this();
+    var id = ObjectID.createFromHexString(self.oid);
+    entity.entities.connection.collection(entity.name).deleteOne({_id: id}, callback);
   }
 
   drop(callback) {
