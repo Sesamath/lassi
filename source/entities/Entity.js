@@ -140,7 +140,7 @@ class Entity {
    * avec une éventuelle erreur
    * @param {SimpleCallback} callback
    */
-  drop(callback) {
+  delete(callback) {
     var self = this;
     var entity = this.definition;
     flow()

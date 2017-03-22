@@ -344,6 +344,9 @@ class EntityQuery {
       callback = options
       options = undefined;
     }
+    if (typeof options == 'number') {
+      options = {limit : options}
+    }
     options = options || {};
     var self = this;
     var record = {query: {}, options: {}};

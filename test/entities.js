@@ -171,7 +171,7 @@ describe('$entities', function() {
       this(null, entities);
     })
     .seqEach(function(entity) {
-      entity.drop(this);
+      entity.delete(this);
     })
     .done(done);
   });
@@ -254,7 +254,7 @@ describe('$entities', function() {
       TestEntity.match().grab(this);
     })
     .seqEach(function(entity) {
-      entity.drop(this);
+      entity.delete(this);
     })
     .done(done);
   });
@@ -307,7 +307,7 @@ describe('$entities', function() {
     }).seq(function(entity) {
       check(entity)
       // on efface cette entité de test pour pas perturber les tests suivants
-      entity.drop(this)
+      entity.delete(this)
     })
     .done(done);
   });
@@ -335,7 +335,7 @@ describe('$entities', function() {
       obj.store(this);
     })
     .seqEach(function(obj) {
-      obj.drop(this);
+      obj.delete(this);
     })
     .seq(function() {
       done();
