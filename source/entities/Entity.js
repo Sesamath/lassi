@@ -122,6 +122,7 @@ class Entity {
         if (k[0]=='_') return;
         return v;
       });
+      // @todo save est deprecated, utiliser insertMany ou updateMany
       self.db().collection(entity.name).save(indexes, { w: 1 }, this);
     }).seq(function (result) {
       entity._afterStore.call(self, this)
