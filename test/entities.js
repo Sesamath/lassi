@@ -7,8 +7,6 @@ var TestEntity;
 var assert = require('assert');
 var flow = require('an-flow');
 
-// console.log(process.argv)
-// on est lancé par mocha, node est l'arg 0, mocha 1, ce script 2, donc ça démarre à 3
 var i = 3
 
 var databaseSettings = {
@@ -29,11 +27,31 @@ while (process.argv[i]) {
 }
 
 console.log('lancement avec les paramètres de connexion', databaseSettings)
+var count = 1000;
+var bt = 1041476706000;
+var MINUTE = 1000*60;
+var STRING_PREFIX = 'test-';
 
+function assertEntity(i, entity) {
+  assert.equal(typeof entity.i, 'number');
+  assert.equal(entity.d.constructor.name, 'Date');
+  assert.equal(typeof entity.s, 'string');
+  assert.equal(entity.i, i);
+  assert.equal(entity.s, STRING_PREFIX+i);
+  assert.equal(entity.d.getTime(), bt+MINUTE*i);
+  assert(Array.isArray(entity.sArray));
+  assert(Array.isArray(entity.iArray));
+  assert(Array.isArray(entity.dArray));
+  assert.equal(entity.sArray.length, 3);
+  assert.equal(entity.iArray.length, 3);
+  assert.equal(entity.dArray.length, 3);
+  assert.equal(typeof entity.iArray[0], 'number');
+  assert.equal(typeof entity.sArray[0], 'string');
+  assert.equal(entity.dArray[0].constructor.name, 'Date');
+  assert.equal(entity.created.constructor.name, 'Date');
+  if (entity.oid) assert.equal(entity.oid.length, 24);
+}
 describe('$entities', function() {
-  var count = 2;
-  var bt = 1041476706000;
-  var MINUTE = 1000*60;
 
   it('Initialisation des entités', function(done){
     entities = new Entities({database: databaseSettings});
@@ -57,32 +75,16 @@ describe('$entities', function() {
       this.i = undefined;
       this.s = undefined;
       this.d = undefined;
-      this.p = undefined;
     });
     TestEntity.defineIndex('i', 'integer');
     TestEntity.defineIndex('s', 'string');
     TestEntity.defineIndex('d', 'date');
-    TestEntity.defineIndex('p', 'integer', function() {
+    TestEntity.defineIndex('iPair', 'integer', function() {
       return this.i % 2;
     });
-    TestEntity.defineIndex('q', 'integer', function() {
-      var a = this.d.getSeconds() % 2;
-      var b = this.d.getSeconds() % 3;
-      var c = this.d.getSeconds() % 4;
-      return [a, b, c];
-    });
-    TestEntity.defineIndex('r', 'string', function() {
-      var a = this.d.getSeconds() % 2;
-      var b = this.d.getSeconds() % 3;
-      var c = this.d.getSeconds() % 4;
-      return ['test'+a, 'test'+b, 'test'+c];
-    });
-    TestEntity.defineIndex('r', 'date', function() {
-      var a = new Date(this.d);
-      var b = new Date(this.d+3600000);
-      var c = new Date(this.d+7200000);
-      return [a, b, c];
-    });
+    TestEntity.defineIndex('iArray', 'integer');
+    TestEntity.defineIndex('sArray', 'string');
+    TestEntity.defineIndex('dArray', 'date');
 
     entities.initializeEntity(TestEntity, done);
   });
@@ -91,28 +93,35 @@ describe('$entities', function() {
     this.timeout(10000);
     var entities = [];
     for (var i=0; i < count; i++) {
+      var d = new Date(bt+MINUTE*i);
       entities.push(TestEntity.create({
         i: i,
-        s: 'truc'+i,
-        d: new Date(bt+MINUTE*i)
-      }));
+        s: STRING_PREFIX+i,
+        d: d,
+        iArray: [
+          i*3,
+          i*3+1,
+          i*3+2],
+        sArray: [
+          STRING_PREFIX+(i*3),
+          STRING_PREFIX+(i*3+1),
+          STRING_PREFIX+(i*3+2)],
+        dArray: [
+          new Date(d),
+          new Date(d+3600000),
+          new Date(d+7200000)
+        ],
+      }))
     }
     entities.forEach(function(entity, i) {
-      assert.equal(entity.i, i);
-      assert.equal(entity.s, 'truc'+i);
-      assert.equal(entity.d.getTime(), bt+MINUTE*i);
-      assert.equal(entity.created.constructor.name, 'Date');
+      assertEntity(i, entity);
     })
     flow(entities)
     .seqEach(function(entity, i) {
       var next = this;
       entity.store(function(error, entity)  {
         if (error) return next(error);
-        assert.equal(entity.i, i);
-        assert.equal(entity.s, 'truc'+i);
-        assert.equal(entity.d.getTime(), bt+MINUTE*i);
-        assert.equal(entity.created.constructor.name, 'Date');
-        assert(entity.oid.length==24);
+        assertEntity(i, entity)
         next();
       });
     })
@@ -123,26 +132,44 @@ describe('$entities', function() {
     this.timeout(10000);
     flow()
     .seq(function() {
-      TestEntity.match('p').equals(0).grab(this);
+      TestEntity.match('iPair').equals(0).grab(this);
     })
     .seq(function(entities) {
-      assert(entities && entities.length==(count/2));
+      assert.equal(entities.length, count/2);
       entities.forEach(function(entity) {
         var i = entity.i;
-        assert.equal(entity.s, 'truc'+i);
-        assert.equal(entity.d.getTime(), bt+MINUTE*i);
-        assert.equal(entity.created.constructor.name, 'Date');
-        assert(entity.oid.length==24);
+        assertEntity(i, entity);
       })
       this();
     })
     .empty().seq(done).catch(done);
   });
 
-  it("Suppression d'entités", function(done) {
+  it("Sélection d'entités avec limit", function(done) {
+    this.timeout(10000);
+    flow()
+    .seq(function() {
+      TestEntity.match().grab({offset: 100, limit: 100}, this);
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 100);
+      entities.forEach(function(entity, i) {
+        assertEntity(100+i, entity);
+      })
+      this();
+    })
+    .empty().seq(done).catch(done);
+  });
+
+
+  it("Suppression de la moitié des entités", function(done) {
     flow()
     .callbackWrapper(process.nextTick)
-    .seq(function() { TestEntity.match('p').equals(1).grab(this); })
+    .seq(function() { TestEntity.match('iPair').equals(1).grab(this); })
+    .seq(function(entities) {
+      assert.equal(entities.length, count/2);
+      this(null, entities);
+    })
     .seqEach(function(entity) {
       entity.drop(this);
     })
@@ -150,23 +177,23 @@ describe('$entities', function() {
   });
 
   it("Vérification des suppressions", function(done) {
-    TestEntity.match('p').equals(1).grab(function(error, result) {
+    TestEntity.match('iPair').equals(1).grab(function(error, result) {
       if (error) return done(error);
-      assert(result.length===(count/2));
+      assert.equal(result.length, 0);
       done();
     });
   });
 
   it("Vérification des non suppressions", function(done) {
-    TestEntity.match('p').equals(0).grab(function(error, result) {
+    TestEntity.match('iPair').equals(0).grab(function(error, result) {
       if (error) return done(error);
-      assert(result.length===(count/2));
+      assert.equal(result.length, count/2);
       done();
     });
   });
 
   it("Une recherche simple ne donnant rien", function(done) {
-    TestEntity.match('p').equals(666).grabOne(function(error, result) {
+    TestEntity.match('iPair').equals(666).grabOne(function(error, result) {
       if (error) return done(error);
       assert(result===undefined);
       done();
@@ -174,21 +201,60 @@ describe('$entities', function() {
   });
 
   it("Une recherche multiple ne donnant rien", function(done) {
-    TestEntity.match('p').equals(666).grab(function(error, result) {
+    TestEntity.match('iPair').equals(666).grab(function(error, result) {
       if (error) return done(error);
       assert(result.length===0);
       done();
     });
   });
 
+  it("= string", function(done) {
+    TestEntity.match('s').equals(STRING_PREFIX+'198').grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 1);
+      done();
+    });
+  });
+  it("in string", function(done) {
+    TestEntity.match('s').in([STRING_PREFIX+'198', STRING_PREFIX+'196']).grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 2);
+      done();
+    });
+  });
+  it("in string[]", function(done) {
+    TestEntity.match('sArray').in([STRING_PREFIX+'199', STRING_PREFIX+'196']).grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 1);
+      done();
+    });
+  });
+  var oid;
+  it("> date[]", function(done) {
+    var d = new Date('2003-01-02T04:11:00.000Z');
+    TestEntity.match('dArray').after(d).grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 467);
+      oid = result[0].oid;
+      done();
+    });
+  });
+  it("= oid", function(done) {
+    TestEntity.match('oid').equals(oid).grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 1);
+      done();
+    });
+  });
+
   it('violent (en // nombreux insert puis update puis delete)', function(done) {
     this.timeout(30 * 1000); // 30s
-    var count = 1000;
+    var count = 10000;
     var objs = [];
     for (var i=0; i < count; i++) {
       objs.push(TestEntity.create({
         i: i,
-        s: 'truc'+i,
+        s: STRING_PREFIX+i,
         d: new Date(new Date().getTime()+1000*i)
       }))
     }
@@ -202,9 +268,8 @@ describe('$entities', function() {
       obj.tag = 'updated';
       obj.store(this);
     })
-    .parEach(function(obj) {
-      //console.log(obj.i+':'+obj.tag);
-      obj.delete(this);
+    .seqEach(function(obj) {
+      obj.drop(this);
     })
     .seq(function() {
       done();

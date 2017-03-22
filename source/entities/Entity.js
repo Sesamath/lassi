@@ -139,22 +139,17 @@ class Entity {
    * avec une éventuelle erreur
    * @param {SimpleCallback} callback
    */
-  delete(callback) {
+  drop(callback) {
     var self = this;
     var entity = this.definition;
     flow()
     .seq(function() {
       if (!self.oid) return this();
-      var id = ObjectID.createFromHexString(self.oid);
       entity.entities.connection.collection(entity.name).remove({
-        _id: id
-      }, this);
+        _id: self.oid
+      },{w : 1}, this);
     })
     .done(callback)
-  }
-
-  drop(callback) {
-    this.delete(callback);
   }
 
 }

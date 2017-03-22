@@ -255,51 +255,53 @@ class EntityQuery {
         return;
       }
       if (clause.type != 'match') return;
+      var index = clause.index;
+      if (index=='oid') index='_id';
 
       switch (clause.operator) {
         case'=':
-          query[clause.index] = clause.value;
+          query[index] = clause.value;
           break;
 
         case '>':
-          query[clause.index] = {$gt: clause.value};
+          query[index] = {$gt: clause.value};
           break;
 
         case '>':
-          query[clause.index] = {$lt: clause.value};
+          query[index] = {$lt: clause.value};
           break;
 
         case '>=':
-          query[clause.index] = {$gte: clause.value};
+          query[index] = {$gte: clause.value};
           break;
 
         case '<=':
-          query[clause.index] = {$lte: clause.value};
+          query[index] = {$lte: clause.value};
           break;
 
         case 'BETWEEN':
-          query[clause.index] = {$gte: clause.value[0], $lte: clause.value[1]};
+          query[index] = {$gte: clause.value[0], $lte: clause.value[1]};
           break;
 
         case 'LIKE':
-          query[clause.index] = new RegExp(clause.value.replace(/\%/,'.*'));
+          query[index] = new RegExp(clause.value.replace(/\%/,'.*'));
           break;
 
         case 'ISNULL':
-          query[clause.index] = null;
+          query[index] = null;
           break;
 
         case 'ISNOTNULL':
-          query[clause.index] = {$ne: null};
+          query[index] = {$ne: null};
           break;
 
 
         case 'NOT IN':
-          query[clause.index] = {b$in: clause.value};
+          query[index] = {b$in: clause.value};
           break;
 
         case 'IN':
-          query[clause.index] = {$in: clause.value};
+          query[index] = {$in: clause.value};
           break;
       }
     })
@@ -317,47 +319,6 @@ class EntityQuery {
     return this;
   }
 
-  /**
-   * Callback d'exécution d'une requête de récupération d'entités
-   * @callback EntityQuery~GrabCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Entity[]} entites Un tableau d'entités.
-   */
-
-  /**
-   * Renvoie les objets liés à la requête
-   * @param {Integer} [count=0] Ne récupère que les ̀count` objet(s), tous par défaut
-   * @param {Integer} [from=0] Ne récupère que les objets à partir d'un rang donné
-   * @param {Object} [options={}] passer debug:true pour afficher les requêtes en console, ou distinct:true pour ajouter distinct (pour éviter de remonter 5 fois la même ressource si elle match 5 fois)
-   * @param {EntityQuery~GrabCallback} callback La callback.
-   *
-   * ##### examples
-   * Récupère toutes les personnes âgées de plus de 30 ans.
-   * ```javascript
-   *  lassi.Person
-   *    .match('age').greaterThat(30)
-   *    .grab(function(error, entities) {
-   *  })
-   * ```
-   *
-   * Récupère les 10 personnes les plus âgées
-   * ```javascript
-   *  lassi.Person.match()
-   *    .sort('age', 'desc')
-   *    .grab(10, function(error, entities) {
-   *  })
-   * ```
-   *
-   * Récupère 10 personnes, de la 21e plus agée à la 30e
-   * ```javascript
-   *  lassi.Person.match()
-   *   .sort('age', 'desc')
-   *   .grab(10, 20, function(error, entities) {
-   *  })
-   * ```
-   *
-   * @fires EntityQuery#afterLoad
-   */
   grab(options, callback) {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
     if (_.isFunction(options)) {
