@@ -255,36 +255,55 @@ class EntityQuery {
         return;
       }
       if (clause.type != 'match') return;
-      var index = clause.index;
-      if (index=='oid') index='_id';
+      var index = clause.index, type;
+      if (clause.index=='oid') {
+        index='_id';
+        type = 'string';
+      } else {
+        type = this.entity.indexes[index].fieldType;
+      }
+      function cast(value) {
+        switch (type) {
+          case 'boolean': value = !!value; break;
+          case 'string': value = String(value);break;
+          case 'integer': value =  Math.round(Number(value));break;
+          case 'date':
+            if (!(value instanceof Date)) {
+              value = new Date(value);
+            }
+            break;
+          default: throw new Error('type d’index ' + type + ' non géré par Entity'); break;
+        }
+        return value;
+      }
 
       switch (clause.operator) {
         case'=':
-          query[index] = clause.value;
+          query[index] = cast(clause.value);
           break;
 
         case '>':
-          query[index] = {$gt: clause.value};
+          query[index] = {$gt: cast(clause.value)};
           break;
 
         case '>':
-          query[index] = {$lt: clause.value};
+          query[index] = {$lt: cast(clause.value)};
           break;
 
         case '>=':
-          query[index] = {$gte: clause.value};
+          query[index] = {$gte: cast(clause.value)};
           break;
 
         case '<=':
-          query[index] = {$lte: clause.value};
+          query[index] = {$lte: cast(clause.value)};
           break;
 
         case 'BETWEEN':
-          query[index] = {$gte: clause.value[0], $lte: clause.value[1]};
+          query[index] = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
           break;
 
         case 'LIKE':
-          query[index] = new RegExp(clause.value.replace(/\%/,'.*'));
+          query[index] = new RegExp(cast(clause.value).replace(/\%/,'.*'));
           break;
 
         case 'ISNULL':
@@ -297,11 +316,11 @@ class EntityQuery {
 
 
         case 'NOT IN':
-          query[index] = {b$in: clause.value};
+          query[index] = {b$in: clause.value.map(x=>{return cast(x)})};
           break;
 
         case 'IN':
-          query[index] = {$in: clause.value};
+          query[index] = {$in: clause.value.map(x=>{return cast(x)})};
           break;
       }
     })

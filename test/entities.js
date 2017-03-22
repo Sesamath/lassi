@@ -265,6 +265,9 @@ describe('$entities', function() {
       assert.equal(entity.i, data.i);
       assert.equal(entity.s, data.s);
       assert.equal(entity.d, data.d);
+      assert.equal(typeof entity.i, 'string');
+      assert.equal(typeof entity.s, 'number');
+      assert.equal(typeof entity.d, 'string');
     }
     this.timeout(10000);
     const int = 42
@@ -284,29 +287,29 @@ describe('$entities', function() {
       // on vérifie la création qui laisse les datas comme on les a mises
       check(entity)
       // et on test les selects avec les bons types d'index
-      TestEntity.match('i').equals(int).grab(this);
-    }).seq(function(entity) {
-      console.log(entity);
-      check(entity)
-      TestEntity.match('s').equals(str).grab(this);
+      TestEntity.match('i').equals(int).grabOne(this);
     }).seq(function(entity) {
       check(entity)
-      TestEntity.match('d').equals(date).grab(this);
+      TestEntity.match('s').equals(str).grabOne(this);
+    }).seq(function(entity) {
+      check(entity)
+      TestEntity.match('d').equals(date).grabOne(this);
     }).seq(function(entity) {
       check(entity)
       // on passe au select avec les mauvais types qui devraient être castés automatiquement
-      TestEntity.match('i').equals(str).grab(this);
+      TestEntity.match('i').equals(str).grabOne(this);
     }).seq(function(entity) {
       check(entity)
-      TestEntity.match('s').equals(int).grab(this);
+      TestEntity.match('s').equals(int).grabOne(this);
     }).seq(function(entity) {
       check(entity)
-      TestEntity.match('d').equals(date.toString).grab(this);
+      TestEntity.match('d').equals(date.toString()).grabOne(this);
     }).seq(function(entity) {
       check(entity)
       // on efface cette entité de test pour pas perturber les tests suivants
-      entity.delete(this)
-    }).empty().seq(done).catch(done);
+      entity.drop(this)
+    })
+    .done(done);
   });
 
 
@@ -337,9 +340,7 @@ describe('$entities', function() {
     .seq(function() {
       done();
     })
-    .catch(function(error) {
-      console.error(error);
-    })
+    .catch(console.error)
   })
 
 
