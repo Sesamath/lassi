@@ -181,7 +181,30 @@ describe('$entities', function() {
     })
     .done(done);
   })
-
+  
+  it("Recherche avec like", function(done) {
+    var texteOriginal;
+    flow()
+    .seq(function() {
+      TestEntity.match().grabOne(this)
+    })
+    .seq(function(entity) {
+      texteOriginal = entity.s;
+      entity.s = 'texte à chercher';
+      entity.store(this);
+    })
+    .seq(function() {
+      TestEntity.match('s').like('%cherche%').grab(this);
+    })
+    .seq(function(resultats) {
+      assert.equal(resultats.length, 1);
+      assert.equal(resultats[0].s, 'texte à chercher');
+      resultats[0].s = texteOriginal;
+      resultats[0].store(this)
+    })
+    .done(done);
+  })
+  
   it("Suppression de la moitié des entités", function(done) {
     flow()
     .callbackWrapper(process.nextTick)

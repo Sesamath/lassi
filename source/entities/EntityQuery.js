@@ -303,7 +303,7 @@ class EntityQuery {
           break;
 
         case 'LIKE':
-          query[index] = new RegExp(cast(clause.value).replace(/\%/,'.*'));
+          query[index] = new RegExp(cast(clause.value).replace(/\%/g,'.*'));
           break;
 
         case 'ISNULL':
