@@ -251,7 +251,7 @@ class EntityQuery {
 
       if (clause.type=='sort') {
         rec.options.sort = rec.options.sort || [];
-        rec.options.sort.push([clause.field, clause.order]);
+        rec.options.sort.push([clause.index, clause.order]);
         return;
       }
       if (clause.type != 'match') return;

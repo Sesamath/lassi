@@ -144,7 +144,7 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done);
   });
-
+  
   it("Sélection d'entités avec limit", function(done) {
     this.timeout(10000);
     flow()
@@ -160,7 +160,27 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done);
   });
-
+  
+  it("Tri d'entités", function(done) {
+    flow()
+    .seq(function() {
+      TestEntity.match().sort('i', 'asc').grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities[0].i, 0);
+      assert.equal(entities[1].i, 1);
+      this();
+    })
+    .seq(function() {
+      TestEntity.match().sort('i', 'desc').grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities[0].i, count-1);
+      assert.equal(entities[1].i, count-2);
+      this();
+    })
+    .done(done);
+  })
 
   it("Suppression de la moitié des entités", function(done) {
     flow()
@@ -247,7 +267,8 @@ describe('$entities', function() {
       done();
     });
   });
-
+  
+  
   it("ménage pour la suite", function(done) {
     flow()
     .seq(function() {
