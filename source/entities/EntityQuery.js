@@ -399,14 +399,15 @@ class EntityQuery {
   count(callback) {
     var db = this.entity.entities.connection;
     var collection = db.collection(this.entity.name);
+    var self = this;
+    var record = {query: {}, options: {}};
+    
     flow()
     .seq(function() {
-      collection.count(this);
+      self.buildQuery(record);
+      collection.count(record.query, record.options, this);
     })
-    .seq(function(count) {
-      callback(null, count);
-    })
-    .catch(callback);
+    .done(callback);
   }
 
 

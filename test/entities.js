@@ -182,6 +182,27 @@ describe('$entities', function() {
     .done(done);
   })
   
+  it("Compte d'entités", function(done) {
+    flow()
+    .seq(function() {
+      TestEntity.match('i').equals(1).count(this)
+    })
+    .seq(function(count) {
+      assert.equal(count, 1);
+      this();
+    })
+    .seq(function() {
+      // Test avec un matcher plus complexe
+      TestEntity.match('i').lowerThanOrEquals(9).count(this)
+    })
+    .seq(function(count) {
+      assert.equal(count, 10);
+      this();
+    })
+    .done(done);
+  })
+  
+  
   it("Recherche avec like", function(done) {
     var texteOriginal;
     flow()
