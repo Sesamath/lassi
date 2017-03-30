@@ -286,6 +286,25 @@ describe('$entities', function() {
       done();
     });
   });
+  it("not in string", function(done) {
+    TestEntity.match('s').notIn([STRING_PREFIX+'198', STRING_PREFIX+'196']).grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 498);
+      done();
+    });
+  });
+  it("in and not in string", function(done) {
+    // ce test vérifie aussi qu'on peut appeler plusieurs matcher sur un même champ
+    TestEntity
+    .match('s').notIn([STRING_PREFIX+'200', STRING_PREFIX+'198'])
+    .match('s').in([STRING_PREFIX+'200', STRING_PREFIX+'198', STRING_PREFIX+'196'])
+    .grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 1);
+      assert.equal(result[0].s, STRING_PREFIX+'196')
+      done();
+    });
+  });
   it("in string[]", function(done) {
     TestEntity.match('sArray').in([STRING_PREFIX+'199', STRING_PREFIX+'196']).grab(function(error, result) {
       if (error) return done(error);

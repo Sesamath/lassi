@@ -277,52 +277,55 @@ class EntityQuery {
         return value;
       }
 
+      var condition;
       switch (clause.operator) {
         case'=':
-          query[index] = cast(clause.value);
+          condition = {$eq: cast(clause.value)};
           break;
 
         case '>':
-          query[index] = {$gt: cast(clause.value)};
+          condition = {$gt: cast(clause.value)};
           break;
 
         case '>':
-          query[index] = {$lt: cast(clause.value)};
+          condition = {$lt: cast(clause.value)};
           break;
 
         case '>=':
-          query[index] = {$gte: cast(clause.value)};
+          condition = {$gte: cast(clause.value)};
           break;
 
         case '<=':
-          query[index] = {$lte: cast(clause.value)};
+          condition = {$lte: cast(clause.value)};
           break;
 
         case 'BETWEEN':
-          query[index] = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
+          condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
           break;
 
         case 'LIKE':
-          query[index] = new RegExp(cast(clause.value).replace(/\%/g,'.*'));
+          condition = {$regex: new RegExp(cast(clause.value).replace(/\%/g,'.*'))};
           break;
 
         case 'ISNULL':
-          query[index] = null;
+          condition = {$eq: null};
           break;
 
         case 'ISNOTNULL':
-          query[index] = {$ne: null};
+          condition = {$ne: null};
           break;
 
-
         case 'NOT IN':
-          query[index] = {b$in: clause.value.map(x=>{return cast(x)})};
+          condition = {$nin: clause.value.map(x=>{return cast(x)})};
           break;
 
         case 'IN':
-          query[index] = {$in: clause.value.map(x=>{return cast(x)})};
+          condition = {$in: clause.value.map(x=>{return cast(x)})};
           break;
       }
+
+      // On ajoute la condition
+      query[index] = Object.assign({}, query[index], condition);
     })
   }
 
