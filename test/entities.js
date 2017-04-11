@@ -202,6 +202,45 @@ describe('$entities', function() {
     .done(done);
   })
   
+  it("double match sur le même attribut", function(done) {
+    flow()
+    .seq(function() {
+      // Si les matchs sont compatibles, ils "s'ajoutent"
+      TestEntity
+        .match('i').greaterThanOrEquals(5)
+        .match('i').lowerThanOrEquals(9)
+        .count(this)
+    })
+    .seq(function(count) {
+      assert.equal(count, 5);
+      this();
+    })
+    .seq(function() {
+      // On teste une combinaison impossible
+      TestEntity
+        .match('s').like("test-4")
+        .match('i').equals(5)
+        .grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 0);
+      this();
+    })
+    .seq(function() {
+      // On teste un "écrasement"
+      TestEntity
+        .match('i').equals(4)
+        .match('i').equals(5)
+        .grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 1);
+      assert.equal(entities[0].i, 5);
+      this();
+    })
+    .done(done);
+  })
+  
   
   it("Recherche avec like", function(done) {
     var texteOriginal;
