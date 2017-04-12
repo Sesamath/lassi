@@ -127,7 +127,38 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done)
   });
-
+  
+  it('indexe une date non définie comme null - verifie aussi le isNull', function(done) {
+    var createdEntities = [];
+    flow()
+    .seq(function() {
+      TestEntity.create({ d: null, s:'date nulle 1' }).store(this);
+    })
+    .seq(function(e) {
+      createdEntities.push(e);
+      TestEntity.create({ d: undefined, s:'date nulle 2' }).store(this);
+    })
+    .seq(function(e) {
+      createdEntities.push(e);
+      TestEntity.create({ d: new Date(), s:'avec date' }).store(this);
+    })
+    .seq(function(e) {
+      createdEntities.push(e);
+      TestEntity.match('d').isNull().sort('s', 'asc').grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 2);
+      assert.equal(entities[0].s, 'date nulle 1');
+      assert.equal(entities[1].s, 'date nulle 2');
+      
+      this(null, createdEntities);
+    })
+    .seqEach(function(entity) {
+      entity.delete(this);
+    })
+    .done(() => done())
+  })
+  
   it("Sélection d'entités", function(done) {
     this.timeout(10000);
     flow()
@@ -465,6 +496,4 @@ describe('$entities', function() {
     })
     .catch(console.error)
   })
-
-
 });

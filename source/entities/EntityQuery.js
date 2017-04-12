@@ -196,7 +196,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   match(index) {
-    this.clauses.push({type:'match', index: index, value:'*'});
+    this.clauses.push({type:'match', index: index});
     return this;
   }
 
@@ -247,8 +247,7 @@ class EntityQuery {
   buildQuery(rec) {
     var query = rec.query;
     this.clauses.forEach((clause) => {
-      if (clause.value == '*') return;
-
+      
       if (clause.type=='sort') {
         rec.options.sort = rec.options.sort || [];
         rec.options.sort.push([clause.index, clause.order]);
@@ -276,7 +275,8 @@ class EntityQuery {
         }
         return value;
       }
-
+      if (!clause.operator) return;
+      
       var condition;
       switch (clause.operator) {
         case'=':

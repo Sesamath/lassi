@@ -68,7 +68,8 @@ class Entity {
         case 'boolean': return !!value;
         case 'string': return String(value);
         case 'integer': return  Math.round(Number(value));
-        case 'date': return Object.prototype.toString.call(value) === '[object Date]' ? value : new Date(value);
+        // Si la date n'a pas de valeur (undefined ou null, on l'indexe comme null)
+        case 'date': return value ? new Date(value) : null;
         default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
       }
     }
