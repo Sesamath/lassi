@@ -146,7 +146,7 @@ class Entity {
     var entity = this.definition;
     flow()
     .seq(function () {
-      entity._beforeDelete(this);
+      entity._beforeDelete.call(self, this)
     })
     .seq(function() {
       if (!self.oid) return this();
