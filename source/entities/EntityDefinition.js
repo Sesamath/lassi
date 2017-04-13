@@ -38,7 +38,7 @@ class EntityDefinition {
   constructor(name) {
     this.name = name;
     this.indexes = {};
-    this._beforeStore = this._afterStore = fooCb;
+    this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
   }
 
   /**
@@ -156,7 +156,15 @@ class EntityDefinition {
   afterStore(fn) {
     this._afterStore = fn;
   }
-
+  
+  /**
+   * Ajoute un traitement avant suppression
+   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
+   */
+  beforeDelete(fn) {
+    this._beforeDelete = fn;
+  }
+  
   /**
    * Callback à rappeler sans argument
    * @callback simpleCallback

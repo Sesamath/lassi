@@ -158,7 +158,27 @@ describe('$entities', function() {
     })
     .done(() => done())
   })
-  
+  it("déclenche le beforeDelete", function(done) {
+    var deleted;
+    TestEntity.beforeDelete(function(cb) {
+      deleted = "oui!";
+      cb();
+    })
+    flow()
+    .seq(function() {
+      TestEntity.create().store(this)
+    })
+    .seq(function(entity) {
+      entity.delete(this);
+    })
+    .seq(function() {
+      assert.equal(deleted, "oui!");
+      TestEntity.beforeDelete(function(cb) {cb()})
+      this();
+    })
+    .done(done);
+  })
+
   it("Sélection d'entités", function(done) {
     this.timeout(10000);
     flow()

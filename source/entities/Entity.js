@@ -145,6 +145,9 @@ class Entity {
     var self = this;
     var entity = this.definition;
     flow()
+    .seq(function () {
+      entity._beforeDelete(this);
+    })
     .seq(function() {
       if (!self.oid) return this();
       entity.entities.connection.collection(entity.name).remove({
