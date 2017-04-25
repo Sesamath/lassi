@@ -196,7 +196,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   match(index) {
-    this.clauses.push({type:'match', index: index, value:'*'});
+    this.clauses.push({type:'match', index: index});
     return this;
   }
 
@@ -247,8 +247,7 @@ class EntityQuery {
   buildQuery(rec) {
     var query = rec.query;
     this.clauses.forEach((clause) => {
-      if (clause.value == '*') return;
-
+      
       if (clause.type=='sort') {
         rec.options.sort = rec.options.sort || [];
         rec.options.sort.push([clause.index, clause.order]);
@@ -276,53 +275,57 @@ class EntityQuery {
         }
         return value;
       }
-
+      if (!clause.operator) return;
+      
+      var condition;
       switch (clause.operator) {
         case'=':
-          query[index] = cast(clause.value);
+          condition = {$eq: cast(clause.value)};
           break;
 
         case '>':
-          query[index] = {$gt: cast(clause.value)};
+          condition = {$gt: cast(clause.value)};
           break;
 
         case '>':
-          query[index] = {$lt: cast(clause.value)};
+          condition = {$lt: cast(clause.value)};
           break;
 
         case '>=':
-          query[index] = {$gte: cast(clause.value)};
+          condition = {$gte: cast(clause.value)};
           break;
 
         case '<=':
-          query[index] = {$lte: cast(clause.value)};
+          condition = {$lte: cast(clause.value)};
           break;
 
         case 'BETWEEN':
-          query[index] = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
+          condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
           break;
 
         case 'LIKE':
-          query[index] = new RegExp(cast(clause.value).replace(/\%/g,'.*'));
+          condition = {$regex: new RegExp(cast(clause.value).replace(/\%/g,'.*'))};
           break;
 
         case 'ISNULL':
-          query[index] = null;
+          condition = {$eq: null};
           break;
 
         case 'ISNOTNULL':
-          query[index] = {$ne: null};
+          condition = {$ne: null};
           break;
 
-
         case 'NOT IN':
-          query[index] = {b$in: clause.value.map(x=>{return cast(x)})};
+          condition = {$nin: clause.value.map(x=>{return cast(x)})};
           break;
 
         case 'IN':
-          query[index] = {$in: clause.value.map(x=>{return cast(x)})};
+          condition = {$in: clause.value.map(x=>{return cast(x)})};
           break;
       }
+
+      // On ajoute la condition
+      query[index] = Object.assign({}, query[index], condition);
     })
   }
 
@@ -399,14 +402,15 @@ class EntityQuery {
   count(callback) {
     var db = this.entity.entities.connection;
     var collection = db.collection(this.entity.name);
+    var self = this;
+    var record = {query: {}, options: {}};
+    
     flow()
     .seq(function() {
-      collection.count(this);
+      self.buildQuery(record);
+      collection.count(record.query, record.options, this);
     })
-    .seq(function(count) {
-      callback(null, count);
-    })
-    .catch(callback);
+    .done(callback);
   }
 
 

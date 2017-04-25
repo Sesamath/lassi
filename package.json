@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "2.0.17",
+  "version": "2.1.3",
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
@@ -9,8 +9,8 @@
     "test": "mocha"
   },
   "dependencies": {
-    "an-flow": "http://apm.arnumeral.fr/releases/node-an-flow-2.0.7.tgz",
-    "an-log": "http://apm.arnumeral.fr/releases/node-an-log-3.0.9.tgz",
+    "an-flow": "git://src.sesamath.net/an-flow#2.0.7",
+    "an-log": "git://src.sesamath.net/an-log#3.0.9",
     "body-parser": "~1.14.1",
     "colors": "^1.1.2",
     "compression": "^1.6.0",

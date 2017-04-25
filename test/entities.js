@@ -127,6 +127,57 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done)
   });
+  
+  it('indexe une date non définie comme null - verifie aussi le isNull', function(done) {
+    var createdEntities = [];
+    flow()
+    .seq(function() {
+      TestEntity.create({ d: null, s:'date nulle 1' }).store(this);
+    })
+    .seq(function(e) {
+      createdEntities.push(e);
+      TestEntity.create({ d: undefined, s:'date nulle 2' }).store(this);
+    })
+    .seq(function(e) {
+      createdEntities.push(e);
+      TestEntity.create({ d: new Date(), s:'avec date' }).store(this);
+    })
+    .seq(function(e) {
+      createdEntities.push(e);
+      TestEntity.match('d').isNull().sort('s', 'asc').grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 2);
+      assert.equal(entities[0].s, 'date nulle 1');
+      assert.equal(entities[1].s, 'date nulle 2');
+      
+      this(null, createdEntities);
+    })
+    .seqEach(function(entity) {
+      entity.delete(this);
+    })
+    .done(() => done())
+  })
+  it("déclenche le beforeDelete", function(done) {
+    var deleted;
+    TestEntity.beforeDelete(function(cb) {
+      deleted = "oui!";
+      cb();
+    })
+    flow()
+    .seq(function() {
+      TestEntity.create().store(this)
+    })
+    .seq(function(entity) {
+      entity.delete(this);
+    })
+    .seq(function() {
+      assert.equal(deleted, "oui!");
+      TestEntity.beforeDelete(function(cb) {cb()})
+      this();
+    })
+    .done(done);
+  })
 
   it("Sélection d'entités", function(done) {
     this.timeout(10000);
@@ -181,6 +232,66 @@ describe('$entities', function() {
     })
     .done(done);
   })
+  
+  it("Compte d'entités", function(done) {
+    flow()
+    .seq(function() {
+      TestEntity.match('i').equals(1).count(this)
+    })
+    .seq(function(count) {
+      assert.equal(count, 1);
+      this();
+    })
+    .seq(function() {
+      // Test avec un matcher plus complexe
+      TestEntity.match('i').lowerThanOrEquals(9).count(this)
+    })
+    .seq(function(count) {
+      assert.equal(count, 10);
+      this();
+    })
+    .done(done);
+  })
+  
+  it("double match sur le même attribut", function(done) {
+    flow()
+    .seq(function() {
+      // Si les matchs sont compatibles, ils "s'ajoutent"
+      TestEntity
+        .match('i').greaterThanOrEquals(5)
+        .match('i').lowerThanOrEquals(9)
+        .count(this)
+    })
+    .seq(function(count) {
+      assert.equal(count, 5);
+      this();
+    })
+    .seq(function() {
+      // On teste une combinaison impossible
+      TestEntity
+        .match('s').like("test-4")
+        .match('i').equals(5)
+        .grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 0);
+      this();
+    })
+    .seq(function() {
+      // On teste un "écrasement"
+      TestEntity
+        .match('i').equals(4)
+        .match('i').equals(5)
+        .grab(this)
+    })
+    .seq(function(entities) {
+      assert.equal(entities.length, 1);
+      assert.equal(entities[0].i, 5);
+      this();
+    })
+    .done(done);
+  })
+  
   
   it("Recherche avec like", function(done) {
     var texteOriginal;
@@ -262,6 +373,25 @@ describe('$entities', function() {
     TestEntity.match('s').in([STRING_PREFIX+'198', STRING_PREFIX+'196']).grab(function(error, result) {
       if (error) return done(error);
       assert.equal(result.length, 2);
+      done();
+    });
+  });
+  it("not in string", function(done) {
+    TestEntity.match('s').notIn([STRING_PREFIX+'198', STRING_PREFIX+'196']).grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 498);
+      done();
+    });
+  });
+  it("in and not in string", function(done) {
+    // ce test vérifie aussi qu'on peut appeler plusieurs matcher sur un même champ
+    TestEntity
+    .match('s').notIn([STRING_PREFIX+'200', STRING_PREFIX+'198'])
+    .match('s').in([STRING_PREFIX+'200', STRING_PREFIX+'198', STRING_PREFIX+'196'])
+    .grab(function(error, result) {
+      if (error) return done(error);
+      assert.equal(result.length, 1);
+      assert.equal(result[0].s, STRING_PREFIX+'196')
       done();
     });
   });
@@ -386,6 +516,4 @@ describe('$entities', function() {
     })
     .catch(console.error)
   })
-
-
 });
