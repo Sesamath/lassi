@@ -1,5 +1,7 @@
 "use strict";
 var log = require('an-log')('$server');
+var constantes = require('../constantes')
+
 /**
  * Service de gestion du serveur HTTP
  * @namespace $server
@@ -17,7 +19,7 @@ module.exports = function($settings, $rail) {
     var port = $settings.get('$server.port', 3000);
     // 5 min max par défaut, lassi doit couper avant
     // +1000 pour laisser lassi prendre la main sur un timeout de 5min
-    var maxTimeout = $settings.get('$server.maxTimeout', 5 * 60 * 1000 + 1000);
+    var maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout);
     _http = require('http').Server($rail.get());
     _http.timeout = maxTimeout
     lassi.emit('httpReady', _http);

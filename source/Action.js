@@ -21,9 +21,9 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-
 var _   = require('lodash');
 var log = require('an-log')('lassi-actions');
+var constantes = require('./constantes')
 
 /**
  * Fonction fauchée ici : http://forbeslindesay.github.io/express-route-tester/
@@ -197,7 +197,13 @@ class Action {
 
       // Timeout de 1s par défaut après le retour synchrone
       // (ça permet aussi à l'action de modifier son timeout pendant son exécution)
-      var timeout = context.timeout || this.callback.timeout || 60000;
+      var timeout = context.timeout || this.callback.timeout || constantes.defaultTimeout;
+      var maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout - constantes.minDiffTimeout);
+      if (timeout > maxTimeout) {
+        console.error(new Error(`timeout ${timeout} supérieur au maximum autorisé dans cette application ${maxTimeout}, il sera ramené à ${maxTimeout - constantes.minDiffTimeout}`))
+        // pour laisser le timeout ci-dessous prendre la main sur celui de node
+        timeout = maxTimeout - constantes.minDiffTimeout
+      }
 
       // Si aucune donnée synchrone n'est déjà reçue, on arme le timeout
       if (!isCbCompleted) {
