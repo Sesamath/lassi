@@ -43,7 +43,10 @@ module.exports = {
   },
 
   $server : {
-    port: 3000
+    port: 3000,
+    // timeout max mis sur toutes les requêtes par node,
+    // mettre une valeur supérieure au plus grand timeout utilisé dans l'application
+    maxTimeout: 5 * 60 * 1000 + 1000
   },
 
   memcache : {
