@@ -23,6 +23,7 @@
 */
 var _   = require('lodash');
 var log = require('an-log')('lassi-actions');
+var $settings = lassi.service('$settings')
 var constantes = require('./constantes')
 
 /**
