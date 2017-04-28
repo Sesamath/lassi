@@ -23,8 +23,9 @@
 */
 var _   = require('lodash');
 var log = require('an-log')('lassi-actions');
-var $settings = lassi.service('$settings')
 var constantes = require('./constantes')
+// sera initialisé d'après les settings au 1er appel d'un contrôleur
+var maxTimeout
 
 /**
  * Fonction fauchée ici : http://forbeslindesay.github.io/express-route-tester/
@@ -192,6 +193,12 @@ class Action {
     }
 
     try {
+      // on ne peut pas appeler $settings ou lassi.service en dehors de la classe car ce fichier est requis
+      // avant bootstrap, on initialise donc maxTimeout lors du 1er appel d'un controleur après le boot
+      if (!maxTimeout) {
+        var $settings = lassi.service('$settings')
+        maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout - constantes.minDiffTimeout);
+      }
       context.next = processResult;
 
       this.callback.call(context, context);
@@ -199,7 +206,6 @@ class Action {
       // Timeout de 1s par défaut après le retour synchrone
       // (ça permet aussi à l'action de modifier son timeout pendant son exécution)
       var timeout = context.timeout || this.callback.timeout || constantes.defaultTimeout;
-      var maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout - constantes.minDiffTimeout);
       if (timeout > maxTimeout) {
         console.error(new Error(`timeout ${timeout} supérieur au maximum autorisé dans cette application ${maxTimeout}, il sera ramené à ${maxTimeout - constantes.minDiffTimeout}`))
         // pour laisser le timeout ci-dessous prendre la main sur celui de node
