@@ -88,8 +88,14 @@ module.exports = function () {
         }
       })
       // on ajoute qq commandes universelles
-      commands.listAllServices = () => console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
-      commands.listAllServices.help = () => console.log('Liste tous les services déclarés dans cette appli')
+      commands.listAllServices = (cb) => {
+        console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
+        cb()
+      }
+      commands.listAllServices.help = (cb) => {
+        console.log('Liste tous les services déclarés dans cette appli')
+        cb
+      }
 
       if (listAsked) {
         printAllCommands()
