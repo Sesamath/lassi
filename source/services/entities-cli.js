@@ -1,9 +1,9 @@
 'use strict'
 
 const flow = require('an-flow')
-const anLog = require('an-log')
+const anLog = require('an-log')('lassi')
 // sera redéfini par chaque commande pour avoir le bon préfixe
-let log = console.log
+let log = (...args) => anLog('entities-cli', ...args)
 const defaultLimit = 100
 const debug = global.cli && global.cli.debug
 
@@ -115,7 +115,7 @@ function parse (json) {
  * @param {errorCallback} done
  */
 function reindexAll (entityName, done) {
-  log = anLog('lassi entities-cli reindexAll')
+  log = (...args) => anLog('entities-cli reindexAll', ...args)
   if (typeof done !== 'function') {
     const error = new Error('reindex prend le nom de l’entity en premier argument et une callback en 2e')
     if (typeof entityName === 'function') return entityName(error)
@@ -143,7 +143,7 @@ function reindexAll (entityName, done) {
   })
 }
 reindexAll.help = function reindexAllHelp () {
-  log = anLog('lassi entities-cli reindexAll')
+  log = (...args) => anLog('entities-cli reindexAll', ...args)
   log('La commande reindexAll prend en seul argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)')
 }
 
@@ -173,7 +173,7 @@ function select (entityName, fields, wheres, options, done) {
     next()
   }
 
-  log = anLog('lassi entities-cli select')
+  log = (...args) => anLog('entities-cli select', ...args)
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande')
   if (arguments.length === 2) {
     done = fields
@@ -242,7 +242,7 @@ function select (entityName, fields, wheres, options, done) {
   }
 }
 select.help = function selectHelp () {
-  log = anLog('lassi entities-cli select')
+  log = (...args) => anLog('entities-cli select', 'usage', ...args)
   log(`
 La commande select demande 1 à 3 arguments :
 #1 : le nom de l’entité cherchée
@@ -262,7 +262,7 @@ La commande select demande 1 à 3 arguments :
  * @param {errorCallback} done
  */
 function count (entityName, wheres, done) {
-  log = anLog('lassi entities-cli count')
+  log = (...args) => anLog('entities-cli count', ...args)
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande')
   if (arguments.length === 1) {
     return entityName(new Error('Il faut passer un nom d’entity (ou "help") en 1er argument'))
@@ -295,7 +295,7 @@ function count (entityName, wheres, done) {
   }
 }
 count.help = function countHelp () {
-  log = anLog('lassi entities-cli count')
+  log = (...args) => anLog('entities-cli count', 'usage', ...args)
   log(`
 La commande count demande 1 ou 2 arguments :
 #1 : le nom de l’entité cherchée

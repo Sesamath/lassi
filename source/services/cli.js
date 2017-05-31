@@ -1,7 +1,8 @@
 "use strict";
 
 const minimist = require('minimist')
-const log = require('an-log')('lassi cli')
+const anLog = require('an-log')('lassi')
+const log = (...args) => anLog('cli', ...args) // arguments n'existe pas sur les fcts fléchées
 
 /**
  * Service de gestion des commandes CLI
