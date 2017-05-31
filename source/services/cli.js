@@ -1,6 +1,7 @@
 "use strict";
 
 const minimist = require('minimist')
+const log = require('an-log')('lassi cli')
 
 /**
  * Service de gestion des commandes CLI
@@ -14,22 +15,23 @@ module.exports = function () {
    * @param {Integer} [errorCode]
    */
   function usage (errorCode) {
-    console.log(`Syntaxe :\n  ${cliRunner} [options] command […args]`)
-    console.log('Options :')
-    console.log('  --debug : affiche la stack complète en cas d’erreur (implique verbose)')
-    console.log('  -h --help : affiche cette aide')
-    console.log('  -l --list : affiche la liste des commandes possibles')
-    console.log('  -v --verbose : affiche qq détails sur le déroulement')
+    log(`
+Syntaxe :\n  ${cliRunner} [options] command […args]
+Options :
+  --debug : affiche la stack complète en cas d’erreur (implique verbose)
+  -h --help : affiche cette aide
+  -l --list : affiche la liste des commandes possibles
+  -v --verbose : affiche qq détails sur le déroulement`)
     if (errorCode) process.exit(errorCode);
   }
 
   /**
    * Affiche une info en console si --verbose
    * @methodOf $cli
-   * @param {...*} args Les arguments à passer à console.log (à volonté)
+   * @param {...*} args Les arguments à passer à log (à volonté)
    */
   function printInfo (args) {
-    if (verbose) console.log.apply(console, arguments)
+    if (verbose) log.apply(console, arguments)
   }
 
   /**
@@ -38,14 +40,14 @@ module.exports = function () {
    * @param {string|Error} error
    */
   function printError (error) {
-    console.error('Une erreur est survenue à l’exécution de ' + commandName)
-    if (debug) console.error(error)
-    else if (error.message) console.error(error.message)
-    else console.error(error)
+    log.error('Une erreur est survenue à l’exécution de ' + commandName)
+    if (debug) log.error(error)
+    else if (error.message) log.error(error.message)
+    else log.error(error)
   }
 
   function printAllCommands () {
-    console.log('liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '))
+    log('liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '))
   }
 
   const cliRunner = process.argv[1]
@@ -65,7 +67,7 @@ module.exports = function () {
   function run () {
     function exit (error, result) {
       if (error) printError(error)
-      if (result) console.log(`Retour de la commande ${commandName}\n`, result)
+      if (result) log(`Retour de la commande ${commandName}\n`, result)
       else printInfo('Fin ' + commandName)
       process.exit(error ? 2 : 0)
     }
@@ -83,17 +85,17 @@ module.exports = function () {
         for (let name in tmp) {
           commands[name] = tmp[name]
           if (typeof tmp[name].help !== 'function') {
-            tmp[name].help = () => console.log(`La commande ${name} ne fournit pas d’aide sur son usage`)
+            tmp[name].help = () => log(`La commande ${name} ne fournit pas d’aide sur son usage`)
           }
         }
       })
       // on ajoute qq commandes universelles
       commands.listAllServices = (cb) => {
-        console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
+        log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
         cb()
       }
       commands.listAllServices.help = (cb) => {
-        console.log('Liste tous les services déclarés dans cette appli')
+        log('Liste tous les services déclarés dans cette appli')
         cb
       }
 
@@ -104,14 +106,14 @@ module.exports = function () {
       if (helpAsked) {
         if (commands[commandName]) {
           if (commands[commandName].help) commands[commandName].help()
-          else console.log(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`)
+          else log(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`)
         } else {
           usage()
         }
         process.exit(0)
       }
       if (!commandName) {
-        console.error('Il faut passer une commande à exécuter')
+        log.error('Il faut passer une commande à exécuter')
         usage(1)
       }
       // on ajoute debug sur lassi
@@ -119,7 +121,7 @@ module.exports = function () {
 
       const command = commands[commandName]
       if (!command) {
-        console.error(`Commande "${commandName}" inconnue`)
+        log.error(`Commande "${commandName}" inconnue`)
         usage(1)
       }
 

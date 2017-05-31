@@ -1,6 +1,9 @@
 'use strict'
 
 const flow = require('an-flow')
+const anLog = require('an-log')
+// sera redéfini par chaque commande pour avoir le bon préfixe
+let log = console.log
 const defaultLimit = 100
 const debug = global.cli && global.cli.debug
 
@@ -100,8 +103,8 @@ function parse (json) {
     return retour
   } catch (error) {
     if (lassi.debug) {
-      console.error('Error de parsing json sur ' + json)
-      console.error(error)
+      log.error('Error de parsing json sur ' + json)
+      log.error(error)
     }
   }
 }
@@ -112,6 +115,7 @@ function parse (json) {
  * @param {errorCallback} done
  */
 function reindexAll (entityName, done) {
+  log = anLog('lassi entities-cli reindexAll')
   if (typeof done !== 'function') {
     const error = new Error('reindex prend le nom de l’entity en premier argument et une callback en 2e')
     if (typeof entityName === 'function') return entityName(error)
@@ -124,22 +128,23 @@ function reindexAll (entityName, done) {
   Entity.match().count(function (error, total) {
     if (error) return done(error)
     if (total) {
-      console.log(`ré-indexation de ${total} entités ${entityName} :`)
+      log(`ré-indexation de ${total} entités ${entityName} :`)
       grab(
         Entity.match(),
         defaultLimit,
         (entity, next) => entity.reindex(next),
-        { groupCb: (start, nb) => console.log(`reindex ${entityName} OK (${start} à ${start + nb})`) },
+        { groupCb: (start, nb) => log(`reindex ${entityName} OK (${start} à ${start + nb})`) },
         done
       )
     } else {
-      console.log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrements)`)
+      log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrements)`)
       done()
     }
   })
 }
 reindexAll.help = function reindexAllHelp () {
-  console.log('La commande reindexAll prend en seul argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)')
+  log = anLog('lassi entities-cli reindexAll')
+  log('La commande reindexAll prend en seul argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)')
 }
 
 /**
@@ -160,14 +165,15 @@ function select (entityName, fields, wheres, options, done) {
   function printOne (entity, next) {
     if (fields) {
       // en ligne
-      console.log(fieldList.reduce((acc, field) => acc + entity[field] + '\t| ', ''))
+      log(fieldList.reduce((acc, field) => acc + entity[field] + '\t| ', ''))
     } else {
       // le json
-      console.log('\n' + JSON.stringify(entity, null, 2))
+      log('\n' + JSON.stringify(entity, null, 2))
     }
     next()
   }
 
+  log = anLog('lassi entities-cli select')
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande')
   if (arguments.length === 2) {
     done = fields
@@ -214,13 +220,13 @@ function select (entityName, fields, wheres, options, done) {
     let titles = ''
     if (fields) {
       titles = fieldList.reduce((acc, field) => acc + field + '\t| ', '')
-      console.log(titles)
+      log(titles)
     }
 
     const groupCb = (start, nb) => {
       if (opts.quiet) return
-      console.log(`\n\n(fin select de ${start} à ${start + nb})`)
-      if (nb === defaultLimit) console.log(titles)
+      log(`\n\n(fin select de ${start} à ${start + nb})`)
+      if (nb === defaultLimit) log(titles)
     }
 
     grab(
@@ -236,15 +242,17 @@ function select (entityName, fields, wheres, options, done) {
   }
 }
 select.help = function selectHelp () {
-  console.log('La commande select demande 1 à 3 arguments :')
-  console.log('#1 : le nom de l’entité cherchée')
-  console.log('#2 : (facultatif) la liste des champs à afficher, mettre une chaine vide pour les afficher tous')
-  console.log('#3 : (facultatif) une chaine json présentant un tableau de conditions')
-  console.log('       dont chaque élément est un tableau [champ, condition, valeur]')
-  console.log('       condition doit être parmi : = > < >= <= <> in notIn isNull isNotNull')
-  console.log('       Pour les conditions in|notIn, valeur doit être une liste (séparateur virgule)')
-  console.log('#4 : (facultatif) une chaine présentant la liste des options (séparateur virgule)')
-  console.log('       options: quiet => ne pas répéter la ligne de titre')
+  log = anLog('lassi entities-cli select')
+  log(`
+La commande select demande 1 à 3 arguments :
+#1 : le nom de l’entité cherchée
+#2 : (facultatif) la liste des champs à afficher, mettre une chaine vide pour les afficher tous
+#3 : (facultatif) une chaine json présentant un tableau de conditions
+       dont chaque élément est un tableau [champ, condition, valeur]
+       condition doit être parmi : = > < >= <= <> in notIn isNull isNotNull
+       Pour les conditions in|notIn, valeur doit être une liste (séparateur virgule)
+#4 : (facultatif) une chaine présentant la liste des options (séparateur virgule)
+       options: quiet => ne pas répéter la ligne de titre`)
 }
 
 /**
@@ -254,6 +262,7 @@ select.help = function selectHelp () {
  * @param {errorCallback} done
  */
 function count (entityName, wheres, done) {
+  log = anLog('lassi entities-cli count')
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande')
   if (arguments.length === 1) {
     return entityName(new Error('Il faut passer un nom d’entity (ou "help") en 1er argument'))
@@ -276,11 +285,9 @@ function count (entityName, wheres, done) {
     } catch (error) {
       return done(new Error(`Aucune entity nommée ${entityName} (utiliser la commande "allServices" pour voir services et entités)`))
     }
-      console.log(`count`)
     addConditions(Entity, wheres).count({debug: lassi.debug}, function (error, nb) {
-      console.log(`cb count`)
       if (error) return done(error)
-      console.log(`${nb} entités ${entityName} répondent aux conditions`)
+      log(`${nb} entités ${entityName} répondent aux conditions`)
       done()
     })
   } catch (error) {
@@ -288,12 +295,14 @@ function count (entityName, wheres, done) {
   }
 }
 count.help = function countHelp () {
-  console.log('La commande count demande 1 ou 2 arguments :')
-  console.log('#1 : le nom de l’entité cherchée')
-  console.log('#2 : (facultatif) une chaine json présentant un tableau de conditions')
-  console.log('       dont chaque élément est un tableau [champ, condition, valeur]')
-  console.log('       condition doit être parmi : = > < >= <= <> in notIn isNull isNotNull')
-  console.log('       Pour les conditions in|notIn, valeur doit être une liste (séparateur virgule)')
+  log = anLog('lassi entities-cli count')
+  log(`
+La commande count demande 1 ou 2 arguments :
+#1 : le nom de l’entité cherchée
+#2 : (facultatif) une chaine json présentant un tableau de conditions
+       dont chaque élément est un tableau [champ, condition, valeur]
+       condition doit être parmi : = > < >= <= <> in notIn isNull isNotNull
+       Pour les conditions in|notIn, valeur doit être une liste (séparateur virgule)`)
 }
 
 /**
