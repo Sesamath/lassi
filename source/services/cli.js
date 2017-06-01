@@ -3,6 +3,7 @@
 const minimist = require('minimist')
 const anLog = require('an-log')('lassi')
 const log = (...args) => anLog('cli', ...args) // arguments n'existe pas sur les fcts fléchées
+log.error = (...args) => anLog.error('cli', ...args)
 
 /**
  * Service de gestion des commandes CLI
@@ -31,8 +32,8 @@ Options :
    * @methodOf $cli
    * @param {...*} args Les arguments à passer à log (à volonté)
    */
-  function printInfo (args) {
-    if (verbose) log.apply(console, arguments)
+  function printInfo (...args) {
+    if (verbose) log(...args)
   }
 
   /**
