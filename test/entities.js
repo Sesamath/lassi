@@ -330,6 +330,44 @@ describe('$entities', function() {
     .done(done);
   });
 
+  it("Suppression 'douce' d'une entité", function(done) {
+    var oid = null;
+    flow()
+    .seq(function() {
+      TestEntity.create({ d: null }).store(this);
+    })
+    .seq(function(entity) {
+      oid = entity.oid;
+      entity.softDelete(this);
+    })
+    .seq(function() {
+      TestEntity.match('oid').equals(oid).grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.equal(entity, undefined);
+      TestEntity.match('oid').equals(oid).withDeleted().grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.notEqual(entity, undefined);
+      entity.restore(this);
+    })
+    .seq(function() {
+      TestEntity.match('oid').equals(oid).grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.notEqual(entity, undefined);
+      entity.delete(this);
+    })
+    .seq(function() {
+      TestEntity.match('oid').equals(oid).grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.equal(entity, undefined);
+      this();
+    })
+    .done(done);
+  });
+
   it("Vérification des suppressions", function(done) {
     TestEntity.match('iPair').equals(1).grab(function(error, result) {
       if (error) return done(error);

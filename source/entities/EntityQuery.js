@@ -37,6 +37,7 @@ class EntityQuery {
   constructor(entity) {
     this.entity = entity;
     this.clauses = [];
+    this.includeDeleted = false;
   }
 
   /**
@@ -237,6 +238,10 @@ class EntityQuery {
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
+  withDeleted() {
+    this.includeDeleted = true;
+    return this;
+  }
 
   /**
    * Applique les clauses  à la requête.
@@ -327,6 +332,8 @@ class EntityQuery {
       // On ajoute la condition
       query[index] = Object.assign({}, query[index], condition);
     })
+
+    query['__deletedAt'] = {[this.includeDeleted ? '$ne' : '$eq']: null};
   }
 
   /**
