@@ -153,7 +153,10 @@ class Entity {
         $unset: {__deletedAt: ''}
       }, this);
     })
-    .done(callback)
+    .seq(function() {
+      callback(null, self)
+    })
+    .catch(callback)
   }
 
   /**
