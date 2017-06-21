@@ -263,6 +263,9 @@ class EntityQuery {
       if (clause.index=='oid') {
         index='_id';
         type = 'string';
+      } else if (clause.index=='__deletedAt') {
+        index='__deletedAt';
+        type = 'date';
       } else {
         type = this.entity.indexes[index].fieldType;
       }

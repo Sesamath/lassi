@@ -345,6 +345,13 @@ describe('$entities', function() {
     })
     .seq(function(entity) {
       assert.equal(entity, undefined);
+      TestEntity
+      .match('__deletedAt').lowerThanOrEquals(new Date())
+      .withDeleted()
+      .grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.equal(entity.oid, oid);
       TestEntity.match('oid').equals(oid).withDeleted().grabOne(this);
     })
     .seq(function(entity) {
