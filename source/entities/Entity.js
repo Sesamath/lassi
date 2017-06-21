@@ -146,7 +146,7 @@ class Entity {
     
     flow()
     .seq(function() {
-      if (!self.oid) return this();
+      if (!self.oid) return this('Impossible de restorer une entité sans oid');
       entity.entities.connection.collection(entity.name).update({
         _id: self.oid
       },{

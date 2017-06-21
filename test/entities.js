@@ -348,14 +348,14 @@ describe('$entities', function() {
       TestEntity.match('oid').equals(oid).withDeleted().grabOne(this);
     })
     .seq(function(entity) {
-      assert.notEqual(entity, undefined);
+      assert.equal(entity.oid, oid);
       entity.restore(this);
     })
     .seq(function() {
       TestEntity.match('oid').equals(oid).grabOne(this);
     })
     .seq(function(entity) {
-      assert.notEqual(entity, undefined);
+      assert.equal(entity.oid, oid);
       entity.delete(this);
     })
     .seq(function() {
