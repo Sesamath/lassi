@@ -336,7 +336,8 @@ class EntityQuery {
       query[index] = Object.assign({}, query[index], condition);
     })
 
-    query['__deletedAt'] = {[this.includeDeleted ? '$ne' : '$eq']: null};
+    var condition = {[this.includeDeleted ? '$ne' : '$eq']: null};
+    query['__deletedAt'] = Object.assign({}, query['__deletedAt'], condition);
   }
 
   /**
