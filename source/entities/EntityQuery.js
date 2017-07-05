@@ -386,6 +386,10 @@ class EntityQuery {
           return value;
         })
         tmp.oid = rows[i]._id.toString();
+        if (rows[i].__deletedAt) {
+          tmp.__deletedAt = rows[i].__deletedAt;
+        }
+
         rows[i] = self.entity.create(tmp);
       }
       callback(null, rows);
