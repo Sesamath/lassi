@@ -233,12 +233,41 @@ class EntityQuery {
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
+  /**
+   * Remonte les enregistrement dont les valeurs d'index ne sont pas dans la liste
+   * @param {String[]|Integer[]|Date[]} value Les valeurs à exclure
+   * @return {EntityQuery}
+   */
   notIn(values) {
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
+  /**
+   * Remonte uniquement les entités softDeleted (inutile avec deletedAfter ou deletedBefore)
+   * @return {EntityQuery}
+   */
   withDeleted() {
     this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted après when
+   * @param {Date} when
+   * @return {EntityQuery}
+   */
+  deletedAfter(when) {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '>', value: when});
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted avant when (<=)
+   * @param {Date} when
+   * @return {EntityQuery}
+   */
+  deletedBefore(when) {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '<=', value: when});
     return this
   }
 
@@ -386,6 +415,7 @@ class EntityQuery {
           return value;
         })
         tmp.oid = rows[i]._id.toString();
+        // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
         if (rows[i].__deletedAt) {
           tmp.__deletedAt = rows[i].__deletedAt;
         }

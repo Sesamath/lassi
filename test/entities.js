@@ -128,7 +128,7 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done)
   });
-  
+
   it('indexe une date non définie comme null - verifie aussi le isNull', function(done) {
     var createdEntities = [];
     flow()
@@ -151,7 +151,7 @@ describe('$entities', function() {
       assert.equal(entities.length, 2);
       assert.equal(entities[0].s, 'date nulle 1');
       assert.equal(entities[1].s, 'date nulle 2');
-      
+
       this(null, createdEntities);
     })
     .seqEach(function(entity) {
@@ -196,7 +196,7 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done);
   });
-  
+
   it("Sélection d'entités avec limit", function(done) {
     this.timeout(10000);
     flow()
@@ -212,7 +212,7 @@ describe('$entities', function() {
     })
     .empty().seq(done).catch(done);
   });
-  
+
   it("Tri d'entités", function(done) {
     flow()
     .seq(function() {
@@ -233,7 +233,7 @@ describe('$entities', function() {
     })
     .done(done);
   })
-  
+
   it("Compte d'entités", function(done) {
     flow()
     .seq(function() {
@@ -253,7 +253,7 @@ describe('$entities', function() {
     })
     .done(done);
   })
-  
+
   it("double match sur le même attribut", function(done) {
     flow()
     .seq(function() {
@@ -292,8 +292,8 @@ describe('$entities', function() {
     })
     .done(done);
   })
-  
-  
+
+
   it("Recherche avec like", function(done) {
     var texteOriginal;
     flow()
@@ -316,7 +316,7 @@ describe('$entities', function() {
     })
     .done(done);
   })
-  
+
   it("Suppression de la moitié des entités", function(done) {
     flow()
     .callbackWrapper(process.nextTick)
@@ -333,14 +333,18 @@ describe('$entities', function() {
 
   it("Suppression 'douce' d'une entité", function(done) {
     var oid = null;
+    var started = new Date()
     flow()
+      // création
     .seq(function() {
       TestEntity.create({ d: null }).store(this);
     })
+      // softDelete
     .seq(function(entity) {
       oid = entity.oid;
       entity.softDelete(this);
     })
+      // check que ça remonte plus
     .seq(function() {
       TestEntity.match('oid').equals(oid).grabOne(this);
     })
@@ -353,6 +357,28 @@ describe('$entities', function() {
     })
     .seq(function(entity) {
       assert.equal(entity.oid, oid);
+      TestEntity.match().deletedAfter(started).grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.equal(entity.oid, oid);
+      TestEntity.match().deletedAfter(new Date()).grabOne(this);
+    })
+    .seq(function(entity) {
+        assert.equal(entity, undefined);
+      // new Date(started.getYear(), started.getMonth(), started.getDay() + 1)
+      TestEntity.match().deletedBefore(new Date()).grabOne(this);
+      // si on met du strict dans deletedBefore, ce test passe pas, même en prenant une date lointaine…
+      // const dateFuture = new Date(Date.now() + 1000 * 3600 * 24 * 366)
+      // console.log(entity.__deletedAt)
+      // console.log(dateFuture)
+      // TestEntity.match().deletedBefore(dateFuture).grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.equal(entity.oid, oid);
+      TestEntity.match().deletedBefore(started).grabOne(this);
+    })
+    .seq(function(entity) {
+      assert.equal(entity, undefined);
       TestEntity.match('oid').equals(oid).withDeleted().grabOne(this);
     })
     .seq(function(entity) {
@@ -466,8 +492,8 @@ describe('$entities', function() {
       done();
     });
   });
-  
-  
+
+
   it("ménage pour la suite", function(done) {
     flow()
     .seq(function() {
