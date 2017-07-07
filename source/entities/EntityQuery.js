@@ -333,7 +333,7 @@ class EntityQuery {
       }
 
       // On ajoute la condition
-      query[index] = Object.assign({}, query[index], condition);
+      Object.assign(query[index], condition);
     })
 
     var condition = {[this.includeDeleted ? '$ne' : '$eq']: null};
