@@ -267,7 +267,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   deletedBefore(when) {
-    this.clauses.push({type:'match', index: '__deletedAt', operator: '<=', value: when});
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '<', value: when});
     return this
   }
 
@@ -323,7 +323,7 @@ class EntityQuery {
           condition = {$gt: cast(clause.value)};
           break;
 
-        case '>':
+        case '<':
           condition = {$lt: cast(clause.value)};
           break;
 
