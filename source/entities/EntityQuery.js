@@ -239,6 +239,7 @@ class EntityQuery {
 
   withDeleted() {
     this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
+    return this
   }
 
   /**
