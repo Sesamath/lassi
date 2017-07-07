@@ -108,7 +108,7 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush(cb) {
-    this.entities.connection.collection(self.name).drop(cb);
+    this.entities.connection.collection(this.name).drop(cb);
   }
 
   /**
