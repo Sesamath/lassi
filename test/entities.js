@@ -298,7 +298,7 @@ describe('$entities', function() {
       assert.equal(entity, undefined)
       TestEntity
       .match('__deletedAt').lowerThanOrEquals(new Date())
-      .withDeleted()
+      .onlyDeleted()
       .grabOne(this)
     }).seq(function(entity) {
       assert.equal(entity.oid, oid)
@@ -320,7 +320,7 @@ describe('$entities', function() {
       TestEntity.match().deletedBefore(started).grabOne(this)
     }).seq(function(entity) {
       assert.equal(entity, undefined)
-      TestEntity.match('oid').equals(oid).withDeleted().grabOne(this)
+      TestEntity.match('oid').equals(oid).onlyDeleted().grabOne(this)
     }).seq(function(entity) {
       assert.equal(entity.oid, oid)
       entity.restore(this)

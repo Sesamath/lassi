@@ -246,7 +246,7 @@ class EntityQuery {
    * Remonte uniquement les entités softDeleted (inutile avec deletedAfter ou deletedBefore)
    * @return {EntityQuery}
    */
-  withDeleted() {
+  onlyDeleted() {
     this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
     return this
   }
