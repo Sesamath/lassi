@@ -23,6 +23,7 @@ while (process.argv[i]) {
   if (a === '--host') databaseSettings.host = process.argv[i + 1]
   if (a === '--name') databaseSettings.name = process.argv[i + 1]
   if (a === '--port') databaseSettings.port = process.argv[i + 1]
+  if (a === '--db') databaseSettings.name = process.argv[i + 1]
   i += 2
 }
 

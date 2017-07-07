@@ -37,7 +37,6 @@ class EntityQuery {
   constructor(entity) {
     this.entity = entity;
     this.clauses = [];
-    this.includeDeleted = false;
   }
 
   /**
@@ -239,8 +238,7 @@ class EntityQuery {
   }
 
   withDeleted() {
-    this.includeDeleted = true;
-    return this;
+    this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
   }
 
   /**
@@ -252,7 +250,7 @@ class EntityQuery {
   buildQuery(rec) {
     var query = rec.query;
     this.clauses.forEach((clause) => {
-      
+
       if (clause.type=='sort') {
         rec.options.sort = rec.options.sort || [];
         rec.options.sort.push([clause.index, clause.order]);
@@ -284,7 +282,7 @@ class EntityQuery {
         return value;
       }
       if (!clause.operator) return;
-      
+
       var condition;
       switch (clause.operator) {
         case'=':
@@ -337,8 +335,8 @@ class EntityQuery {
       Object.assign(query[index], condition);
     })
 
-    var condition = {[this.includeDeleted ? '$ne' : '$eq']: null};
-    query['__deletedAt'] = Object.assign({}, query['__deletedAt'], condition);
+    // par défaut on prend pas les softDeleted
+    if (!query['__deletedAt']) query['__deletedAt'] = {$eq : null}
   }
 
   /**
@@ -420,7 +418,7 @@ class EntityQuery {
     var collection = db.collection(this.entity.name);
     var self = this;
     var record = {query: {}, options: {}};
-    
+
     flow()
     .seq(function() {
       self.buildQuery(record);
