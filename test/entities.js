@@ -147,6 +147,7 @@ describe('$entities', function() {
       entity.delete(this)
     }).done(done)
   })
+  
   it("déclenche le beforeDelete", function(done) {
     let deleted
     TestEntity.beforeDelete(function (cb) {

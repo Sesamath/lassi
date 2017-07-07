@@ -358,6 +358,9 @@ class EntityQuery {
         case 'IN':
           condition = {$in: clause.value.map(x=>{return cast(x)})};
           break;
+
+        default:
+          log.error(new Error(`operator ${operator} unknown`))
       }
 
       // On ajoute la condition
