@@ -103,13 +103,12 @@ class EntityDefinition {
     return instance;
   }
 
+  /**
+   * drop la collection
+   * @param {simpleCallback} cb
+   */
   flush(cb) {
-    var self = this;
-    flow()
-    .seq(function() {
-      self.entities.connection.collection(self.name).drop(this);
-    })
-    .done(cb);
+    this.entities.connection.collection(this.name).drop(cb);
   }
 
   /**
@@ -156,7 +155,7 @@ class EntityDefinition {
   afterStore(fn) {
     this._afterStore = fn;
   }
-  
+
   /**
    * Ajoute un traitement avant suppression
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
@@ -164,7 +163,7 @@ class EntityDefinition {
   beforeDelete(fn) {
     this._beforeDelete = fn;
   }
-  
+
   /**
    * Callback à rappeler sans argument
    * @callback simpleCallback

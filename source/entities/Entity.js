@@ -137,6 +137,49 @@ class Entity {
   }
 
   /**
+   * Restore un élément supprimé en soft-delete
+   * @param {SimpleCallback} callback
+   */
+  restore(callback) {
+    var self = this;
+    var entity = this.definition;
+    
+    flow()
+    .seq(function() {
+      if (!self.oid) return this('Impossible de restorer une entité sans oid');
+      entity.entities.connection.collection(entity.name).update({
+        _id: self.oid
+      },{
+        $unset: {__deletedAt: ''}
+      }, this);
+    })
+    .seq(function() {
+      callback(null, self)
+    })
+    .catch(callback)
+  }
+
+  /**
+   * Effectue une suppression "douce" de l'entité
+   * @param {SimpleCallback} callback
+   * @see restore
+   */
+  softDelete(callback) {
+    var self = this;
+    var entity = this.definition;
+    flow()
+    .seq(function() {
+      if (!self.oid) return this();
+      entity.entities.connection.collection(entity.name).update({
+        _id: self.oid
+      }, { 
+        $set: {__deletedAt: new Date() }
+      }, this);
+    })
+    .done(callback)
+  }
+
+  /**
    * Efface cette instance d'entité en base (et ses index) puis appelle callback
    * avec une éventuelle erreur
    * @param {SimpleCallback} callback

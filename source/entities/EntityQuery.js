@@ -233,10 +233,43 @@ class EntityQuery {
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
+  /**
+   * Remonte les enregistrement dont les valeurs d'index ne sont pas dans la liste
+   * @param {String[]|Integer[]|Date[]} value Les valeurs à exclure
+   * @return {EntityQuery}
+   */
   notIn(values) {
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
+  /**
+   * Remonte uniquement les entités softDeleted (inutile avec deletedAfter ou deletedBefore)
+   * @return {EntityQuery}
+   */
+  onlyDeleted() {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted après when
+   * @param {Date} when
+   * @return {EntityQuery}
+   */
+  deletedAfter(when) {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '>', value: when});
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted avant when (<=)
+   * @param {Date} when
+   * @return {EntityQuery}
+   */
+  deletedBefore(when) {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '<', value: when});
+    return this
+  }
 
   /**
    * Applique les clauses  à la requête.
@@ -247,7 +280,7 @@ class EntityQuery {
   buildQuery(rec) {
     var query = rec.query;
     this.clauses.forEach((clause) => {
-      
+
       if (clause.type=='sort') {
         rec.options.sort = rec.options.sort || [];
         rec.options.sort.push([clause.index, clause.order]);
@@ -258,6 +291,9 @@ class EntityQuery {
       if (clause.index=='oid') {
         index='_id';
         type = 'string';
+      } else if (clause.index=='__deletedAt') {
+        index='__deletedAt';
+        type = 'date';
       } else {
         type = this.entity.indexes[index].fieldType;
       }
@@ -276,7 +312,7 @@ class EntityQuery {
         return value;
       }
       if (!clause.operator) return;
-      
+
       var condition;
       switch (clause.operator) {
         case'=':
@@ -287,7 +323,7 @@ class EntityQuery {
           condition = {$gt: cast(clause.value)};
           break;
 
-        case '>':
+        case '<':
           condition = {$lt: cast(clause.value)};
           break;
 
@@ -322,11 +358,18 @@ class EntityQuery {
         case 'IN':
           condition = {$in: clause.value.map(x=>{return cast(x)})};
           break;
+
+        default:
+          log.error(new Error(`operator ${operator} unknown`))
       }
 
       // On ajoute la condition
-      query[index] = Object.assign({}, query[index], condition);
+      if (!query[index]) query[index] = {};
+      Object.assign(query[index], condition);
     })
+
+    // par défaut on prend pas les softDeleted
+    if (!query['__deletedAt']) query['__deletedAt'] = {$eq : null}
   }
 
   /**
@@ -375,6 +418,11 @@ class EntityQuery {
           return value;
         })
         tmp.oid = rows[i]._id.toString();
+        // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
+        if (rows[i].__deletedAt) {
+          tmp.__deletedAt = rows[i].__deletedAt;
+        }
+
         rows[i] = self.entity.create(tmp);
       }
       callback(null, rows);
@@ -404,7 +452,7 @@ class EntityQuery {
     var collection = db.collection(this.entity.name);
     var self = this;
     var record = {query: {}, options: {}};
-    
+
     flow()
     .seq(function() {
       self.buildQuery(record);
