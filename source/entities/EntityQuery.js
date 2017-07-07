@@ -333,6 +333,7 @@ class EntityQuery {
       }
 
       // On ajoute la condition
+      if (!query[index]) query[index] = {};
       Object.assign(query[index], condition);
     })
 
