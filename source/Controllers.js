@@ -172,7 +172,6 @@ class Controllers extends EventEmitter {
           transport.process(data, this);
         }
       })
-
       .seq(function(content) {
         if (context.status) {
           context.response.status(context.status);
@@ -187,11 +186,6 @@ class Controllers extends EventEmitter {
       .catch(next);
     }
   }
-
-
 }
-
-
-
 
 module.exports = Controllers;

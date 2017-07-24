@@ -1,5 +1,7 @@
+const _ = require('lodash');
+
 "use strict";
-// var log = require('an-log')('$rail');
+
 /**
  * Service de gestion des middlewares
  * @namespace $rail
@@ -80,17 +82,44 @@ module.exports = function($settings) {
       }
     );
 
-    railUse('session', function(settings) {
+    railUse('session', (settings) => {
       var session = require('express-session');
       var SessionStore = require('../SessionStore');
       settings.store = new SessionStore();
       return session(settings);
     }, railConfig.session);
 
+    railUse('maintenance', () => {
+      var maintenance;
+      if (_.get(lassi.settings, 'application.maintenance')) maintenance = lassi.settings.application.maintenance;
+      if (!maintenance || !maintenance.active) return;
+
+      var serveStatic = require('serve-static');
+      _rail.use('*', (req, res, next) => {
+        if (!maintenance.static) {
+          let message = maintenance.message || 'Site en maintenance, veuillez réessayer dans quelques instants';
+          res.format({
+            'application/json': () => {
+              res.status(503).json({
+                success: false,
+                error: message
+              });
+            },
+            'default': () => {
+              res.status(503).send(message);
+            }
+          });
+        } else {
+          let options = maintenance.static.index ? {index: maintenance.static.index} : {index: ['default.html', 'default.htm']};
+          serveStatic(maintenance.static.folder, options)(req, res, next);
+        }
+      });
+    }, {});
+
     // Ajout du router principal
     var Controllers = require('../Controllers');
     var controllers = new Controllers(this);
-    railUse('controllers', function() { return controllers.middleware() }, {});
+    railUse('controllers', () => { return controllers.middleware() }, {});
     next();
   }
 

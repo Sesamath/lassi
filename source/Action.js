@@ -63,12 +63,6 @@ function pathtoRegexp(path, keys, options) {
 }
 
 /**
- * Callback d'une action.
- * @callback Action~callback
- * @param {Context} context
- */
-
-/**
  * Constructeur de l'action.
  * @param {string} path le chemin (ou la partie de chemin) associée à l'action
  * @constructor
