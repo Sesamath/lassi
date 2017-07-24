@@ -108,7 +108,7 @@ class Entity {
         return v;
       });
       // @todo save est deprecated, utiliser insertMany ou updateMany
-      self.db().collection(entity.name).save(indexes, { w: 1 }, this);
+      entity.getCollection().save(indexes, { w: 1 }, this);
     }).seq(function (result) {
       entity._afterStore.call(self, this)
     }).seq(function () {
@@ -177,7 +177,7 @@ class Entity {
     })
     .seq(function() {
       if (!self.oid) return this();
-      entity.entities.db.collection(entity.name).remove({
+      entity.getCollection().remove({
         _id: self.oid
       },{w : 1}, this);
     })

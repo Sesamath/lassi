@@ -63,6 +63,32 @@ class Entities extends EventEmitter {
   }
 
   /**
+   * Initialisation du stockage en base de données pour une entité.
+   *
+   * @param {Entity} entity L'entité
+   * @param {SimpleCallback} cb callback de retour
+   * @private
+   */
+  initializeEntity(entity, cb) {
+    var self = this;
+    flow()
+    .seq(function() {
+      entity.initialize(this);
+    })
+    .seq(function() {
+      self.connection.collection('counters').findOne({_id: entity.name}, this)
+    })
+    .seq(function(seq) {
+      if (!seq) {
+        self.connection.collection('counters').save({_id: entity.name, seq: 0}, this)
+      } else {
+        this();
+      }
+    })
+    .done(cb);
+  }
+
+  /**
    * Initialisation de l'espace de stockage
    * @param {SimpleCallback} cb
    */

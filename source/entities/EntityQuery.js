@@ -21,9 +21,9 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
+
+var log = require('an-log')('EntityQuery');
 var _    = require('lodash');
-var log  = require('an-log')('$entities');
-var flow = require('an-flow');
 
 // une limite hard pour grab
 const hardLimit = 1000
@@ -363,7 +363,7 @@ class EntityQuery {
           break;
 
         default:
-          log.error(new Error(`operator ${operator} unknown`))
+          log.error(new Error(`operator ${clause.operator} unknown`))
       }
 
       // On ajoute la condition
@@ -387,8 +387,45 @@ class EntityQuery {
     return this;
   }
 
-  grab(options, callback) {
+  createEntitiesFromRows(rows) {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+    var jsonReviver = function(key, value) {
+      if (typeof value === 'string' && dateRegExp.exec(value)) {
+        return new Date(value);
+      }
+      return value;
+    }
+
+    return rows.map(function(row) {
+      var data = JSON.parse(row._data, jsonReviver)
+      data.oid = row._id.toString();
+      // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
+      if (row.__deletedAt) {
+        data.__deletedAt = row.__deletedAt;
+      }
+
+      return this.entity.create(data);
+    }.bind(this))
+  }
+
+  textSearch(search, callback) {
+    var self = this;
+
+    this.entity.getCollection()
+    .find(
+      {$text: {$search: search}},
+      {score: {$meta: 'textScore'}}
+    )
+    .sort({
+      score: {$meta: 'textScore'}
+    })
+    .toArray(function(err, rows) {
+      callback(err, self.createEntitiesFromRows(rows))
+    });
+  }
+
+  grab(options, callback) {
+
     if (_.isFunction(options)) {
       callback = options
       options = {};
@@ -405,40 +442,14 @@ class EntityQuery {
     if (options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
     else record.options.limit = hardLimit
 
-    var collection = this.entity.entities.db.collection(this.entity.name);
-    flow()
-    .seq(function() {
-      self.buildQuery(record);
-      collection.find(record.query, record.options, this);
-    })
-    .seq(function(cursor) {
-      cursor.toArray(this);
-    })
-    .seq(function(rows) {
-      for(var i=0,ii=rows.length; i<ii; i++) {
-        var tmp = JSON.parse(rows[i]._data, function (key, value) {
-          if (typeof value === 'string' && dateRegExp.exec(value)) {
-            return new Date(value);
-          }
-          return value;
-        })
-        tmp.oid = rows[i]._id.toString();
-        // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
-        if (rows[i].__deletedAt) {
-          tmp.__deletedAt = rows[i].__deletedAt;
-        }
+    self.buildQuery(record);
 
-        rows[i] = self.entity.create(tmp);
-      }
-      callback(null, rows);
-    })
-    .catch(callback);
-
-    /*
-    query(query.toString(), query.args, function(errors, rows) {
-      if (errors) return callback(errors);
+    this.entity.getCollection()
+    .find(record.query, record.options)
+    .toArray(function(err, rows) {
+      callback(err, self.createEntitiesFromRows(rows));
     });
-    */
+
   }
 
   /**
@@ -453,16 +464,10 @@ class EntityQuery {
    * @param {EntityQuery~CountCallback} callback
    */
   count(callback) {
-    var collection = this.entity.entities.db.collection(this.entity.name);
-    var self = this;
     var record = {query: {}, options: {}};
 
-    flow()
-    .seq(function() {
-      self.buildQuery(record);
-      collection.count(record.query, record.options, this);
-    })
-    .done(callback);
+    this.buildQuery(record);
+    this.entity.getCollection().count(record.query, record.options, callback);
   }
 
 

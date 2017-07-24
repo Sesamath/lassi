@@ -130,7 +130,12 @@ describe('$entities', function () {
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
     TestEntity.defineIndex('dArray', 'date')
-    done()
+
+    TestEntity.defineIndex('text1', 'string')
+    TestEntity.defineIndex('text2', 'string')
+    TestEntity.defineTextSearchFields(['text1', 'text2'])
+
+    entities.initializeEntity(TestEntity, done)
   })
 
   it(`Ajout de ${count} données dans l'entité`, function (done) {
@@ -561,4 +566,61 @@ describe('$entities', function () {
       done();
     }).catch(console.error)
   })
-})
+
+  describe('.textSearch()', () => {
+    var createdEntities;
+    beforeEach(function(done) {
+      var entities = [
+        { i: 42000, text1: 'foo', text2: 'bar'},
+        { i: 42001, text1: 'foo', text2: 'foo'},
+        { i: 42002, text1: 'bar', text2: 'bar'},
+        { i: 42003, text1: 'foo bar', text2: 'bar'},
+      ];
+      flow(entities)
+      .seqEach(function(entity) {
+        TestEntity.create(entity).store(this);
+      })
+      .seq(function(instances) {
+        createdEntities = instances;
+        this();
+      })
+      .done(done);
+    })
+    afterEach(function(done) {
+      // Cleanup
+      flow(createdEntities)
+      .seqEach(function(entity) {
+        entity.delete(this);
+      })
+      .done(done);
+    })
+
+    it('fait une recherche sur plusieurs champs', function(done) {
+      TestEntity.textSearch('foo', function(err, results) {
+        assert.equal(results.length, 3);
+        // 42001 arrive premier car il a "foo" dans les champs text1 ET text2
+        assert.equal(results[0].i, 42001);
+        assert.equal(results[1].i, 42000);
+        assert.equal(results[2].i, 42003);
+        done();
+      })
+    })
+
+    it('fait une recherche sur plusieurs mots', function(done) {
+      TestEntity.textSearch('foo bar', function(err, results) {
+        assert.equal(results.length, 4);
+        // 42004 arrive premier car il a un "foo bar" exact
+        assert.equal(results[0].i, 42003);
+        done();
+      })
+    })
+
+    it('fait une recherche exacte', function(done) {
+      TestEntity.textSearch('"foo bar"', function(err, results) {
+        assert.equal(1, results.length);
+        assert.equal(results[0].i, 42003);
+        done();
+      })
+    })
+  });
+});

@@ -39,8 +39,12 @@ class EntityDefinition {
     this.name = name;
     this.indexes = {};
     this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
+    this._textSearchFields = null;
   }
 
+  getCollection() {
+    return this.entities.connection.collection(this.name);
+  }
   /**
    * Ajoute un indexe à l'entité. Contrairement à la logique SGBD, on ne type pas
    * l'indexe. En réalité il faut comprendre un index comme "Utilise la valeur du
@@ -65,6 +69,88 @@ class EntityDefinition {
       fieldName: fieldName
     };
     return this;
+  }
+
+  initialize(cb) {
+    this.initializeTextSearchFieldsIndex(cb);
+  }
+
+  defineTextSearchFields(fields) {
+    var self = this;
+
+    fields.forEach(function(field) {
+      if (!self.indexes[field]) {
+        throw new Error(`defineTextSearchFields ne s'applique qu'à des index. Non indexé: ${field}`);
+      }
+    });
+
+    self._textSearchFields = fields;
+  }
+
+  initializeTextSearchFieldsIndex(callback) {
+    var self = this;
+
+    var dbCollection = self.getCollection();
+    var indexName = null;
+
+    if (self._textSearchFields) {
+      indexName = 'text_index_' + self._textSearchFields.join('_');
+    }
+
+
+    var findExistingTextIndex = function(cb) {
+      dbCollection.listIndexes().toArray(function(err, indexes) {
+        if (err) {
+          if (err.message === 'no collection') {
+            // Ce cas peut se produire si la collection vient d'être créée
+            return cb(null, null);
+          }
+          return cb(err);
+        }
+
+        var textIndex = indexes && _.find(indexes, function(index) {
+          return !!index.name.match(/^text_index/);
+        });
+
+        cb(null, textIndex ? textIndex.name : null);
+      })
+    }
+
+    var createIndex = function(cb) {
+      // Pas de nouvel index à créer
+      if (!self._textSearchFields) { return cb(); }
+
+      const indexParams = {};
+      self._textSearchFields.forEach(function(field) {
+        indexParams[field] = 'text';
+      });
+      dbCollection.createIndex(indexParams, {name: indexName}, cb)
+    }
+
+    flow()
+    .seq(function() {
+      findExistingTextIndex(this);
+    })
+    .seq(function(oldTextIndex) {
+      var next = this;
+
+      if (indexName === oldTextIndex) {
+        // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
+        return callback();
+      }
+
+      if (!oldTextIndex) {
+        // Pas d'index à supprimer, on passe à la suite
+        return next();
+      }
+
+      // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
+      dbCollection.dropIndex(oldTextIndex, this);
+    })
+    .seq(function() {
+      createIndex(this);
+    })
+    .done(callback);
   }
 
   /**
@@ -108,10 +194,7 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush(cb) {
-    const collection = this.entities.db.collection(this.name)
-    // si la collection n'existe pas, ça renvoie MongoError: ns not found
-    if (collection) collection.drop(cb);
-    else cb()
+    this.getCollection().drop(cb);
   }
 
   /**
@@ -123,6 +206,11 @@ class EntityDefinition {
     var query = new EntityQuery(this);
     if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments));
     return query;
+  }
+
+  textSearch(search, callback) {
+    var query = new EntityQuery(this);
+    return query.textSearch(search, callback);
   }
 
   /**
@@ -174,7 +262,7 @@ class EntityDefinition {
 }
 
 for (var method in EntityQuery.prototype) {
-  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch'].indexOf(method)===-1) {
+  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method)===-1) {
     EntityDefinition.prototype[method] = (function(method) { return function() {
         var args = Array.prototype.slice.call(arguments);
         var field = args.shift();
