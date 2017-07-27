@@ -1,4 +1,5 @@
 'use strict';
+
 /*
  * @preserve
  * This file is part of "lassi".
@@ -23,35 +24,26 @@
  * 02110-1301 USA, or see the fs. site: http://www.fs..org.
  */
 
-var flow         = require('an-flow');
-var _            = require('lodash');
-var Component    = require('./Component');
-var Services     = require('./tools/Services');
-var EventEmitter = require('events').EventEmitter
-var fs           = require('fs');
-var log          = require('an-log')('lassi');
+const flow         = require('an-flow');
+const _            = require('lodash');
+const Component    = require('./Component');
+const Services     = require('./tools/Services');
+const EventEmitter = require('events').EventEmitter;
+const fs           = require('fs');
+const log          = require('an-log')('lassi');
 require('colors');
 
-var shutdownRequested = false
+var shutdownRequested = false;
 
 /**
- * Callback simple.
- * @callback SimpleCallback
- * @param {Error} error Une erreur est survenue.
- */
-
-/**
- * Constructeur de l'application. Effectue les
- * initialisation par défaut.
- * Ce constructeur n'est jamais appelé directement. Utilisez {@link
- * lassi.Lassi}
+ * Constructeur de l'application. Effectue les initialisations par défaut.
+ * Ce constructeur n'est jamais appelé directement. Utilisez {@link lassi.Lassi}
  * @constructor
  * @param {String=} root La racine du projet. Par défaut il s'agit du dossier d'exécution du script.
  * @extends Emitter
  */
 class Lassi extends EventEmitter {
-
-  constructor (options) {
+  constructor(options) {
     super();
     global.lassi = this;
 
@@ -74,52 +66,62 @@ class Lassi extends EventEmitter {
     this.components = {};
     this.services = new Services();
     lassi.options = options;
-    var lassiComponent = lassi.component('lassi');
+    const lassiComponent = lassi.component('lassi');
     lassiComponent.service('$settings', require('./services/settings'))
     lassiComponent.service('$cache', require('./services/cache'))
     lassiComponent.service('$entities', require('./services/entities'))
-    if (!lassi.options.cli) {
+    if (lassi.options.cli) {
+      lassiComponent.service('$cli', require('./services/cli'))
+      lassiComponent.service('$entities-cli', require('./services/entities-cli'))
+    } else {
       lassiComponent.service('$rail', require('./services/rail'))
       lassiComponent.service('$server', require('./services/server'));
     }
 
     options.root = fs.realpathSync(options.root);
-    var settingsPath = options.root+'/config';
+    let settingsPath = options.root + '/config';
     lassi.settings = require(settingsPath);
     lassi.settings.root = options.root;
-    // on ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
+    // On ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
     if (!lassi.settings.basePath) lassi.settings.basePath = '/'
     // et les composants par défaut en premier
     this.defaultDependencies = _.keys(lassi.components);
   }
 
-  startup (component, next) {
+  startup(component, cb) {
     var self = this;
     component.dependencies = this.defaultDependencies.concat(component.dependencies);
     flow()
     // Configuration des composants
-    .seq(function() { component.configure(); this(); })
-
+    .seq(function() {
+      component.configure();
+      this();
+    })
     // Configuration des services
     .seq(function() {
       var setupables = [];
-      _.each(self.services.services(), function(service, name) {
+      _.each(self.services.services(), (service, name) => {
         service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
-        if (!service) throw new Error("Le service " +name +" n'a pu être résolu (il ne retourne probablement rien)")
+        if (!service) throw new Error(`Le service ` + name + ` n'a pu être résolu (il ne retourne probablement rien)`);
         if (service.setup) {
           if (!self.options.cli) log('setting up', name.blue);
           setupables.push(service);
         }
       });
       flow(setupables)
-      .seqEach(function(service) { service.setup(this); })
+      .seqEach(function(service) {
+        service.setup(this);
+      })
       .done(this);
     })
-    .empty().seq(function() {
+    .empty()
+    .seq(function() {
       self.emit('startup');
-      next();
-    }).catch(next);
+      cb();
+    })
+    .catch(cb);
   }
+
   /**
    * Démarre l'application d'un composant.
    * @param {Component} component Le composant
@@ -172,22 +174,23 @@ class Lassi extends EventEmitter {
     }
 
     if (!shutdownRequested) {
-      shutdownRequested = true
+      shutdownRequested = true;
 
       try {
         log('processing shutdown');
-        // avant de lancer l'événement on met une limite pour les réponses à 2s
+        // Avant de lancer l'événement on met une limite pour les réponses à 2s
         setTimeout(function () {
           log('shutdown too slow, forced');
           thisIsTheEnd();
         }, 2000);
+
         /**
          * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
          * @event Lassi#shutdown
          */
         this.emit('shutdown');
 
-        // si on ferme la connexion à la base ici, les transactions en cours ne peuvent pas se terminer
+        // Si on ferme la connexion à la base ici, les transactions en cours ne peuvent pas se terminer
         // même sur un reload pm2, on laisse la connexion expirer…
         // var $entities = this.service && this.service('$entities')
         // if ($entities) {
@@ -197,7 +200,7 @@ class Lassi extends EventEmitter {
         //   })
         // }
 
-        // y'a des cas où this.service n'existe déjà plus !
+        // Dans certains cas, this.service n'existe déjà plus !
         var $server = this.service && this.service('$server');
         if ($server) {
           $server.stop(thisIsTheEnd);
@@ -237,34 +240,32 @@ module.exports = function(options) {
     return require.apply(this, arguments);
   }
 
-  // un écouteur pour tout ce qui pourrait passer au travers de la raquette
+  // Un écouteur pour tout ce qui pourrait passer au travers de la raquette
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
-  process.on('uncaughtException', function (error) {
-    // on envoie l'erreur en console mais on va pas planter node pour si peu
+  process.on('uncaughtException', (error) => {
+    // On envoie l'erreur en console
     console.error('uncaughtException : ', error.stack);
   })
 
-  // On ajoute nos écouteurs pour le shutdown
-  // visiblement beforeExit arrive jamais, et exit ne sert que sur les sorties "internes"
-  // via un process.exit() car sinon on reçoit normalement un SIG* avant
+  // On ajoute nos écouteurs pour le shutdown car visiblement beforeExit n'arrive jamais, et exit ne sert
+  // que sur les sorties "internes" via un process.exit() car sinon on reçoit normalement un SIG* avant
   if (!lassi.options.cli) {
-    _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], function (signal) {
-      process.on(signal, function () {
+    _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], (signal) => {
+      process.on(signal, () => {
         log('pid ' + process.pid + ' received signal ' + signal);
         lassi.shutdown();
       });
     })
   }
 
-  // le message 'shutdown' est envoyé par pm2 sur les gracefulReload
-  process.on('message', function (message) {
-    // on récupère bien la string 'shutdown' qui est affichée ici
+  // Le message 'shutdown' est envoyé par pm2 sur les gracefulReload
+  process.on('message', (message) => {
+    // On récupère bien la string 'shutdown' qui est affichée ici
     log('message #' +message +'# of pid ' +process.pid);
     if (message === 'shutdown') {
-      // mais on arrive jamais là, le process meurt visiblement avant
+      // Mais on n'arrive jamais là, le process meurt visiblement avant
       log('launching shutdown');
       lassi.shutdown();
     }
   });
 }
-
