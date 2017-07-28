@@ -90,30 +90,35 @@ module.exports = function($settings) {
     }, railConfig.session);
 
     railUse('maintenance', () => {
-      var maintenance;
-      if (_.get(lassi.settings, 'application.maintenance')) maintenance = lassi.settings.application.maintenance;
+      var maintenance = _.get(lassi.settings, 'application.maintenance');
       if (!maintenance || !maintenance.active) return;
 
+      // TODO: déplacer ce middleware dans un module/fichier séparé
       var serveStatic = require('serve-static');
-      _rail.use('*', (req, res, next) => {
-        if (!maintenance.static) {
+      var maintenanceMiddleware;
+      if (maintenance.static) {
+        const options = maintenance.static.index ? {index: maintenance.static.index} : {};
+        maintenanceMiddleware = serveStatic(maintenance.static.folder, options);
+      } else {
+        maintenanceMiddleware = (req, res, next) => {
           let message = maintenance.message || 'Site en maintenance, veuillez réessayer dans quelques instants';
           res.format({
-            'application/json': () => {
+            json: () => {
               res.status(503).json({
                 success: false,
                 error: message
               });
             },
-            'default': () => {
+            html: () => {
+              res.status(503).send(message);
+            },
+            default: () => {
               res.status(503).send(message);
             }
           });
-        } else {
-          let options = maintenance.static.index ? {index: maintenance.static.index} : {index: ['default.html', 'default.htm']};
-          serveStatic(maintenance.static.folder, options)(req, res, next);
-        }
-      });
+        };
+      }
+      _rail.use(maintenanceMiddleware);
     }, {});
 
     // Ajout du router principal
