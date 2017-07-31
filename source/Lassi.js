@@ -43,7 +43,7 @@ var shutdownRequested = false;
  * @extends Emitter
  */
 class Lassi extends EventEmitter {
-  constructor(options) {
+  constructor (options) {
     super();
     global.lassi = this;
 
@@ -88,34 +88,34 @@ class Lassi extends EventEmitter {
     this.defaultDependencies = _.keys(lassi.components);
   }
 
-  startup(component, cb) {
+  startup (component, cb) {
     var self = this;
     component.dependencies = this.defaultDependencies.concat(component.dependencies);
     flow()
     // Configuration des composants
-    .seq(function() {
+    .seq(function () {
       component.configure();
       this();
     })
     // Configuration des services
-    .seq(function() {
+    .seq(function () {
       var setupables = [];
       _.each(self.services.services(), (service, name) => {
         service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
-        if (!service) throw new Error(`Le service ` + name + ` n'a pu être résolu (il ne retourne probablement rien)`);
+        if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
         if (service.setup) {
           if (!self.options.cli) log('setting up', name.blue);
           setupables.push(service);
         }
       });
       flow(setupables)
-      .seqEach(function(service) {
+      .seqEach(function (service) {
         service.setup(this);
       })
       .done(this);
     })
     .empty()
-    .seq(function() {
+    .seq(function () {
       self.emit('startup');
       cb();
     })
@@ -127,10 +127,10 @@ class Lassi extends EventEmitter {
    * @param {Component} component Le composant
    * @private
    */
-  bootstrap(component, cb) {
+  bootstrap (component, cb) {
     var self = this;
     flow()
-    .seq(function() {
+    .seq(function () {
       self.startup(component, this);
     })
     .seq(function () {
@@ -138,7 +138,7 @@ class Lassi extends EventEmitter {
       var $server = self.service('$server');
       $server.start(this);
     })
-    .done(function(error) {
+    .done(function (error) {
       if (error) console.error(error.stack);
       if (cb) cb(error);
     });
@@ -149,16 +149,23 @@ class Lassi extends EventEmitter {
    * @param {String} name           Le nom du component
    * @param {array}  [dependencies] Une liste de composant en dépendance
    */
-  component(name, dependencies) {
+  component (name, dependencies) {
     var component = this.components[name] = new Component(name, dependencies);
     return component;
   }
 
-  service(name) {
+  /**
+   * Enregistre un {@link Service} dans le système.
+   * @param {String} name           Le nom du component
+   */
+  service (name) {
     return this.services.resolve(name);
   }
 
-  allServices() {
+  /**
+   * Liste tous les services enregistrés
+   */
+  allServices () {
     return this.services.services();
   }
 
@@ -167,8 +174,8 @@ class Lassi extends EventEmitter {
    * @private
    * @fires Lassi#shutdown
    */
-  shutdown() {
-    function thisIsTheEnd() {
+  shutdown () {
+    function thisIsTheEnd () {
       log('shutdown completed');
       process.exit();
     }
@@ -223,7 +230,7 @@ class Lassi extends EventEmitter {
  */
 Lassi.prototype.log = require('an-log')('lassi.log est DEPRECATED, fait ton propre `var log=require("an-log")("MonModule")` :-)');
 
-module.exports = function(options) {
+module.exports = function (options) {
   if (typeof options=='string') {
     options = {
       root: options
@@ -236,7 +243,7 @@ module.exports = function(options) {
   }
   new Lassi(options);
   lassi.Context = require('./Context');
-  lassi.require = function() {
+  lassi.require = function () {
     return require.apply(this, arguments);
   }
 
