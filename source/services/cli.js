@@ -10,23 +10,13 @@ log.error = (...args) => anLog.error('cli', ...args);
  * Une seule fonction sans argument qui exécutera la commande en argument du script courant
  * @service $cli
  */
-module.exports = function() {
-  const cliRunner = process.argv[1];
-  const args = minimist(process.argv.slice(2), {boolean: ['debug', 'h', 'help', 'l', 'list', 'v', 'verbose']});
-  const commandName = args._[0];
-  const commandArgs = commandName && args._.slice(1) || [];
-  const helpAsked = args.h || args.help;
-  const listAsked = args.l || args.list;
-  const debug = args.debug;
-  const verbose = debug || args.v || args.verbose;
-  const commands = {};
-
+module.exports = function () {
   /**
    * Affiche la syntaxe cli et sort si errorCode est fourni
    * @methodOf $cli
    * @param {Integer} [errorCode]
    */
-  function usage(errorCode) {
+  function usage (errorCode) {
     log(`
 Syntaxe :\n  ${cliRunner} [options] command […args]
 Options :
@@ -42,7 +32,7 @@ Options :
    * @methodOf $cli
    * @param {...*} args Les arguments à passer à log (à volonté)
    */
-  function printInfo(...args) {
+  function printInfo (...args) {
     if (verbose) log(...args);
   }
 
@@ -51,23 +41,33 @@ Options :
    * @methodOf $cli
    * @param {string|Error} error
    */
-  function printError(error) {
+  function printError (error) {
     log.error('Une erreur est survenue à l’exécution de ' + commandName);
     if (debug) log.error(error);
     else if (error.message) log.error(error.message);
     else log.error(error);
   }
 
-  function printAllCommands() {
+  function printAllCommands () {
     log('Liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '));
   }
+
+  const cliRunner = process.argv[1]
+  const args = minimist(process.argv.slice(2), {boolean: ['debug', 'h', 'help', 'l', 'list', 'v', 'verbose']})
+  const commandName = args._[0]
+  const commandArgs = commandName && args._.slice(1) || []
+  const helpAsked = args.h || args.help
+  const listAsked = args.l || args.list
+  const debug = args.debug
+  const verbose = debug || args.v || args.verbose
+  const commands = {}
 
   /**
    * Lance la commande et sort
    * @memberOf $cli
    */
-  function run() {
-    function exit(error, result) {
+  function run () {
+    function exit (error, result) {
       if (error) printError(error);
       if (result) log(`Retour de la commande ${commandName}\n`, result);
       else printInfo('Fin ' + commandName);
