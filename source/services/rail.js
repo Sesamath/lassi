@@ -1,3 +1,4 @@
+const fs = require('fs');
 const _ = require('lodash');
 
 "use strict";
@@ -91,12 +92,21 @@ module.exports = function($settings) {
 
     railUse('maintenance', () => {
       var maintenance = _.get(lassi.settings, 'application.maintenance');
-      if (!maintenance || !maintenance.active) return;
+      if (!maintenance) return;
+
+      let lockFile = maintenance.lockFile;
+      if (!lockFile) throw new Error(`lockFile manquant dans les settings d'application.maintenance`);
+
+      let isActive = maintenance.active;
+      let maintenanceFileExists = fs.existsSync(lockFile);
+      // Par défaut, on privilégie les settings
+      if (!isActive && (typeof isActive !== 'undefined' || !maintenanceFileExists)) return;
 
       // TODO: déplacer ce middleware dans un module/fichier séparé
       var serveStatic = require('serve-static');
       var maintenanceMiddleware;
       if (maintenance.static) {
+        if (!maintenance.static.folder) throw new Error(`folder manquant dans les settings d'application.maintenance.static`);
         const options = maintenance.static.index ? {index: maintenance.static.index} : {};
         maintenanceMiddleware = serveStatic(maintenance.static.folder, options);
       } else {
@@ -137,5 +147,4 @@ module.exports = function($settings) {
      */
     get : function() { return _rail; }
   }
-
 }

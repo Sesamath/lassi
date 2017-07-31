@@ -73,6 +73,7 @@ class Lassi extends EventEmitter {
     if (lassi.options.cli) {
       lassiComponent.service('$cli', require('./services/cli'))
       lassiComponent.service('$entities-cli', require('./services/entities-cli'))
+      lassiComponent.service('$maintenance-cli', require('./services/maintenance-cli'))
     } else {
       lassiComponent.service('$rail', require('./services/rail'))
       lassiComponent.service('$server', require('./services/server'));
