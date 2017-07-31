@@ -15,8 +15,8 @@ const defaultLimit = 100;
  * @param options
  * @param done
  */
-function grab(query, limit, eachCb, options, done) {
-  function nextGrab() {
+function grab (query, limit, eachCb, options, done) {
+  function nextGrab () {
     let nb;
     flow()
     .seq(function() {
@@ -53,7 +53,7 @@ function grab(query, limit, eachCb, options, done) {
  * @param {string} wheres un objet json (cf help pour la syntaxe)
  * @return {EntityQuery}
  */
-function addConditions(Entity, wheres) {
+function addConditions (Entity, wheres) {
   let query = Entity;
   if (wheres) {
     const filters = parse(wheres);
@@ -92,7 +92,7 @@ function addConditions(Entity, wheres) {
  * Parse une string json et retourne le résultat ou undefined si le parsing a planté
  * @param {string} json
  */
-function parse(json) {
+function parse (json) {
   try {
     const retour = JSON.parse(json);
     return retour;
@@ -109,7 +109,7 @@ function parse(json) {
  * @param {string} entityName
  * @param {errorCallback} done
  */
-function reindexAll(entityName, done) {
+function reindexAll (entityName, done) {
   log = (...args) => anLog('entities-cli reindexAll', ...args);
   if (typeof done !== 'function') {
     const error = new Error('Reindex prend le nom de l’entity en premier argument et une callback en 2e');
@@ -136,7 +136,7 @@ function reindexAll(entityName, done) {
     }
   })
 }
-reindexAll.help = function reindexAllHelp() {
+reindexAll.help = function reindexAllHelp () {
   log = (...args) => anLog('entities-cli reindexAll', ...args);
   log('La commande reindexAll prend en seul argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)');
 }
@@ -149,14 +149,14 @@ reindexAll.help = function reindexAllHelp() {
  * @param {string} [options=''] Liste de conditions (array en json)
  * @param {errorCallback} done
  */
-function select(entityName, fields, wheres, options, done) {
+function select (entityName, fields, wheres, options, done) {
   /**
    * Affiche une entité
    * @private
    * @param entity
    * @param next
    */
-  function printOne(entity, next) {
+  function printOne (entity, next) {
     if (fields) {
       // en ligne
       log(fieldList.reduce((acc, field) => acc + entity[field] + '\t| ', ''));
@@ -229,7 +229,7 @@ function select(entityName, fields, wheres, options, done) {
       { groupCb },
       done
     );
-  } catch(error) {
+  } catch (error) {
     done(error);
   }
 }
@@ -253,7 +253,7 @@ La commande select demande 1 à 3 arguments :
  * @param {string} [wheres] Liste de conditions (array en json)
  * @param {errorCallback} done
  */
-function count(entityName, wheres, done) {
+function count (entityName, wheres, done) {
   log = (...args) => anLog('entities-cli count', ...args);
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande');
   if (arguments.length === 1) {
@@ -274,7 +274,7 @@ function count(entityName, wheres, done) {
     let Entity;
     try {
       Entity = lassi.service(entityName);
-    } catch(error) {
+    } catch (error) {
       return done(new Error(`Aucune entity nommée ${entityName} (utiliser la commande "allServices" pour voir services et entités)`));
     }
     addConditions(Entity, wheres).count((error, nb) => {
@@ -282,11 +282,11 @@ function count(entityName, wheres, done) {
       log(`${nb} entités ${entityName} répondent aux conditions`);
       return done();
     });
-  } catch(error) {
+  } catch (error) {
     done(error);
   }
 }
-count.help = function countHelp() {
+count.help = function countHelp () {
   log = (...args) => anLog('entities-cli count', 'usage', ...args);
   log(`
 La commande count demande 1 ou 2 arguments :
