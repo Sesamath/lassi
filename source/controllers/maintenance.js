@@ -42,28 +42,26 @@ module.exports = function maintenanceController (maintenanceConfig) {
   }
 
   const message = maintenanceConfig.message || 'Site en maintenance, veuillez réessayer dans quelques instants';
-  let htmlResponse
+  let htmlResponse = `<html><body><p>${message}</p></body></html>`;
   if (maintenanceConfig.htmlPage) htmlResponse = fs.readFileSync(maintenanceConfig.htmlPage);
-  if (!htmlResponse) htmlResponse = `<html><body><p>${message}</p></body></html>`;
-
-  // @see http://expressjs.com/en/4x/api.html#res.format
-  const responses = {
-    json: () => {
-      res.status(503).json({
-        success: false,
-        error: message
-      });
-    },
-    html: () => {
-      res.status(503).send(htmlResponse);
-    },
-    default: () => {
-      res.status(503).send(message);
-    }
-  }
 
   return function maintenanceMiddleware (req, res, next) {
-    res.format(responses);
+    // @see http://expressjs.com/en/4x/api.html#res.format
+    res.format({
+      json: () => {
+        res.status(503).json({
+          success: false,
+          error: message
+        });
+      },
+      html: () => {
+        res.status(503).send(htmlResponse);
+      },
+      default: () => {
+        res.status(503).send(message);
+      }
+    });
+
     next();
   };
 }
