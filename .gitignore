@@ -2,3 +2,4 @@ node_modules
 .idea
 documentation
 yarn.lock
+package.local-extras.json
