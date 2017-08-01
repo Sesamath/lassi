@@ -20,10 +20,10 @@ module.exports = function ($settings) {
    * @param {*} settings sera passé à middlewareGenerator
    * @param {function} middlewareGenerator sera appelé avec settings et devra renvoyer le middleware à ajouter
    */
-  function railUse (name, settings, callback) {
+  function railUse (name, settings, middlewareGenerator) {
     if (!settings) settings = {};
-    if (!callback) throw new Error(`middleware ${name} sans callback`);
-    settings.mountPoint = settings.mountPoint || '/';
+    if (!middlewareGenerator) throw new Error(`middleware ${name} sans callback`);
+    const mountPoint = settings.mountPoint || '/';
 
     /**
      * Évènement déclenché avant chargement d'un middleware.
@@ -50,10 +50,12 @@ module.exports = function ($settings) {
 
   /**
    * Retourne un booléen permettant de savoir si le mode maintenance est activé
-   * @param  {Object} maintenanceConfig
-   * @description Les réglages qui seront appliqués au middleware :
-   *              - active : booléen prioritaire indiquant su le mode maintenance est activé
-   *              - lockFile : chemin du lockFile si le mode maintenance est activé
+   * @param {Object} maintenanceConfig             Les réglages qui seront appliqués au middleware :
+   * @param {boolean} maintenanceConfig.active     booléen indiquant s'il faut activer le mode maintenance (prioritaire sur le lockFile)
+   * @param {string} maintenanceConfig.lockFile    chemin du fichier indiquant si le mode maintenance est activé
+   * @param {string} [maintenanceConfig.message]   message de maintenance à afficher
+   * @param {string} [maintenanceConfig.htmlPage]  chemin relatif à la racine d'une page html à afficher
+   * @param {string} [maintenanceConfig.staticDir] chemin relatif à la racine indiquant des éléments statiques pour htmlPage
    * @return {Boolean} Indique si le mode maintenance est activé
    */
   function isMaintenance (maintenanceConfig) {
@@ -81,44 +83,35 @@ module.exports = function ($settings) {
    * @private
    */
   function setup (next) {
-    var railConfig = $settings.get('$rail');
+    const railConfig = $settings.get('$rail');
 
-    railUse('compression', railConfig.compression, () => {
-      return require('compression')();
-    });
+    // compression
+    railUse('compression', railConfig.compression, require('compression'));
 
-    // Gestion des sessions
-    railUse('cookie', railConfig.cookie, (settings) => {
-      return require('cookie-parser')(settings.key)
-    });
+    // cookie
+    const sessionKey = $settings.get('$rail.cookie.key')
+    if (!sessionKey) throw new Error('config.$rail.cookie.key manquant')
+    railUse('cookie', sessionKey, require('cookie-parser'));
 
-    var bodyParser = require('body-parser');
-    var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    railUse('body-parser',
-      railConfig.bodyParser || {
-        limit: '100mb',
-        reviver: function (key, value) {
-          if (typeof value === 'string') {
-            if (dateRegExp.exec(value)) {
-              return new Date(value);
-            }
-          }
-          return value;
-        }
-      },
-      (settings) => {
-        return bodyParser(settings);
-      }
-    );
+    // bodyParser
+    const bodyParser = require('body-parser');
+    const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+    const bodyParserSettings = railConfig.bodyParser || {
+      limit: '100mb',
+      reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
+    }
+    railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
 
+    // session
     railUse('session', railConfig.session, (settings) => {
-      var session = require('express-session');
-      var SessionStore = require('../SessionStore');
+      const session = require('express-session');
+      const SessionStore = require('../SessionStore');
       settings.store = new SessionStore();
       return session(settings);
     });
 
-    const maintenanceConfig = _.get(lassi.settings, 'application.maintenance');
+    // maintenance ou controleurs "normaux"
+    const maintenanceConfig = $settings.get('application.maintenance');
     if (isMaintenance(maintenanceConfig)) {
       maintenanceConfig.app = _rail;
       railUse('maintenance', maintenanceConfig, require('../controllers/maintenance'));
