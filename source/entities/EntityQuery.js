@@ -25,6 +25,9 @@ var _    = require('lodash');
 var log  = require('an-log')('$entities');
 var flow = require('an-flow');
 
+// une limite hard pour grab
+const hardLimit = 1000
+
 class EntityQuery {
   /**
    * Construction d'une requête sur entité.
@@ -388,7 +391,7 @@ class EntityQuery {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
     if (_.isFunction(options)) {
       callback = options
-      options = undefined;
+      options = {};
     }
     if (typeof options == 'number') {
       options = {limit : options}
@@ -396,8 +399,11 @@ class EntityQuery {
     options = options || {};
     var self = this;
     var record = {query: {}, options: {}};
-    if (typeof options.offset !== 'undefined') record.options.skip = options.offset;
-    if (typeof options.limit !== 'undefined') record.options.limit = options.limit;
+    // on accepte offset ou skip
+    const skip = options.offset || options.skip
+    if (skip > 0) record.options.skip = skip;
+    if (options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
+    else record.options.limit = hardLimit
 
     var db = this.entity.entities.connection;
     var collection = db.collection(this.entity.name);
