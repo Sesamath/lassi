@@ -11,7 +11,7 @@ let log = (...args) => anLog('maintenance-cli', ...args);
  * @param {string       } mode String pour activer ou non le mode maintenance
  * @param {errorCallback} done
  */
-function setMaintenance(mode, done) {
+function setMaintenance (mode, done) {
   log = (...args) => anLog('maintenance-cli setMaintenance', ...args);
   if (arguments.length === 1) throw new Error(`Vous devez passer un argument à cette commande`);
   mode = mode.toLowerCase();
@@ -24,7 +24,7 @@ function setMaintenance(mode, done) {
   let lockFile = maintenance.lockFile;
   if (!lockFile) throw new Error(`lockFile manquant dans les settings d'application.maintenance`);
 
-  // On crée le lockFile s'il n'existe pas
+  // On crée le lockFile
   if (mode === 'on') {
     fs.writeFile(lockFile, '', (error) => {
       if (error) return done(error);
@@ -34,7 +34,7 @@ function setMaintenance(mode, done) {
     });
   }
 
-  // On supprime le lockFile s'il existe
+  // On supprime le lockFile
   if (mode === 'off') {
     fs.unlink(lockFile, (error) => {
       if (error) return done(error);
@@ -44,7 +44,7 @@ function setMaintenance(mode, done) {
     });
   }
 }
-setMaintenance.help = function setMaintenanceHelp() {
+setMaintenance.help = function setMaintenanceHelp () {
   log = (...args) => anLog('maintenance-cli setMaintenance', 'usage', ...args);
   log(`
 La commande setMaintenance demande un seul argument : on ou off pour savoir

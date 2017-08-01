@@ -1,24 +1,28 @@
-const fs = require('fs');
-const _ = require('lodash');
+'use strict';
 
-"use strict";
+const fs = require('fs');
+const log = require('an-log')('$rail');
 
 /**
  * Service de gestion des middlewares
  * @namespace $rail
  */
-module.exports = function($settings) {
-  var express = require('express');
-  var _rail = express();
+module.exports = function ($settings) {
+  const express = require('express');
+  const _rail = express();
 
   /**
-   * Wrapper permettant d'enregistrer un middleware sur le rail Express.
+   * Enregistrer un middleware sur le rail Express avec lancement des events beforeRailUse et afterRailUse
    * @fires Lassi#beforeRailUse
    * @fires Lassi#afterRailUse
    * @private
+   * @param {string} name Nom du middleware à ajouter sur le rail
+   * @param {*} settings sera passé à middlewareGenerator
+   * @param {function} middlewareGenerator sera appelé avec settings et devra renvoyer le middleware à ajouter
    */
-  function railUse(name, callback, settings) {
-    if (!settings) return;
+  function railUse (name, settings, callback) {
+    if (!settings) settings = {};
+    if (!callback) throw new Error(`middleware ${name} sans callback`);
     settings.mountPoint = settings.mountPoint || '/';
 
     /**
@@ -26,50 +30,71 @@ module.exports = function($settings) {
      * @event Lassi#beforeRailUse
      * @param {Express}  rail express
      * @param {String}  name Le nom du middleware.
-     * @param {Object} settings Les réglages qui seront appliqués au middleware
+     * @param {Object} settings Les réglages qui seront passés au créateur du middleware
      */
     lassi.emit('beforeRailUse', _rail, name, settings);
 
-    var middleware = callback(settings);
+    const middleware = middlewareGenerator(settings);
     if (!middleware) return;
-    _rail.use(settings.mountPoint, middleware);
+    _rail.use(mountPoint, middleware);
 
     /**
      * Évènement déclenché après chargement d'un middleware.
      * @event Lassi#afterRailUse
      * @param {Express}  rail express
      * @param {String}  name Le nom du middleware.
-     * @param {Object} settings Les réglages qui ont été appliqués au middleware
+     * @param {Object} settings Les réglages qui ont été passés au créateur du middleware
      */
     lassi.emit('afterRailUse', _rail, name, settings, middleware);
+  }
+
+  /**
+   * Retourne un booléen permettant de savoir si le mode maintenance est activé
+   * @param  {Object} maintenanceConfig
+   * @description Les réglages qui seront appliqués au middleware :
+   *              - active : booléen prioritaire indiquant su le mode maintenance est activé
+   *              - lockFile : chemin du lockFile si le mode maintenance est activé
+   * @return {Boolean} Indique si le mode maintenance est activé
+   */
+  function isMaintenance (maintenanceConfig) {
+    if (!maintenanceConfig) return false;
+
+    let isActive = maintenanceConfig.active;
+    // Par défaut, on privilégie les settings
+    if (typeof isActive === 'boolean') return isActive;
+
+    let lockFile = maintenanceConfig.lockFile;
+    if (!lockFile) {
+      log.error('lockFile manquant dans config.application.maintenance');
+      return false;
+    }
+
+    return fs.existsSync(lockFile);
   }
 
   /**
    * Initialisation du service utilisé par lassi lors
    * de la configuration du composant parent.
    *
-   * @param callback next callback de retour
+   * @param {function} next callback de retour
    * @memberof $rail
    * @private
    */
-  function setup(next) {
+  function setup (next) {
     var railConfig = $settings.get('$rail');
 
-    railUse('compression', function() {
+    railUse('compression', railConfig.compression, () => {
       return require('compression')();
-    }, railConfig.compression);
+    });
 
     // Gestion des sessions
-    railUse('cookie', function(settings) {
+    railUse('cookie', railConfig.cookie, (settings) => {
       return require('cookie-parser')(settings.key)
-    }, railConfig.cookie);
+    });
 
     var bodyParser = require('body-parser');
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
     railUse('body-parser',
-      function(settings) {
-        return bodyParser(settings);
-      },
       railConfig.bodyParser || {
         limit: '100mb',
         reviver: function (key, value) {
@@ -80,71 +105,41 @@ module.exports = function($settings) {
           }
           return value;
         }
+      },
+      (settings) => {
+        return bodyParser(settings);
       }
     );
 
-    railUse('session', (settings) => {
+    railUse('session', railConfig.session, (settings) => {
       var session = require('express-session');
       var SessionStore = require('../SessionStore');
       settings.store = new SessionStore();
       return session(settings);
-    }, railConfig.session);
+    });
 
-    railUse('maintenance', () => {
-      var maintenance = _.get(lassi.settings, 'application.maintenance');
-      if (!maintenance) return;
+    const maintenanceConfig = _.get(lassi.settings, 'application.maintenance');
+    if (isMaintenance(maintenanceConfig)) {
+      maintenanceConfig.app = _rail;
+      railUse('maintenance', maintenanceConfig, require('../controllers/maintenance'));
+    } else {
+      const Controllers = require('../controllers');
+      const controllers = new Controllers(this);
+      railUse('controllers', {}, () => controllers.middleware());
+    }
 
-      let lockFile = maintenance.lockFile;
-      if (!lockFile) throw new Error(`lockFile manquant dans les settings d'application.maintenance`);
-
-      let isActive = maintenance.active;
-      let maintenanceFileExists = fs.existsSync(lockFile);
-      // Par défaut, on privilégie les settings
-      if (!isActive && (typeof isActive !== 'undefined' || !maintenanceFileExists)) return;
-
-      // TODO: déplacer ce middleware dans un module/fichier séparé
-      var serveStatic = require('serve-static');
-      var maintenanceMiddleware;
-      if (maintenance.static) {
-        if (!maintenance.static.folder) throw new Error(`folder manquant dans les settings d'application.maintenance.static`);
-        const options = maintenance.static.index ? {index: maintenance.static.index} : {};
-        maintenanceMiddleware = serveStatic(maintenance.static.folder, options);
-      } else {
-        maintenanceMiddleware = (req, res, next) => {
-          let message = maintenance.message || 'Site en maintenance, veuillez réessayer dans quelques instants';
-          res.format({
-            json: () => {
-              res.status(503).json({
-                success: false,
-                error: message
-              });
-            },
-            html: () => {
-              res.status(503).send(message);
-            },
-            default: () => {
-              res.status(503).send(message);
-            }
-          });
-        };
-      }
-      _rail.use(maintenanceMiddleware);
-    }, {});
-
-    // Ajout du router principal
-    var Controllers = require('../Controllers');
-    var controllers = new Controllers(this);
-    railUse('controllers', () => { return controllers.middleware() }, {});
     next();
   }
 
   return {
-    setup: setup,
+    setup,
     /**
      * Renvoie la liste des middlewares en cours;
      * @return {Express} expres
      * @memberof $rail
      */
-    get : function() { return _rail; }
+    get : function () {
+      return _rail;
+    }
   }
 }
