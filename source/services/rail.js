@@ -75,12 +75,9 @@ module.exports = function ($settings) {
   }
 
   /**
-   * Initialisation du service utilisé par lassi lors
-   * de la configuration du composant parent.
-   *
+   * Initialisation du service utilisé par lassi lors de la configuration du composant parent.
    * @param {function} next callback de retour
    * @memberof $rail
-   * @private
    */
   function setup (next) {
     const railConfig = $settings.get('$rail');
@@ -127,12 +124,10 @@ module.exports = function ($settings) {
   return {
     setup,
     /**
-     * Renvoie la liste des middlewares en cours;
-     * @return {Express} expres
+     * Renvoie le rail express (idem `require('express')()`) avec les middlewares en cours
+     * @return {Express} express
      * @memberof $rail
      */
-    get : function () {
-      return _rail;
-    }
+    get : () => _rail
   }
 }
