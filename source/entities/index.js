@@ -78,11 +78,7 @@ class Entities extends EventEmitter {
     if (!options.poolSize) options.poolSize = defaultPoolSize
     // construction de l'url de connexion
     let url = 'mongodb://'
-    if (user) {
-      url += encodeURIComponent(user)
-      if (password) url += ':' + encodeURIComponent(password)
-      url += '@'
-    }
+    if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
     url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
     if (authSource) url += `&authSource=${authSource}`
     // on peut connecter
