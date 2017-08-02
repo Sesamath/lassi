@@ -34,7 +34,7 @@ var log        = require('an-log')('lassi-components');
  * @param {array} dependencies Dépendances
  */
 class Component {
-  constructor(name, dependencies) {
+  constructor (name, dependencies) {
     this.name         = name;
     this.controllers  = [];
     this.dependencies = dependencies;
@@ -49,7 +49,7 @@ class Component {
    * @param {Function} fn le configurateur.
    * @return {Component} chaînable
    */
-  config(fn) {
+  config (fn) {
     this.userConfig.push(fn);
     return this;
   }
@@ -57,7 +57,7 @@ class Component {
   /**
    * Configuration du composant
    */
-  configure() {
+  configure () {
 
     // Si on est déjà configuré, on repart
     if (this.configured) return;
@@ -70,18 +70,16 @@ class Component {
     _.each(self.services, function(service, name) {
       lassi.services.register(name, service);
     });
-    _.each(self.entities, function(entity, name) {
-      var cons = (function(name, entity) {
-        return function($entities) {
+    _.each(self.entities, function (entity, name) {
+      // on est dans un each, faut une iife pour préserver le (entity, name) courant
+      const serviceConstructor = (function (name, entity) {
+        return function ($entities) {
           var def = $entities.define(name);
           lassi.services.parseInjections(entity, def);
-          def.setup = function(cb) {
-            $entities.initializeEntity(def, cb);
-          }
           return def;
         }
       })(name, entity);
-      lassi.services.register(name, cons);
+      lassi.services.register(name, serviceConstructor);
     });
     if (!lassi.options.cli) {
       _.each(self.controllers, function(fn, name) {
@@ -106,7 +104,7 @@ class Component {
    * @param {function} fn La fonction du controleur.
    * @return {Component} chaînable
    */
-  controller(path, fn) {
+  controller (path, fn) {
     if (typeof path === 'function') {
       fn = path;
       path = undefined;
@@ -122,7 +120,7 @@ class Component {
    * @param {Function} fn La fonction de l'entité
    * @return {Component} chaînable
    */
-  entity(name, fn) {
+  entity (name, fn) {
     this.entities[name] = fn;
     return this;
   }
@@ -133,7 +131,7 @@ class Component {
    * @param function name Le service (paramètres injectables).
    * @return Lassi chaînable
    */
-  service(name, fn) {
+  service (name, fn) {
     this.services[name] = fn;
     return this;
   }
@@ -142,7 +140,7 @@ class Component {
    * Démarre l'application.
    * @fires Lassi#bootstrap
    */
-  bootstrap() {
+  bootstrap () {
     lassi.bootstrap(this);
   }
 }

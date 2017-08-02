@@ -405,8 +405,7 @@ class EntityQuery {
     if (options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
     else record.options.limit = hardLimit
 
-    var db = this.entity.entities.connection;
-    var collection = db.collection(this.entity.name);
+    var collection = this.entity.entities.db.collection(this.entity.name);
     flow()
     .seq(function() {
       self.buildQuery(record);
@@ -454,8 +453,7 @@ class EntityQuery {
    * @param {EntityQuery~CountCallback} callback
    */
   count(callback) {
-    var db = this.entity.entities.connection;
-    var collection = db.collection(this.entity.name);
+    var collection = this.entity.entities.db.collection(this.entity.name);
     var self = this;
     var record = {query: {}, options: {}};
 

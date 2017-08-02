@@ -46,22 +46,6 @@ class Entity {
     return !this.oid;
   }
 
-  getNextSequence(cb) {
-    var self = this;
-    flow()
-    .seq(function() {
-      self.db().collection('counters').findAndModify(
-        { _id: self.definition.name },
-        [],
-        { $inc: { seq: 1 } },
-        { upsert: true, new: true }, this);
-    })
-    .seq(function(seq) {
-      cb(null, seq.value.seq);
-    })
-    .catch(cb);
-  }
-
   buildIndexes() {
     function cast(fieldType, value) {
       switch (fieldType) {
@@ -89,7 +73,7 @@ class Entity {
   }
 
   db() {
-    return this.definition.entities.connection;
+    return this.definition.entities.db;
   }
   /**
    * Stockage d'une instance d'entité.
@@ -143,11 +127,11 @@ class Entity {
   restore(callback) {
     var self = this;
     var entity = this.definition;
-    
+
     flow()
     .seq(function() {
       if (!self.oid) return this('Impossible de restorer une entité sans oid');
-      entity.entities.connection.collection(entity.name).update({
+      entity.entities.db.collection(entity.name).update({
         _id: self.oid
       },{
         $unset: {__deletedAt: ''}
@@ -170,9 +154,9 @@ class Entity {
     flow()
     .seq(function() {
       if (!self.oid) return this();
-      entity.entities.connection.collection(entity.name).update({
+      entity.entities.db.collection(entity.name).update({
         _id: self.oid
-      }, { 
+      }, {
         $set: {__deletedAt: new Date() }
       }, this);
     })
@@ -193,7 +177,7 @@ class Entity {
     })
     .seq(function() {
       if (!self.oid) return this();
-      entity.entities.connection.collection(entity.name).remove({
+      entity.entities.db.collection(entity.name).remove({
         _id: self.oid
       },{w : 1}, this);
     })
