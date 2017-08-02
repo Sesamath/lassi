@@ -130,8 +130,7 @@ describe('$entities', function () {
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
     TestEntity.defineIndex('dArray', 'date')
-
-    entities.initializeEntity(TestEntity, done)
+    done()
   })
 
   it(`Ajout de ${count} données dans l'entité`, function (done) {
