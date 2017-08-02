@@ -12,7 +12,7 @@ const defaultDbSettings = {
   host : 'localhost',
   port: 27017,
   user: 'mocha',
-  pass: 'mocha',
+  password: 'mocha',
   authMechanism: 'DEFAULT',
   authSource: '',
   options: {

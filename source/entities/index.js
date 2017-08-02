@@ -80,7 +80,7 @@ class Entities extends EventEmitter {
     let url = 'mongodb://'
     if (user) {
       url += encodeURIComponent(user)
-      if (password) url += encodeURIComponent(password)
+      if (password) url += ':' + encodeURIComponent(password)
       url += '@'
     }
     url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
