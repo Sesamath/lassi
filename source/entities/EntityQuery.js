@@ -413,8 +413,11 @@ class EntityQuery {
     // on accepte offset ou skip
     const skip = options.offset || options.skip
     if (skip > 0) record.options.skip = skip;
-    if (options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
-    else record.options.limit = hardLimit
+    if (options.limit && options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
+    else {
+      record.options.limit = hardLimit
+      log(`Attention, hardLimit de lassi atteinte`)
+    }
 
     var collection = this.entity.entities.db.collection(this.entity.name);
     flow()
