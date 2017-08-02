@@ -22,13 +22,14 @@
  */
 "use strict";
 
-var _                = require('lodash');
-var flow             = require('an-flow');
-var EntityDefinition = require('./EntityDefinition');
-var EventEmitter     = require('events').EventEmitter
-var Server           = require('mongodb').Server;
-var Db               = require('mongodb').Db;
-var log              = require('an-log')('Entities');
+const _                = require('lodash');
+const flow             = require('an-flow');
+const EntityDefinition = require('./EntityDefinition');
+const EventEmitter     = require('events').EventEmitter
+const MongoClient = require('mongodb').MongoClient
+const log              = require('an-log')('Entities');
+
+const defaultPoolSize = 10
 
 class Entities extends EventEmitter {
   /**
@@ -39,7 +40,7 @@ class Entities extends EventEmitter {
    * @namespace
    * @param {Object} settings
    */
-  constructor(settings) {
+  constructor (settings) {
     super();
     this.entities = {}
     this.settings = settings;
@@ -51,68 +52,53 @@ class Entities extends EventEmitter {
    * l'exploration des composants.
    * @param {Entity} entity le module
    */
-  define(name) {
-    var def = new EntityDefinition(name);
+  define (name) {
+    const def = new EntityDefinition(name);
     def.bless(this);
     return this.entities[name] = def;
   }
 
-  definitions() {
+  definitions () {
     return this.entities;
-  }
-
-  /**
-   * Initialisation du stockage en base de données pour une entité.
-   *
-   * @param {Entity} entity L'entité
-   * @param {SimpleCallback} cb callback de retour
-   * @private
-   */
-  initializeEntity(entity, cb) {
-    var self = this;
-    flow()
-    .seq(function() {
-      self.connection.collection('counters').findOne({_id: entity.name}, this)
-    })
-    .seq(function(seq) {
-      if (!seq) {
-        self.connection.collection('counters').save({_id: entity.name, seq: 0}, this)
-      } else {
-        this();
-      }
-    })
-    .done(cb);
   }
 
   /**
    * Initialisation de l'espace de stockage
    * @param {SimpleCallback} cb
    */
-  initialize(cb) {
-    var settings = this.settings.database;
-    var self = this;
-    flow()
-    .seq(function() {
-      var server = new Server(settings.host, settings.port, {
-        'auto_reconnect': settings.autoReconnect || true,
-        poolSize        : settings.poolSize || 4
-      });
-      self.connection = new Db(settings.name, server , { w:0, 'native_parser': false });
-      self.connection.open(this);
+  initialize (cb) {
+    const settings = this.settings.database;
+    const self = this;
+    const {name, host, port, user, password, authSource} = settings
+    const authMechanism = settings.authMechanism || 'DEFAULT'
+    // cf http://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect pour les options possibles
+    const options = settings.options || {}
+    // pour compatibilité ascendante, poolSize était mis directement dans les settings
+    if (settings.poolSize) options.poolSize = settings.poolSize
+    if (!options.poolSize) options.poolSize = defaultPoolSize
+    // construction de l'url de connexion
+    let url = 'mongodb://'
+    if (user) {
+      url += encodeURIComponent(user)
+      if (password) url += encodeURIComponent(password)
+      url += '@'
+    }
+    url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
+    if (authSource) url += `&authSource=${authSource}`
+    // on peut connecter
+    MongoClient.connect(url, options, function (error, db) {
+      if (error) return cb(error)
+      self.db = db
+      cb()
     })
-    .seq(function(connection) {
-      if (!settings.user) return this();
-      self.connection.authenticate(settings.user, settings.password, this);
-    })
-    .done(cb);
   }
 
-
   /**
+   * Vire les index
    * @deprecated
    */
-  dropIndexes(next) {
-    log('dropIndexes déprécié');
+  dropIndexes (next) {
+    log.error('dropIndexes is deprecated');
     next();
   }
 
@@ -122,32 +108,25 @@ class Entities extends EventEmitter {
    * @param {SimpleCallback} next callback de retour
    * @private
    */
-  rebuildEntityIndexes(entity, next) {
-    flow()
-    .seq(function() {
+  rebuildEntityIndexes (entity, next) {
+    flow().seq(function() {
       entity.match().grab(this);
-    })
-    .seqEach(function(object) {
+    }).seqEach(function(object) {
       object.store(this);
-    })
-    .done(next)
+    }).done(next)
   }
 
   /**
    * Reconstruction des indexes.
-   *
    * Cette méthode est appelée par les commandes `lassi entities-XXX`
-   *
    * @param {SimpleCallback} next callback de retour.
    */
-  rebuildIndexes(next) {
-    var self = this
-
-    flow(_.values(this.entities))
-      .seqEach(function(entity) { self.rebuildEntityIndexes(entity, this) })
-      .seq(function() { next() })
+  rebuildIndexes (next) {
+    const self = this
+    flow(_.values(this.entities)).seqEach(function(entity) {
+      self.rebuildEntityIndexes(entity, this)
+    }).done(next)
   }
-
 }
 
 module.exports = Entities;
