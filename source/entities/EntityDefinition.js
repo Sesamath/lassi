@@ -108,7 +108,10 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush(cb) {
-    this.entities.db.collection(this.name).drop(cb);
+    const collection = this.entities.db.collection(this.name)
+    // si la collection n'existe pas, ça renvoie MongoError: ns not found
+    if (collection) collection.drop(cb);
+    else cb()
   }
 
   /**
