@@ -22,11 +22,14 @@
  */
 "use strict";
 
-var _                = require('lodash');
-var flow             = require('an-flow');
-var EntityDefinition = require('./EntityDefinition');
-var EventEmitter     = require('events').EventEmitter
-var mysql            = require('mysql2');
+const _                = require('lodash');
+const flow             = require('an-flow');
+const EntityDefinition = require('./EntityDefinition');
+const EventEmitter     = require('events').EventEmitter
+const MongoClient = require('mongodb').MongoClient
+const log              = require('an-log')('Entities');
+
+const defaultPoolSize = 10
 
 class Entities extends EventEmitter {
   /**
@@ -37,12 +40,10 @@ class Entities extends EventEmitter {
    * @namespace
    * @param {Object} settings
    */
-  constructor(settings) {
+  constructor (settings) {
     super();
     this.entities = {}
     this.settings = settings;
-    /** le pool de connexion */
-    this.database = mysql.createPool(this.settings.database);
   }
 
   /**
@@ -51,127 +52,50 @@ class Entities extends EventEmitter {
    * l'exploration des composants.
    * @param {Entity} entity le module
    */
-  define(name) {
-    var def = new EntityDefinition(name);
+  define (name) {
+    const def = new EntityDefinition(name);
     def.bless(this);
     return this.entities[name] = def;
   }
 
-  definitions() {
+  definitions () {
     return this.entities;
   }
 
-  databaseHasTable(table, callback) {
-    this.database.query('SELECT * FROM '+table+" LIMIT 1", function(error) {
-      if (error && error.code == 'ER_NO_SUCH_TABLE') return callback(null, false);
-      callback(error, true);
+  /**
+   * Initialisation de l'espace de stockage
+   * @param {SimpleCallback} cb
+   */
+  initialize (cb) {
+    const settings = this.settings.database;
+    const self = this;
+    const {name, host, port, user, password, authSource} = settings
+    const authMechanism = settings.authMechanism || 'DEFAULT'
+    // cf http://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect pour les options possibles
+    const options = settings.options || {}
+    // pour compatibilité ascendante, poolSize était mis directement dans les settings
+    if (settings.poolSize) options.poolSize = settings.poolSize
+    if (!options.poolSize) options.poolSize = defaultPoolSize
+    // construction de l'url de connexion
+    let url = 'mongodb://'
+    if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
+    url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
+    if (authSource) url += `&authSource=${authSource}`
+    // on peut connecter
+    MongoClient.connect(url, options, function (error, db) {
+      if (error) return cb(error)
+      self.db = db
+      cb()
     })
   }
 
   /**
-   * Initialisation du stockage en base de données pour une entité.
-   *
-   * @param {Entity} entity L'entité
-   * @param {SimpleCallback} next callback de retour
-   * @private
-   */
-  initializeEntity(entity, next) {
-    var self = this
-
-    function createStore(next) {
-      var table = entity.table;
-      self.databaseHasTable(table, function(error, exists) {
-        if (error || exists) return next(error);
-        var query = [];
-        query.push('CREATE TABLE IF NOT EXISTS '+table+' (');
-        query.push('  oid INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
-        query.push('  data MEDIUMBLOB');
-        query.push(') DEFAULT CHARACTER SET utf8');
-        self.database.query(query.join(''), next);
-      })
-    }
-
-    function createStoreIndex(next) {
-      var table = entity.table+"_index";
-      self.databaseHasTable(table, function(error, exists) {
-        if (error || exists) return next(error);
-        var queries = [];
-        var query = [];
-        query.push('CREATE TABLE IF NOT EXISTS '+table+' (');
-        query.push('  iid INTEGER UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,');
-        query.push('  name VARCHAR(255) DEFAULT NULL,');
-        query.push('  _integer INTEGER DEFAULT NULL,');
-        query.push('  _string VARCHAR(255) DEFAULT NULL,');
-        query.push('  _date DATETIME DEFAULT NULL,');
-        query.push('  _boolean TINYINT(1) DEFAULT NULL,');
-        query.push('  oid INTEGER UNSIGNED NOT NULL ');
-        query.push(') DEFAULT CHARACTER SET utf8;');
-        queries.push(query.join(''));
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_name_index(name);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_integer_index(_integer);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_string_index(_string);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_date_index(_date);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_boolean_index(_boolean);');
-        queries.push('ALTER TABLE '+table+' ADD INDEX '+table+'_oid_index(oid);');
-
-        flow(queries)
-        .seqEach(function(query) { self.database.query(query, this); })
-        .done(next)
-      })
-    }
-
-    flow()
-    .seq(function() { createStore(this); })
-    .seq(function() { createStoreIndex(this); })
-    .done(next);
-  }
-
-  /**
-   * Ne fait rien
+   * Vire les index
    * @deprecated
-   * @param {SimpleCallback} next
    */
-  initialize(next) {
-    console.error(new Error('DEPRECATED : Entities.initialize does nothing anymore'))
+  dropIndexes (next) {
+    log.error('dropIndexes is deprecated');
     next();
-  }
-
-  /**
-   * Suppression des indexes d'une entité.
-   * @param {Entity} entity L'entité dont on supprime l'indexe.
-   * @param {SimpleCallback} next callback de retour
-   * @private
-   */
-  dropEntityIndexes(entity, next) {
-    var self = this
-
-    function dropStoreIndex(next) {
-      var table = entity.table+"_index";
-      self.database.schema.dropTableIfExists(table)
-        .exec(function (error) {
-            console.log('Suppression de la table %s for %s', table.red, entity.name.green);
-            next(error)
-         });
-    }
-
-    flow()
-    .seq(function() { dropStoreIndex(this); })
-    .done(next);
-  }
-
-  /**
-   * Suppression des indexes.
-   *
-   * Cette méthode est appelée par les commandes `lassi entities-XXX`
-   *
-   * @param {SimpleCallback} next callback de retour.
-   */
-  dropIndexes(next) {
-    var self = this
-
-    flow(_.values(this.entities))
-      .parEach(function(entity) { self.dropEntityIndexes(entity, this) })
-      .seq(function() { next() })
   }
 
   /**
@@ -180,51 +104,25 @@ class Entities extends EventEmitter {
    * @param {SimpleCallback} next callback de retour
    * @private
    */
-  rebuildEntityIndexes(entity, next) {
-    var self = this
-
-    function dropStoreIndex(next) {
-      var table = entity.table+"_index";
-      self.database(table).delete()
-      .exec(function (error) {
-          console.log('Suppression des données de la table %s for %s', table.red, entity.name.green);
-          next(error)
-       });
-    }
-
-    function loadObjects(next) {
-      entity.match().grab(function(error, objects) {
-        if (error) return next(error);
-        next(null, objects);
-      });
-    }
-
-    function storeObject(object, next) {
-      object.store({object: false, index: true}, next);
-    }
-
-    flow()
-    .seq(function() { dropStoreIndex(this); })
-    .seq(function() { loadObjects(this);  })
-    .seqEach(function(object) { storeObject(object, this); })
-    .done(next)
+  rebuildEntityIndexes (entity, next) {
+    flow().seq(function() {
+      entity.match().grab(this);
+    }).seqEach(function(object) {
+      object.store(this);
+    }).done(next)
   }
 
   /**
    * Reconstruction des indexes.
-   *
    * Cette méthode est appelée par les commandes `lassi entities-XXX`
-   *
    * @param {SimpleCallback} next callback de retour.
    */
-  rebuildIndexes(next) {
-    var self = this
-
-    flow(_.values(this.entities))
-      .parEach(function(entity) { self.rebuildEntityIndexes(entity, this) })
-      .seq(function() { next() })
+  rebuildIndexes (next) {
+    const self = this
+    flow(_.values(this.entities)).seqEach(function(entity) {
+      self.rebuildEntityIndexes(entity, this)
+    }).done(next)
   }
-
 }
 
 module.exports = Entities;

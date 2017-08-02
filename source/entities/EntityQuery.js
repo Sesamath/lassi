@@ -22,36 +22,11 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 var _    = require('lodash');
-var util = require('util');
 var log  = require('an-log')('$entities');
+var flow = require('an-flow');
 
-function logQuery (query, options) {
-  if (!options || !options.debug) return
-  var i = 0;
-  options.startQuery = (new Date()).getTime()
-  var queryString = query.toString().replace(/\?/g, function () {
-    var arg = query.args[i++];
-    return (typeof arg === "number") ? arg : "'" +arg +"'";
-  })
-  log("query", `at ${options.startQuery}ms`, "\n", queryString)
-}
-
-class DatabaseQuery {
-  constructor() {
-    this.buffer = [];
-  }
-
-  push(text) {
-    text = util.format.apply(this, Array.prototype.slice.call(arguments));
-    this.buffer.push(text);
-  }
-
-  toString(separator) {
-    separator = separator || "\n";
-    return this.buffer.join(separator);
-  }
-}
-
+// une limite hard pour grab
+const hardLimit = 1000
 
 class EntityQuery {
   /**
@@ -64,10 +39,7 @@ class EntityQuery {
    */
   constructor(entity) {
     this.entity = entity;
-    this.references = 0;
     this.clauses = [];
-    this.sorts = [];
-    this.joins = [];
   }
 
   /**
@@ -227,7 +199,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   match(index) {
-    this.clauses.push({type:'match', index: index, value:'*'});
+    this.clauses.push({type:'match', index: index});
     return this;
   }
 
@@ -264,10 +236,43 @@ class EntityQuery {
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
+  /**
+   * Remonte les enregistrement dont les valeurs d'index ne sont pas dans la liste
+   * @param {String[]|Integer[]|Date[]} value Les valeurs à exclure
+   * @return {EntityQuery}
+   */
   notIn(values) {
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
+  /**
+   * Remonte uniquement les entités softDeleted (inutile avec deletedAfter ou deletedBefore)
+   * @return {EntityQuery}
+   */
+  onlyDeleted() {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted après when
+   * @param {Date} when
+   * @return {EntityQuery}
+   */
+  deletedAfter(when) {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '>', value: when});
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted avant when (<=)
+   * @param {Date} when
+   * @return {EntityQuery}
+   */
+  deletedBefore(when) {
+    this.clauses.push({type:'match', index: '__deletedAt', operator: '<', value: when});
+    return this
+  }
 
   /**
    * Applique les clauses  à la requête.
@@ -275,96 +280,99 @@ class EntityQuery {
    * @return {KnexQuery} la requête modifiée
    * @private
    */
-  finalizeQuery(query) {
-    var i, clause, record;
-    query.args = [];
+  buildQuery(rec) {
+    var query = rec.query;
+    this.clauses.forEach((clause) => {
 
-    // Construction des jointures
-    var aliasIndex = 0;
-    for (i in this.clauses) {
-      clause = this.clauses[i];
-      if (clause.index != 'oid') {
-        record = this.entity.indexes[clause.index];
-        if (!record) throw new Error("L'index "+clause.index+" est inconnu sur l'entité "+this.entity.name);
-        clause.alias = '_'+(aliasIndex++);
-        query.push('JOIN %s AS %s ON %s.oid=d.oid', this.entity.table+'_index', clause.alias, clause.alias);
-        clause.field = clause.alias+'._'+record.fieldType;
-      } else {
-        clause.field = 'd.oid';
+      if (clause.type=='sort') {
+        rec.options.sort = rec.options.sort || [];
+        rec.options.sort.push([clause.index, clause.order]);
+        return;
       }
-    }
-
-    // Construction des conditions
-    if (this.clauses.length) {
-      var init = false;
-      var where = new DatabaseQuery();
-      _.each(this.clauses, function(clause) {
-        if (!init && clause.type!=='sort') {
-          query.push('WHERE');
-          init = true;
+      if (clause.type != 'match') return;
+      var index = clause.index, type;
+      if (clause.index=='oid') {
+        index='_id';
+        type = 'string';
+      } else if (clause.index=='__deletedAt') {
+        index='__deletedAt';
+        type = 'date';
+      } else {
+        type = this.entity.indexes[index].fieldType;
+      }
+      function cast(value) {
+        switch (type) {
+          case 'boolean': value = !!value; break;
+          case 'string': value = String(value);break;
+          case 'integer': value =  Math.round(Number(value));break;
+          case 'date':
+            if (!(value instanceof Date)) {
+              value = new Date(value);
+            }
+            break;
+          default: throw new Error('type d’index ' + type + ' non géré par Entity'); break;
         }
-        if (clause.index != 'oid') {
-          where.push("%s.name=?", clause.alias);
-          query.args.push(clause.index);
-        }
+        return value;
+      }
+      if (!clause.operator) return;
 
-        if (clause.value == '*') return;
-        if (clause.type != 'match') return;
+      var condition;
+      switch (clause.operator) {
+        case'=':
+          condition = {$eq: cast(clause.value)};
+          break;
 
-        switch (clause.operator) {
-          case '>':case'<':case'>=':case'<=':case'=':
-            where.push('%s %s ?', clause.field, clause.operator);
-            query.args.push(clause.value);
-            break;
+        case '>':
+          condition = {$gt: cast(clause.value)};
+          break;
 
-          case 'BETWEEN':
-            where.push('%s BETWEEN ? AND ?', clause.field);
-            query.args.push(clause.value[0]);
-            query.args.push(clause.value[1]);
-            break;
+        case '<':
+          condition = {$lt: cast(clause.value)};
+          break;
 
-          case 'LIKE':
-            where.push('%s LIKE ?', clause.field);
-            query.args.push(clause.value);
-            break;
+        case '>=':
+          condition = {$gte: cast(clause.value)};
+          break;
 
-          case 'ISNULL':
-            where.push('%s IS NULL', clause.field);
-            break;
+        case '<=':
+          condition = {$lte: cast(clause.value)};
+          break;
 
-          case 'ISNOTNULL':
-            where.push('%s IS NOT NULL', clause.field);
-            break;
+        case 'BETWEEN':
+          condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
+          break;
 
+        case 'LIKE':
+          condition = {$regex: new RegExp(cast(clause.value).replace(/\%/g,'.*'))};
+          break;
 
-          case 'NOT IN':
-            var keys = [];
-            _.each(clause.value, function(value) {
-              keys.push('?');
-              query.args.push(value);
-            });
-            where.push('%s NOT IN (%s)', clause.field, keys.join(','));
-            break;
+        case 'ISNULL':
+          condition = {$eq: null};
+          break;
 
-          case 'IN':
-            var keys = [];
-            _.each(clause.value, function(value) {
-              keys.push('?');
-              query.args.push(value);
-            });
-            where.push('%s IN (%s)', clause.field, keys.join(','));
-            break;
-        }
-      });
-      query.push(where.toString(' AND\n  '));
-    }
+        case 'ISNOTNULL':
+          condition = {$ne: null};
+          break;
 
-    // Tris
-    for (i in this.clauses) {
-      clause = this.clauses[i];
-      if (clause.type!='sort') continue;
-      query.push('ORDER BY %s %s', clause.field, clause.order);
-    }
+        case 'NOT IN':
+          condition = {$nin: clause.value.map(x=>{return cast(x)})};
+          break;
+
+        case 'IN':
+          condition = {$in: clause.value.map(x=>{return cast(x)})};
+          break;
+
+        default:
+          log.error(new Error(`operator ${operator} unknown`))
+      }
+
+      // On ajoute la condition
+      if (!query[index]) query[index] = {};
+      Object.assign(query[index], condition);
+    })
+
+    // par défaut on prend pas les softDeleted
+    if (!query['__deletedAt']) query['__deletedAt'] = {$eq : null}
   }
 
   /**
@@ -379,116 +387,82 @@ class EntityQuery {
     return this;
   }
 
-  /**
-   * Callback d'exécution d'une requête de récupération d'entités
-   * @callback EntityQuery~GrabCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Entity[]} entites Un tableau d'entités.
-   */
-
-  /**
-   * Renvoie les objets liés à la requête
-   * @param {Integer} [count=0] Ne récupère que les ̀count` objet(s), tous par défaut
-   * @param {Integer} [from=0] Ne récupère que les objets à partir d'un rang donné
-   * @param {Object} [options={}] passer debug:true pour afficher les requêtes en console, ou distinct:true pour ajouter distinct (pour éviter de remonter 5 fois la même ressource si elle match 5 fois)
-   * @param {EntityQuery~GrabCallback} callback La callback.
-   *
-   * ##### examples
-   * Récupère toutes les personnes âgées de plus de 30 ans.
-   * ```javascript
-   *  lassi.Person
-   *    .match('age').greaterThat(30)
-   *    .grab(function(error, entities) {
-   *  })
-   * ```
-   *
-   * Récupère les 10 personnes les plus âgées
-   * ```javascript
-   *  lassi.Person.match()
-   *    .sort('age', 'desc')
-   *    .grab(10, function(error, entities) {
-   *  })
-   * ```
-   *
-   * Récupère 10 personnes, de la 21e plus agée à la 30e
-   * ```javascript
-   *  lassi.Person.match()
-   *   .sort('age', 'desc')
-   *   .grab(10, 20, function(error, entities) {
-   *  })
-   * ```
-   *
-   * @fires EntityQuery#afterLoad
-   */
-  grab(count, from, options, callback) {
+  grab(options, callback) {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    if (_.isFunction(count)) {
-      callback = count;
-      count = from = 0;
-      options = {}
-    } else if (_.isFunction(from)) {
-      callback = from;
-      from = 0;
-      options = {}
-    } else if (_.isFunction(options)) {
+    if (_.isFunction(options)) {
       callback = options
-      options = {}
+      options = {};
     }
+    if (typeof options == 'number') {
+      options = {limit : options}
+    }
+    options = options || {};
     var self = this;
-    var query = new DatabaseQuery();
-    var qs = 'SELECT'
-    if (options.distinct) qs += ' DISTINCT'
-    qs += ' d.oid, d.data FROM %s AS d'
-    query.push(qs, this.entity.table);
-    this.finalizeQuery(query);
-    if (count) {
-      query.push('LIMIT %d', count);
-      query.push('OFFSET %d', from);
-    }
-    if (options.debug) logQuery(query, options)
-    this.entity.entities.database.query(query.toString(), query.args, function(errors, rows) {
-      if (options.debug) log('retour mysql (grab) après', (new Date()).getTime() - options.startQuery, 'ms')
-      if (errors) return callback(errors);
+    var record = {query: {}, options: {}};
+    // on accepte offset ou skip
+    const skip = options.offset || options.skip
+    if (skip > 0) record.options.skip = skip;
+    if (options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
+    else record.options.limit = hardLimit
+
+    var collection = this.entity.entities.db.collection(this.entity.name);
+    flow()
+    .seq(function() {
+      self.buildQuery(record);
+      collection.find(record.query, record.options, this);
+    })
+    .seq(function(cursor) {
+      cursor.toArray(this);
+    })
+    .seq(function(rows) {
       for(var i=0,ii=rows.length; i<ii; i++) {
-        var tmp = JSON.parse(rows[i].data, function (key, value) {
+        var tmp = JSON.parse(rows[i]._data, function (key, value) {
           if (typeof value === 'string' && dateRegExp.exec(value)) {
             return new Date(value);
           }
           return value;
-        });
-        tmp.oid = rows[i].oid;
+        })
+        tmp.oid = rows[i]._id.toString();
+        // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
+        if (rows[i].__deletedAt) {
+          tmp.__deletedAt = rows[i].__deletedAt;
+        }
+
         rows[i] = self.entity.create(tmp);
       }
       callback(null, rows);
+    })
+    .catch(callback);
+
+    /*
+    query(query.toString(), query.args, function(errors, rows) {
+      if (errors) return callback(errors);
     });
+    */
   }
 
   /**
    * Callback d'exécution d'une requête.
    * @callback EntityQuery~CountCallback
-   * @param {Error} error
-   * @param {Integer} nbRecords
+   * @param {Error} error Une erreur est survenue.
+   * @param {Integer} count compote
    */
 
   /**
    * Compte le nombre d'objet correpondants.
    * @param {EntityQuery~CountCallback} callback
    */
-  count(options, callback) {
-    if (_.isFunction(options)) {
-      callback = options
-      options = {}
-    }
-    var query = new DatabaseQuery();
-    query.push('SELECT COUNT(d.oid) AS count FROM %s AS d', this.entity.table);
-    this.finalizeQuery(query);
-    if (options.debug) logQuery(query, options)
-    this.entity.entities.database.query(query.toString(), query.args, function(error, rows) {
-      if (options.debug) log('retour mysql (count) après', (new Date()).getTime() - options.startQuery, 'ms')
-      if (error) return callback(error);
-      if ((rows.length===0) || (!rows[0].hasOwnProperty('count'))) return callback(new Error('Erreur dans la requête de comptage : pas de résultat'));
-      callback(null, rows[0].count);
-    });
+  count(callback) {
+    var collection = this.entity.entities.db.collection(this.entity.name);
+    var self = this;
+    var record = {query: {}, options: {}};
+
+    flow()
+    .seq(function() {
+      self.buildQuery(record);
+      collection.count(record.query, record.options, this);
+    })
+    .done(callback);
   }
 
 
@@ -504,7 +478,7 @@ class EntityQuery {
    * @param {EntityQuery~GrabOneCallback} callback La callback.
    */
   grabOne(callback) {
-    this.grab(1, function(error, entities) {
+    this.grab({limit: 1}, function(error, entities) {
       if (error) return callback(error);
       if (entities.length===0) return callback();
       callback(null, entities[0])

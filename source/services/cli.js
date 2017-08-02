@@ -1,9 +1,9 @@
 "use strict";
 
-const minimist = require('minimist')
-const anLog = require('an-log')('lassi')
-const log = (...args) => anLog('cli', ...args) // arguments n'existe pas sur les fcts fléchées
-log.error = (...args) => anLog.error('cli', ...args)
+const minimist = require('minimist');
+const anLog = require('an-log')('lassi');
+const log = (...args) => anLog('cli', ...args); // arguments n'existe pas sur les fonctions fléchées
+log.error = (...args) => anLog.error('cli', ...args);
 
 /**
  * Service de gestion des commandes CLI
@@ -23,7 +23,7 @@ Options :
   --debug : affiche la stack complète en cas d’erreur (implique verbose)
   -h --help : affiche cette aide
   -l --list : affiche la liste des commandes possibles
-  -v --verbose : affiche qq détails sur le déroulement`)
+  -v --verbose : affiche qq détails sur le déroulement`);
     if (errorCode) process.exit(errorCode);
   }
 
@@ -33,7 +33,7 @@ Options :
    * @param {...*} args Les arguments à passer à log (à volonté)
    */
   function printInfo (...args) {
-    if (verbose) log(...args)
+    if (verbose) log(...args);
   }
 
   /**
@@ -42,14 +42,14 @@ Options :
    * @param {string|Error} error
    */
   function printError (error) {
-    log.error('Une erreur est survenue à l’exécution de ' + commandName)
-    if (debug) log.error(error)
-    else if (error.message) log.error(error.message)
-    else log.error(error)
+    log.error('Une erreur est survenue à l’exécution de ' + commandName);
+    if (debug) log.error(error);
+    else if (error.message) log.error(error.message);
+    else log.error(error);
   }
 
   function printAllCommands () {
-    log('liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '))
+    log('Liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '));
   }
 
   const cliRunner = process.argv[1]
@@ -68,77 +68,89 @@ Options :
    */
   function run () {
     function exit (error, result) {
-      if (error) printError(error)
-      if (result) log(`Retour de la commande ${commandName}\n`, result)
-      else printInfo('Fin ' + commandName)
-      process.exit(error ? 2 : 0)
+      if (error) printError(error);
+      if (result) log(`Retour de la commande ${commandName}\n`, result);
+      else printInfo('Fin ' + commandName);
+      process.exit(error ? 2 : 0);
     }
+
     try {
-      // on récupère tous les services
-      const services = lassi.allServices()
-      // filtre sur *-cli
+      if (!listAsked && (helpAsked || !commandName)) {
+        const errorCode = helpAsked ? 0 : 1;
+        if (errorCode) console.error('Il faut passer une commande à exécuter');
+        usage(errorCode);
+      }
+
+      // On récupère tous les services
+      const services = lassi.allServices();
+
+      // Filtre sur *-cli
       const cliServices = Object
         .keys(services)
         .filter(k => k.substr(-4) === '-cli')
-        .map(k => lassi.service(k))
-      // appelle pour chaque service *-cli sa méthode commands
-      cliServices.forEach(function(service) {
-        const tmp = service.commands()
+        .map(k => lassi.service(k));
+
+      // Appelle pour chaque service *-cli sa méthode commands
+      cliServices.forEach((service) => {
+        const tmp = service.commands();
         for (let name in tmp) {
-          commands[name] = tmp[name]
+          commands[name] = tmp[name];
           if (typeof tmp[name].help !== 'function') {
-            tmp[name].help = () => log(`La commande ${name} ne fournit pas d’aide sur son usage`)
+            tmp[name].help = () => log(`La commande ${name} ne fournit pas d’aide sur son usage`);
           }
         }
-      })
-      // on ajoute qq commandes universelles
+      });
+
+      // On ajoute quelques commandes universelles
       commands.listAllServices = (cb) => {
-        log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
-        cb()
+        log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n');
+        cb();
       }
       commands.listAllServices.help = (cb) => {
-        log('Liste tous les services déclarés dans cette appli')
-        cb
+        log('Liste tous les services déclarés dans cette appli');
+        cb();
       }
 
       if (listAsked) {
-        printAllCommands()
-        process.exit(0)
+        printAllCommands();
+        process.exit(0);
       }
+
       if (helpAsked) {
         if (commands[commandName]) {
-          if (commands[commandName].help) commands[commandName].help()
-          else log(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`)
+          if (commands[commandName].help) commands[commandName].help();
+          else log(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`);
         } else {
-          usage()
+          usage();
         }
-        process.exit(0)
+        process.exit(0);
       }
+
       if (!commandName) {
-        log.error('Il faut passer une commande à exécuter')
-        usage(1)
+        log.error('Il faut passer une commande à exécuter');
+        usage(1);
       }
-      // on ajoute debug sur lassi
-      lassi.debug = debug
+      // On ajoute debug sur lassi
+      lassi.debug = debug;
 
-      const command = commands[commandName]
+      const command = commands[commandName];
       if (!command) {
-        log.error(`Commande "${commandName}" inconnue`)
-        usage(1)
+        log.error(`Commande "${commandName}" inconnue`);
+        usage(1);
       }
 
-      // info avant de lancer
-      const msgStart = 'Lancement de la commande ' + commandName
-      if (commandArgs.length) printInfo(msgStart, 'avec les arguments', commandArgs)
-      else printInfo(msgStart, 'sans arguments')
+      // Info avant de lancer
+      const msgStart = 'Lancement de la commande ' + commandName;
+      if (commandArgs.length) printInfo(msgStart, 'avec les arguments', commandArgs);
+      else printInfo(msgStart, 'sans arguments');
 
-      // on ajoute la callback en dernier argument
-      commandArgs.push(exit)
+      // On ajoute la callback en dernier argument
+      commandArgs.push(exit);
 
-      // et on lance la commande
-      command.apply(this, commandArgs)
+      // On lance la commande
+      command.apply(this, commandArgs);
     } catch (error) {
-      printError(error)
+      printError(error);
       process.exit(3);
     }
   }
@@ -148,6 +160,5 @@ Options :
     printInfo,
     run,
     usage
-  }
+  };
 }
-

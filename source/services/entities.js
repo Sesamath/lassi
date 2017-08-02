@@ -15,10 +15,6 @@ module.exports = function($settings) {
    * @memberof $entities
    * @private
    */
-  entities.setup = function(cb) {
-    // devenu inutile
-    // entities.initialize(cb);
-    cb()
-  }
+  entities.setup = entities.initialize
   return entities;
 }

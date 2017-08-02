@@ -1,4 +1,5 @@
 'use strict';
+
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -24,12 +25,12 @@
 
 var parse        = require('url').parse;
 var _            = require('lodash');
-var Context      = require('./Context');
-var EventEmitter = require('events').EventEmitter
+var Context      = require('../Context');
+var EventEmitter = require('events').EventEmitter;
 var flow         = require('an-flow');
 
 function merge(a,b) {
-  _.each(b, function(v, k) {
+  _.each(b, (v, k) => {
     if (_.isArray(a[k])) {
       a[k] = a[k].concat(v);
     } else if (typeof a[k] === 'object') {
@@ -54,7 +55,7 @@ class Controllers extends EventEmitter {
   * Génération du middleware Express.
   * @return {Function} Le middleware
   */
-  middleware() {
+  middleware () {
     var self = this;
 
     /**
@@ -172,7 +173,6 @@ class Controllers extends EventEmitter {
           transport.process(data, this);
         }
       })
-
       .seq(function(content) {
         if (context.status) {
           context.response.status(context.status);
@@ -187,11 +187,6 @@ class Controllers extends EventEmitter {
       .catch(next);
     }
   }
-
-
 }
-
-
-
 
 module.exports = Controllers;

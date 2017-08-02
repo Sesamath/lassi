@@ -21,10 +21,10 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _            = require('lodash');
-var Entity = require('./Entity');
+var _           = require('lodash');
+var Entity      = require('./Entity');
 var EntityQuery = require('./EntityQuery');
-var flow = require('an-flow');
+var flow        = require('an-flow');
 
 function fooCb(cb) { cb(); }
 
@@ -38,7 +38,7 @@ class EntityDefinition {
   constructor(name) {
     this.name = name;
     this.indexes = {};
-    this._beforeStore = this._afterStore = fooCb;
+    this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
   }
 
   /**
@@ -76,7 +76,6 @@ class EntityDefinition {
   bless(entities) {
     if (this.configure) this.configure();
     this.entities = entities;
-    this.table = this.table || (this.name[0].toLowerCase()+this.name.substr(1)).replace(/([A-Z])/g, function($1){return '_'+$1.toLowerCase();});
     this.entityClass = this.entityClass || function() {};
     return this;
   }
@@ -104,12 +103,15 @@ class EntityDefinition {
     return instance;
   }
 
+  /**
+   * drop la collection
+   * @param {simpleCallback} cb
+   */
   flush(cb) {
-    var self = this;
-    flow()
-    .seq(function() { self.entities.database.query('DELETE FROM '+self.table+';', this); })
-    .seq(function() { self.entities.database.query('DELETE FROM '+self.table+'_index;', this); })
-    .done(cb);
+    const collection = this.entities.db.collection(this.name)
+    // si la collection n'existe pas, ça renvoie MongoError: ns not found
+    if (collection) collection.drop(cb);
+    else cb()
   }
 
   /**
@@ -155,6 +157,14 @@ class EntityDefinition {
    */
   afterStore(fn) {
     this._afterStore = fn;
+  }
+
+  /**
+   * Ajoute un traitement avant suppression
+   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
+   */
+  beforeDelete(fn) {
+    this._beforeDelete = fn;
   }
 
   /**
