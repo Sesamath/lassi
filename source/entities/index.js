@@ -20,7 +20,8 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-"use strict";
+
+'use strict';
 
 const _                = require('lodash');
 const flow             = require('an-flow');
@@ -69,18 +70,18 @@ class Entities extends EventEmitter {
    * @param {SimpleCallback} cb callback de retour
    * @private
    */
-  initializeEntity(entity, cb) {
+  initializeEntity (entity, cb) {
     var self = this;
     flow()
-    .seq(function() {
+    .seq(function () {
       entity.initialize(this);
     })
-    .seq(function() {
-      self.connection.collection('counters').findOne({_id: entity.name}, this)
+    .seq(function () {
+      self.db.collection('counters').findOne({_id: entity.name}, this)
     })
-    .seq(function(seq) {
+    .seq(function (seq) {
       if (!seq) {
-        self.connection.collection('counters').save({_id: entity.name, seq: 0}, this)
+        self.db.collection('counters').save({_id: entity.name, seq: 0}, this)
       } else {
         this();
       }
@@ -131,9 +132,9 @@ class Entities extends EventEmitter {
    * @private
    */
   rebuildEntityIndexes (entity, next) {
-    flow().seq(function() {
+    flow().seq(function () {
       entity.match().grab(this);
-    }).seqEach(function(object) {
+    }).seqEach(function (object) {
       object.store(this);
     }).done(next)
   }
@@ -145,7 +146,7 @@ class Entities extends EventEmitter {
    */
   rebuildIndexes (next) {
     const self = this
-    flow(_.values(this.entities)).seqEach(function(entity) {
+    flow(_.values(this.entities)).seqEach(function (entity) {
       self.rebuildEntityIndexes(entity, this)
     }).done(next)
   }

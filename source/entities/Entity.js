@@ -22,10 +22,11 @@
 */
 
 'use strict';
-var _    = require('lodash');
-var flow = require('an-flow');
-var ObjectID = require('mongodb').ObjectID;
-var log = require('an-log')('$entities');
+
+const _    = require('lodash');
+const flow = require('an-flow');
+const ObjectID = require('mongodb').ObjectID;
+const log = require('an-log')('$entities');
 
 /**
  * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
@@ -34,7 +35,7 @@ var log = require('an-log')('$entities');
  */
 class Entity {
 
-  setDefinition(entity) {
+  setDefinition (entity) {
     Object.defineProperty(this, 'definition', {value: entity});
   }
 
@@ -42,16 +43,16 @@ class Entity {
    * Répond true si l'instance de cette Entity n'a jamais été insérée en base de donnée
    * @return {boolean} true si l'instance n'a jamais été sauvegardée
    */
-  isNew() {
+  isNew () {
     return !this.oid;
   }
 
-  buildIndexes() {
-    function cast(fieldType, value) {
+  buildIndexes () {
+    function cast (fieldType, value) {
       switch (fieldType) {
         case 'boolean': return !!value;
         case 'string': return String(value);
-        case 'integer': return  Math.round(Number(value));
+        case 'integer': return Math.round(Number(value));
         // Si la date n'a pas de valeur (undefined ou null, on l'indexe comme null)
         case 'date': return value ? new Date(value) : null;
         default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
@@ -72,14 +73,14 @@ class Entity {
     return indexes;
   }
 
-  db() {
+  db () {
     return this.definition.entities.db;
   }
   /**
    * Stockage d'une instance d'entité.
    * @param {Object=} options non utilisé
    */
-  store(options, callback) {
+  store (options, callback) {
     var self = this;
     var entity = this.definition;
 
@@ -116,7 +117,7 @@ class Entity {
     }).catch(callback)
   }
 
-  reindex(callback) {
+  reindex (callback) {
     this.store(callback);
   }
 
@@ -124,7 +125,7 @@ class Entity {
    * Restore un élément supprimé en soft-delete
    * @param {SimpleCallback} callback
    */
-  restore(callback) {
+  restore (callback) {
     var self = this;
     var entity = this.definition;
 
@@ -148,7 +149,7 @@ class Entity {
    * @param {SimpleCallback} callback
    * @see restore
    */
-  softDelete(callback) {
+  softDelete (callback) {
     var self = this;
     var entity = this.definition;
     flow()
@@ -168,7 +169,7 @@ class Entity {
    * avec une éventuelle erreur
    * @param {SimpleCallback} callback
    */
-  delete(callback) {
+  delete (callback) {
     var self = this;
     var entity = this.definition;
     flow()
@@ -185,6 +186,5 @@ class Entity {
   }
 
 }
-
 
 module.exports = Entity;

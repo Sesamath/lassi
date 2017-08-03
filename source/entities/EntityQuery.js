@@ -1,4 +1,3 @@
-'use strict';
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -22,8 +21,11 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var log = require('an-log')('EntityQuery');
-var _    = require('lodash');
+'use strict';
+
+const log = require('an-log')('EntityQuery');
+const _    = require('lodash');
+const flow = require('an-flow');
 
 // une limite hard pour grab
 const hardLimit = 1000
@@ -37,9 +39,10 @@ class EntityQuery {
    * @constructor
    * @param {Entity} entity L'entité
    */
-  constructor(entity) {
+  constructor (entity) {
     this.entity = entity;
     this.clauses = [];
+    this.search = null;
   }
 
   /**
@@ -49,7 +52,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur cherchée
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  equals(value, fieldValue) {
+  equals (value, fieldValue) {
     if (typeof fieldValue !== 'undefined') {
       this.match(value);
       value = fieldValue;
@@ -65,7 +68,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur cherchée
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  like(value) {
+  like (value) {
     return this.alterLastMatch({value: value,  operator: 'LIKE'});
   }
 
@@ -74,7 +77,7 @@ class EntityQuery {
    *
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  true() {
+  true () {
     return this.equals(true);
   }
 
@@ -83,17 +86,15 @@ class EntityQuery {
    *
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  false() {
+  false () {
     return this.equals(false);
   }
 
-  isNull() {
+  isNull () {
     return this.alterLastMatch({operator: 'ISNULL'});
   }
 
-
-
-  isNotNull() {
+  isNotNull () {
     return this.alterLastMatch({operator: 'ISNOTNULL'});
   }
 
@@ -103,7 +104,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  with(value) {
+  with (value) {
     return this.alterLastMatch({value: value,  operator: '='});
   }
 
@@ -114,7 +115,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  greaterThan(value) {
+  greaterThan (value) {
     return this.alterLastMatch({value: value,  operator: '>'});
   }
 
@@ -126,7 +127,7 @@ class EntityQuery {
    * @param {Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  after(value) {
+  after (value) {
     return this.alterLastMatch({value: value,  operator: '>'});
   }
 
@@ -137,7 +138,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  lowerThan(value) {
+  lowerThan (value) {
     return this.alterLastMatch({value: value,  operator: '<'});
   }
 
@@ -149,7 +150,7 @@ class EntityQuery {
    * @param {Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  before(value) {
+  before (value) {
     return this.alterLastMatch({value: value,  operator: '<'});
   }
 
@@ -160,7 +161,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  greaterThanOrEquals(value) {
+  greaterThanOrEquals (value) {
     return this.alterLastMatch({value: value,  operator: '>='});
   }
 
@@ -171,7 +172,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  lowerThanOrEquals(value) {
+  lowerThanOrEquals (value) {
     return this.alterLastMatch({value: value,  operator: '<='});
   }
 
@@ -198,7 +199,7 @@ class EntityQuery {
    * `oid` pour l'identifiant de l'objet.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  match(index) {
+  match (index) {
     this.clauses.push({type:'match', index: index});
     return this;
   }
@@ -209,8 +210,8 @@ class EntityQuery {
    * @return {EntityQuery} Chaînable
    * @private
    */
-  alterLastMatch(data) {
-    _.extend(this.clauses[this.clauses.length-1], data);
+  alterLastMatch (data) {
+    _.extend(this.clauses[this.clauses.length - 1], data);
     return this;
   }
 
@@ -222,7 +223,7 @@ class EntityQuery {
    * @param {String|Integer|Date} to La valeur de la borne supérieure
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  between(from, to) {
+  between (from, to) {
     return this.alterLastMatch({value: [from,to],  operator: 'BETWEEN'});
   }
 
@@ -232,7 +233,7 @@ class EntityQuery {
    * @param {String[]|Integer[]|Date[]} value Les valeurs à faire correspondre.
    * @return {EntityQuery} La requête (chaînable donc}
    */
-  in(values) {
+  in (values) {
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
@@ -241,7 +242,7 @@ class EntityQuery {
    * @param {String[]|Integer[]|Date[]} value Les valeurs à exclure
    * @return {EntityQuery}
    */
-  notIn(values) {
+  notIn (values) {
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
@@ -249,7 +250,7 @@ class EntityQuery {
    * Remonte uniquement les entités softDeleted (inutile avec deletedAfter ou deletedBefore)
    * @return {EntityQuery}
    */
-  onlyDeleted() {
+  onlyDeleted () {
     this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
     return this
   }
@@ -259,7 +260,7 @@ class EntityQuery {
    * @param {Date} when
    * @return {EntityQuery}
    */
-  deletedAfter(when) {
+  deletedAfter (when) {
     this.clauses.push({type:'match', index: '__deletedAt', operator: '>', value: when});
     return this
   }
@@ -269,7 +270,7 @@ class EntityQuery {
    * @param {Date} when
    * @return {EntityQuery}
    */
-  deletedBefore(when) {
+  deletedBefore (when) {
     this.clauses.push({type:'match', index: '__deletedAt', operator: '<', value: when});
     return this
   }
@@ -280,31 +281,32 @@ class EntityQuery {
    * @return {KnexQuery} la requête modifiée
    * @private
    */
-  buildQuery(rec) {
+  buildQuery (rec) {
     var query = rec.query;
     this.clauses.forEach((clause) => {
-
-      if (clause.type=='sort') {
+      if (clause.type == 'sort') {
         rec.options.sort = rec.options.sort || [];
         rec.options.sort.push([clause.index, clause.order]);
         return;
       }
+
       if (clause.type != 'match') return;
       var index = clause.index, type;
-      if (clause.index=='oid') {
-        index='_id';
+      if (clause.index == 'oid') {
+        index = '_id';
         type = 'string';
-      } else if (clause.index=='__deletedAt') {
-        index='__deletedAt';
+      } else if (clause.index == '__deletedAt') {
+        index = '__deletedAt';
         type = 'date';
       } else {
         type = this.entity.indexes[index].fieldType;
       }
-      function cast(value) {
+
+      function cast (value) {
         switch (type) {
           case 'boolean': value = !!value; break;
-          case 'string': value = String(value);break;
-          case 'integer': value =  Math.round(Number(value));break;
+          case 'string': value = String(value); break;
+          case 'integer': value =  Math.round(Number(value)); break;
           case 'date':
             if (!(value instanceof Date)) {
               value = new Date(value);
@@ -318,7 +320,7 @@ class EntityQuery {
 
       var condition;
       switch (clause.operator) {
-        case'=':
+        case '=':
           condition = {$eq: cast(clause.value)};
           break;
 
@@ -371,7 +373,7 @@ class EntityQuery {
       Object.assign(query[index], condition);
     })
 
-    // par défaut on prend pas les softDeleted
+    // Par défaut, on ne prend pas les softDeleted
     if (!query['__deletedAt']) query['__deletedAt'] = {$eq : null}
   }
 
@@ -381,22 +383,22 @@ class EntityQuery {
    * @param {String=} [order=asc] Comme en SQL, asc ou desc.
    * @return {EntityQuery} chaînable
    */
-  sort(index, order) {
+  sort (index, order) {
     order = order || 'asc';
-    this.clauses.push({type: 'sort', index: index, order:order});
+    this.clauses.push({type: 'sort', index: index, order: order});
     return this;
   }
 
-  createEntitiesFromRows(rows) {
+  createEntitiesFromRows (rows) {
     var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    var jsonReviver = function(key, value) {
+    var jsonReviver = function (key, value) {
       if (typeof value === 'string' && dateRegExp.exec(value)) {
         return new Date(value);
       }
       return value;
     }
 
-    return rows.map(function(row) {
+    return rows.map((row) => {
       var data = JSON.parse(row._data, jsonReviver)
       data.oid = row._id.toString();
       // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
@@ -405,27 +407,15 @@ class EntityQuery {
       }
 
       return this.entity.create(data);
-    }.bind(this))
-  }
-
-  textSearch(search, callback) {
-    var self = this;
-
-    this.entity.getCollection()
-    .find(
-      {$text: {$search: search}},
-      {score: {$meta: 'textScore'}}
-    )
-    .sort({
-      score: {$meta: 'textScore'}
-    })
-    .toArray(function(err, rows) {
-      callback(err, self.createEntitiesFromRows(rows))
     });
   }
 
-  grab(options, callback) {
+  textSearch (search) {
+    this.search = search;
+    return this;
+  }
 
+  grab (options, callback) {
     if (_.isFunction(options)) {
       callback = options
       options = {};
@@ -434,22 +424,48 @@ class EntityQuery {
       options = {limit : options}
     }
     options = options || {};
-    var self = this;
     var record = {query: {}, options: {}};
     // on accepte offset ou skip
     const skip = options.offset || options.skip
     if (skip > 0) record.options.skip = skip;
-    if (options.limit > 0 && options.limit < hardLimit) record.options.limit = options.limit;
-    else record.options.limit = hardLimit
 
+    let limit;
+    if (options.limit > 0 && options.limit < hardLimit) {
+      limit = options.limit;
+      delete options.limit;
+    } else {
+      limit = hardLimit;
+    }
+
+    var self = this;
     self.buildQuery(record);
 
-    this.entity.getCollection()
-    .find(record.query, record.options)
-    .toArray(function(err, rows) {
-      callback(err, self.createEntitiesFromRows(rows));
-    });
+    if (this.search) {
+      let sorts = {};
+      _.each(record.options.sort, (sort) => {
+        sorts[sort[0]] = sort[1] === 'asc' ? 1 : -1;
+      });
+      // Le sort sur le score doit être fait avant les sorts "classiques"
+      let recordSort = _.merge({score: {$meta: 'textScore'}}, sorts);
+      delete record.options.sort;
 
+      let recordQuery = _.merge(record.query, {$text: {$search: this.search}});
+      let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}});
+      this.entity.getCollection()
+      .find(recordQuery, recordOptions)
+      .sort(recordSort)
+      .limit(limit)
+      .toArray(function (error, rows) {
+        callback(error, self.createEntitiesFromRows(rows));
+      });
+    } else {
+      this.entity.getCollection()
+      .find(record.query, record.options)
+      .limit(limit)
+      .toArray(function (error, rows) {
+        callback(error, self.createEntitiesFromRows(rows));
+      });
+    }
   }
 
   /**
@@ -463,13 +479,17 @@ class EntityQuery {
    * Compte le nombre d'objet correpondants.
    * @param {EntityQuery~CountCallback} callback
    */
-  count(callback) {
+  count (callback) {
+    var self = this;
     var record = {query: {}, options: {}};
 
-    this.buildQuery(record);
-    this.entity.getCollection().count(record.query, record.options, callback);
+    flow()
+    .seq(function () {
+      self.buildQuery(record);
+      self.entity.getCollection().count(record.query, record.options, this);
+    })
+    .done(callback);
   }
-
 
   /**
    * Callback d'exécution d'une requête.
@@ -482,10 +502,10 @@ class EntityQuery {
    * Renvoie un objet liés à la requête
    * @param {EntityQuery~GrabOneCallback} callback La callback.
    */
-  grabOne(callback) {
-    this.grab({limit: 1}, function(error, entities) {
+  grabOne (callback) {
+    this.grab({limit: 1}, function (error, entities) {
       if (error) return callback(error);
-      if (entities.length===0) return callback();
+      if (entities.length === 0) return callback();
       callback(null, entities[0])
     });
   }
