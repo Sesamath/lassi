@@ -298,20 +298,25 @@ class EntityQuery {
     }
 
     var query = rec.query;
+
     this.clauses.forEach((clause) => {
 
-      if (clause.type=='sort') {
+      if (clause.type === 'sort') {
         rec.options.sort = rec.options.sort || [];
         rec.options.sort.push([clause.index, clause.order]);
         return;
       }
-      if (clause.type != 'match') return;
-      var index = clause.index, type;
-      if (clause.index=='oid') {
-        index='_id';
+      if (clause.type !== 'match') return;
+
+      var index = clause.index;
+      var type;
+
+      if (index === 'oid') {
+        index = '_id';
         type = 'string';
-      } else if (clause.index=='__deletedAt') {
-        index='__deletedAt';
+      } else if (index === '_id') {
+        type = 'string';
+      } else if (index === '__deletedAt') {
         type = 'date';
       } else if (this.entity.indexes[index]) {
         type = this.entity.indexes[index].fieldType;
