@@ -76,7 +76,7 @@ class Entities extends EventEmitter {
     // pour compatibilité ascendante, poolSize était mis directement dans les settings
     if (settings.poolSize) options.poolSize = settings.poolSize
     if (!options.poolSize) options.poolSize = defaultPoolSize
-    // construction de l'url de connexion
+    // construction de l'url de connexion, cf docs.mongodb.org/manual/reference/connection-string/
     let url = 'mongodb://'
     if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
     url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
