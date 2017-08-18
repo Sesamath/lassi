@@ -281,6 +281,22 @@ class EntityQuery {
    * @private
    */
   buildQuery(rec) {
+    function castToType (value, type) {
+      if (typeof value === type) return value
+      switch (type) {
+        case 'boolean': value = !!value; break;
+        case 'string': value = String(value);break;
+        case 'integer': value =  Math.round(Number(value));break;
+        case 'date':
+          if (!(value instanceof Date)) {
+            value = new Date(value);
+          }
+          break;
+          default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
+      }
+      return value;
+    }
+
     var query = rec.query;
     this.clauses.forEach((clause) => {
 
@@ -297,23 +313,13 @@ class EntityQuery {
       } else if (clause.index=='__deletedAt') {
         index='__deletedAt';
         type = 'date';
-      } else {
+      } else if (this.entity.indexes[index]) {
         type = this.entity.indexes[index].fieldType;
+      } else {
+        throw new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`)
       }
-      function cast(value) {
-        switch (type) {
-          case 'boolean': value = !!value; break;
-          case 'string': value = String(value);break;
-          case 'integer': value =  Math.round(Number(value));break;
-          case 'date':
-            if (!(value instanceof Date)) {
-              value = new Date(value);
-            }
-            break;
-          default: throw new Error('type d’index ' + type + ' non géré par Entity'); break;
-        }
-        return value;
-      }
+      const cast = x => castToType(x, type)
+
       if (!clause.operator) return;
 
       var condition;
@@ -355,11 +361,11 @@ class EntityQuery {
           break;
 
         case 'NOT IN':
-          condition = {$nin: clause.value.map(x=>{return cast(x)})};
+          condition = {$nin: clause.value.map(cast)};
           break;
 
         case 'IN':
-          condition = {$in: clause.value.map(x=>{return cast(x)})};
+          condition = {$in: clause.value.map(cast)};
           break;
 
         default:
