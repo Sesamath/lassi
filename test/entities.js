@@ -89,7 +89,7 @@ function assertEntity(i, entity) {
 }
 
 // les tests
-const count = 1000
+const count = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
 const MINUTE = 1000*60
 const STRING_PREFIX = 'test-'
@@ -232,6 +232,27 @@ describe('$entities', function () {
       assert.equal(entities.length, 100)
       entities.forEach(function (entity, i) {
         assertEntity(100 + i, entity)
+      })
+      this()
+    }).done(done)
+  })
+
+  it("Sélection d'entités avec hard limit", function (done) {
+    this.timeout(10000)
+    flow().seq(function () {
+      TestEntity.match().grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 1000)
+      entities.forEach(function (entity, i) {
+        assertEntity(i, entity)
+      })
+      this()
+    }).seq(function () {
+      TestEntity.match().grab({limit: 1200}, this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 1000)
+      entities.forEach(function (entity, i) {
+        assertEntity(i, entity)
       })
       this()
     }).done(done)
@@ -433,7 +454,7 @@ describe('$entities', function () {
   it("not in string", function (done) {
     TestEntity.match('s').notIn([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
       if (error) return done(error)
-      assert.equal(result.length, 498)
+      assert.equal(result.length, 748)
       done()
     })
   })
@@ -461,7 +482,7 @@ describe('$entities', function () {
     const d = new Date('2003-01-02T04:11:00.000Z')
     TestEntity.match('dArray').after(d).grab(function (error, result) {
       if (error) return done(error)
-      assert.equal(result.length, 467)
+      assert.equal(result.length, 717)
       oid = result[0].oid
       done()
     })
