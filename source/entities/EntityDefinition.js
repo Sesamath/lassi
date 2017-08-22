@@ -1,4 +1,3 @@
-'use strict';
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -21,24 +20,31 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _           = require('lodash');
-var Entity      = require('./Entity');
-var EntityQuery = require('./EntityQuery');
-var flow        = require('an-flow');
 
-function fooCb(cb) { cb(); }
+'use strict';
+
+const _           = require('lodash');
+const Entity      = require('./Entity');
+const EntityQuery = require('./EntityQuery');
+const flow        = require('an-flow');
+
+function fooCb (cb) { cb(); }
 
 class EntityDefinition {
-
   /**
    * Construction d'une définition d'entité. Passez par la méthode {@link Component#entity} pour créer une entité.
    * @constructor
    * @param {String} name le nom de l'entité
    */
-  constructor(name) {
+  constructor (name) {
     this.name = name;
     this.indexes = {};
     this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
+    this._textSearchFields = null;
+  }
+
+  getCollection () {
+    return this.entities.db.collection(this.name);
   }
 
   /**
@@ -58,7 +64,7 @@ class EntityDefinition {
    * @param {Function} callback Cette fonction permet de définir virtuellement la valeur d'un index.
    * @return {Entity} l'entité (chaînable)
    */
-  defineIndex(fieldName, fieldType, callback) {
+  defineIndex (fieldName, fieldType, callback) {
     this.indexes[fieldName] = {
       callback: callback?callback:function() { return this[fieldName]; },
       fieldType: fieldType,
@@ -67,16 +73,97 @@ class EntityDefinition {
     return this;
   }
 
+  initialize (cb) {
+    this.initializeTextSearchFieldsIndex(cb);
+  }
+
+  defineTextSearchFields (fields) {
+    var self = this;
+
+    fields.forEach(function (field) {
+      if (!self.indexes[field]) {
+        throw new Error(`defineTextSearchFields ne s'applique qu'à des index. Non indexé: ${field}`);
+      }
+    });
+
+    self._textSearchFields = fields;
+  }
+
+  initializeTextSearchFieldsIndex (callback) {
+    var self = this;
+
+    var dbCollection = self.getCollection();
+    var indexName = null;
+
+    if (self._textSearchFields) {
+      indexName = 'text_index_' + self._textSearchFields.join('_');
+    }
+
+    var findExistingTextIndex = function (cb) {
+      dbCollection.listIndexes().toArray(function (error, indexes) {
+        if (error) {
+          if (error.message === 'no collection') {
+            // Ce cas peut se produire si la collection vient d'être créée
+            return cb(null, null);
+          }
+          return cb(error);
+        }
+
+        var textIndex = indexes && _.find(indexes, function (index) {
+          return !!index.name.match(/^text_index/);
+        });
+
+        cb(null, textIndex ? textIndex.name : null);
+      })
+    }
+
+    var createIndex = function (cb) {
+      // Pas de nouvel index à créer
+      if (!self._textSearchFields) { return cb(); }
+
+      const indexParams = {};
+      self._textSearchFields.forEach(function (field) {
+        indexParams[field] = 'text';
+      });
+      dbCollection.createIndex(indexParams, {name: indexName}, cb)
+    }
+
+    flow()
+    .seq(function () {
+      findExistingTextIndex(this);
+    })
+    .seq(function (oldTextIndex) {
+      var next = this;
+
+      if (indexName === oldTextIndex) {
+        // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
+        return callback();
+      }
+
+      if (!oldTextIndex) {
+        // Pas d'index à supprimer, on passe à la suite
+        return next();
+      }
+
+      // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
+      dbCollection.dropIndex(oldTextIndex, this);
+    })
+    .seq(function () {
+      createIndex(this);
+    })
+    .done(callback);
+  }
+
   /**
    * Finalisation de l'objet Entité.
    * @param {Entities} entities le conteneur d'entités.
    * @return {Entity} l'entité (chaînable)
    * @private
    */
-  bless(entities) {
+  bless (entities) {
     if (this.configure) this.configure();
     this.entities = entities;
-    this.entityClass = this.entityClass || function() {};
+    this.entityClass = this.entityClass || function () {};
     return this;
   }
 
@@ -86,7 +173,7 @@ class EntityDefinition {
    * @param {Object=} values Des valeurs à injecter dans l'objet.
    * @return {Entity} Une instance d'entité
    */
-  create(values) {
+  create (values) {
     var instance = new Entity();
     instance.setDefinition(this);
     if (this._defaults) {
@@ -94,7 +181,7 @@ class EntityDefinition {
     }
     if (this._construct) {
       this._construct.call(instance, values);
-      if(values && this._construct.length===0) {
+      if (values && this._construct.length === 0) {
         _.extend(instance, values);
       }
     } else {
@@ -107,19 +194,19 @@ class EntityDefinition {
    * drop la collection
    * @param {simpleCallback} cb
    */
-  flush(cb) {
-    const collection = this.entities.db.collection(this.name)
-    // si la collection n'existe pas, ça renvoie MongoError: ns not found
+  flush (cb) {
+    const collection = this.getCollection();
+    // Si la collection n'existe pas, "MongoError: ns not found" est renvoyée
     if (collection) collection.drop(cb);
-    else cb()
+    else cb();
   }
 
   /**
    * Retourne un requeteur (sur lequel on pourra chaîner les méthodes de {@link EntityQuery})
-   * @param {String=} index Un indexe à matcher en premier.
+   * @param {String=} index Un index à matcher en premier.
    * @return {EntityQuery}
    */
-  match() {
+  match () {
     var query = new EntityQuery(this);
     if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments));
     return query;
@@ -130,7 +217,7 @@ class EntityDefinition {
    * le create affectera toutes les valeurs qu'on lui passe à l'entité
    * @param {function} fn Constructeur
    */
-  construct(fn) {
+  construct (fn) {
     this._construct = fn;
   }
 
@@ -138,16 +225,15 @@ class EntityDefinition {
    * Ajoute un initialisateur, qui sera toujours appelé par create (avant un éventuel construct)
    * @param {function} fn La fonction qui initialisera des valeurs par défaut (sera appelée sans arguments)
    */
-  defaults(fn) {
+  defaults (fn) {
     this._defaults = fn;
   }
-
 
   /**
    * Ajoute un traitement avant stockage.
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
-  beforeStore(fn) {
+  beforeStore (fn) {
     this._beforeStore = fn;
   }
 
@@ -155,7 +241,7 @@ class EntityDefinition {
    * Ajoute un traitement après stockage.
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
-  afterStore(fn) {
+  afterStore (fn) {
     this._afterStore = fn;
   }
 
@@ -163,7 +249,7 @@ class EntityDefinition {
    * Ajoute un traitement avant suppression
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
-  beforeDelete(fn) {
+  beforeDelete (fn) {
     this._beforeDelete = fn;
   }
 
@@ -174,8 +260,8 @@ class EntityDefinition {
 }
 
 for (var method in EntityQuery.prototype) {
-  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch'].indexOf(method)===-1) {
-    EntityDefinition.prototype[method] = (function(method) { return function() {
+  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
+    EntityDefinition.prototype[method] = (function (method) { return function () {
         var args = Array.prototype.slice.call(arguments);
         var field = args.shift();
         var matcher = this.match(field);
@@ -184,6 +270,5 @@ for (var method in EntityQuery.prototype) {
     })(method);
   }
 }
-
 
 module.exports = EntityDefinition;

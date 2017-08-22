@@ -1,10 +1,10 @@
 /* eslint-env mocha */
 'use strict'
+
 const assert = require('assert')
 const flow = require('an-flow')
-const MongoClient = require('mongodb').MongoClient
-
 const Entities = require('../source/entities')
+const MongoClient = require('mongodb').MongoClient
 
 // test database access
 const defaultDbSettings = {
@@ -54,21 +54,28 @@ function checkMongoConnexion (next) {
   url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
   if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
   const {options} = dbSettings
-  MongoClient.connect(url, options, function (error, db) {
+  MongoClient.connect(url, options, (error, db) => {
     // en cas d'erreur, le process s'arrête avant d'exécuter ça…
     if (error) {
       console.error('La connexion mongoDb a échoué')
       return next(error)
     } else {
-      console.log('connexion mongo OK')
+      console.log('Connexion mongo OK')
     }
     db.close()
     next()
   })
 }
 
-// vérif d'une entité
-function assertEntity(i, entity) {
+const count = 1500 // doit être supérieur à la hard limit de lassi
+const bt = 1041476706000
+const MINUTE = 1000*60
+const STRING_PREFIX = 'test-'
+
+let entities
+let TestEntity
+
+function assertEntity (i, entity) {
   assert.equal(typeof entity.i, 'number')
   assert.equal(entity.d.constructor.name, 'Date')
   assert.equal(typeof entity.s, 'string')
@@ -88,33 +95,25 @@ function assertEntity(i, entity) {
   if (entity.oid) assert.equal(entity.oid.length, 24)
 }
 
-// les tests
-const count = 1500 // doit être supérieur à la hard limit de lassi
-const bt = 1041476706000
-const MINUTE = 1000*60
-const STRING_PREFIX = 'test-'
-
-let entities
-let TestEntity
-
 describe('$entities', function () {
   before('checkMongoConnexion', function (done) {
     overRideSettings()
-    console.log('lancement avec les paramètres de connexion', dbSettings)
+    console.log('Lancement avec les paramètres de connexion')
+    console.log(dbSettings)
     checkMongoConnexion(done)
   })
 
   it('Initialisation des entités', function (done) {
     entities = new Entities({database: dbSettings})
-    flow().seq(function () {
+    flow().seq(function() {
       entities.initialize(this)
-    }).seq(function () {
+    }).seq(function() {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(this)
     }).done(done)
   })
 
-  it("Initialisation de l'entité de test", function (done) {
+  it(`Initialisation de l'entité de test`, function (done) {
     TestEntity.construct(function () {
       this.created = new Date()
       this.i = undefined
@@ -130,7 +129,13 @@ describe('$entities', function () {
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
     TestEntity.defineIndex('dArray', 'date')
-    done()
+
+    TestEntity.defineIndex('type', 'string')
+    TestEntity.defineIndex('text1', 'string')
+    TestEntity.defineIndex('text2', 'string')
+    TestEntity.defineTextSearchFields(['text1', 'text2'])
+
+    entities.initializeEntity(TestEntity, done)
   })
 
   it(`Ajout de ${count} données dans l'entité`, function (done) {
@@ -172,7 +177,7 @@ describe('$entities', function () {
     }).done(done)
   })
 
-  it('indexe une date non définie comme null - verifie aussi le isNull', function (done) {
+  it('Indexe une date non définie comme null - verifie aussi le isNull', function (done) {
     const createdEntities = []
     flow().seq(function () {
       TestEntity.create({d: null, s: 'date nulle 1'}).store(this)
@@ -196,390 +201,530 @@ describe('$entities', function () {
     }).done(done)
   })
 
-  it("déclenche le beforeDelete", function (done) {
-    let deleted
-    TestEntity.beforeDelete(function (cb) {
-      deleted = "oui!"
-      cb()
-    })
-    flow().seq(function () {
-      TestEntity.create().store(this)
-    }).seq(function (entity) {
-      entity.delete(this)
-    }).seq(function () {
-      assert.equal(deleted, "oui!")
-      TestEntity.beforeDelete(function (cb) {cb()})
-      this()
-    }).done(done)
-  })
-
-  it("Sélection d'entités", function (done) {
-    this.timeout(10000)
-    flow().seq(function () {
-      TestEntity.match('iPair').equals(0).grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, count / 2)
-      entities.forEach(entity => assertEntity(entity.i, entity))
-      this()
-    }).done(done)
-  })
-
-  it("Sélection d'entités avec limit", function (done) {
-    this.timeout(10000)
-    flow().seq(function () {
-      TestEntity.match().grab({offset: 100, limit: 100}, this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 100)
-      entities.forEach(function (entity, i) {
-        assertEntity(100 + i, entity)
+  describe('.beforeDelete()', function () {
+    it('Déclenche le beforeDelete', function (done) {
+      let deleted
+      TestEntity.beforeDelete(function (cb) {
+        deleted = 'oui!'
+        cb()
       })
-      this()
-    }).done(done)
-  })
-
-  it("Sélection d'entités avec hard limit", function (done) {
-    this.timeout(10000)
-    flow().seq(function () {
-      TestEntity.match().grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 1000)
-      entities.forEach(function (entity, i) {
-        assertEntity(i, entity)
-      })
-      this()
-    }).seq(function () {
-      TestEntity.match().grab({limit: 1200}, this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 1000)
-      entities.forEach(function (entity, i) {
-        assertEntity(i, entity)
-      })
-      this()
-    }).done(done)
-  })
-
-  it("Tri d'entités", function (done) {
-    flow().seq(function () {
-      TestEntity.match().sort('i', 'asc').grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities[0].i, 0)
-      assert.equal(entities[1].i, 1)
-      this()
-    }).seq(function () {
-      TestEntity.match().sort('i', 'desc').grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities[0].i, count - 1)
-      assert.equal(entities[1].i, count - 2)
-      this()
-    }).done(done)
-  })
-
-  it("Compte d'entités", function (done) {
-    flow().seq(function () {
-      TestEntity.match('i').equals(1).count(this)
-    }).seq(function (count) {
-      assert.equal(count, 1)
-      this()
-    }).seq(function () {
-      // Test avec un matcher plus complexe
-      TestEntity.match('i').lowerThanOrEquals(9).count(this)
-    }).seq(function (count) {
-      assert.equal(count, 10)
-      this()
-    }).done(done)
-  })
-
-  it("double match sur le même attribut", function (done) {
-    flow().seq(function () {
-      // Si les matchs sont compatibles, ils "s'ajoutent"
-      TestEntity
-        .match('i').greaterThanOrEquals(5)
-        .match('i').lowerThanOrEquals(9)
-        .count(this)
-    }).seq(function (count) {
-      assert.equal(count, 5)
-      this()
-    }).seq(function () {
-      // On teste une combinaison impossible
-      TestEntity
-        .match('s').like("test-4")
-        .match('i').equals(5)
-        .grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 0)
-      this()
-    }).seq(function () {
-      // On teste un "écrasement"
-      TestEntity
-        .match('i').equals(4)
-        .match('i').equals(5)
-        .grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 1)
-      assert.equal(entities[0].i, 5)
-      this()
-    }).done(done)
-  })
-
-  it("Recherche avec like", function (done) {
-    let texteOriginal
-    flow().seq(function () {
-      TestEntity.match().grabOne(this)
-    }).seq(function (entity) {
-      texteOriginal = entity.s
-      entity.s = 'texte à chercher'
-      entity.store(this)
-    }).seq(function () {
-      TestEntity.match('s').like('%cherche%').grab(this)
-    }).seq(function (resultats) {
-      assert.equal(resultats.length, 1)
-      assert.equal(resultats[0].s, 'texte à chercher')
-      resultats[0].s = texteOriginal
-      resultats[0].store(this)
-    }).done(done)
-  })
-
-  it("Suppression de la moitié des entités", function (done) {
-    flow()
-      .callbackWrapper(process.nextTick)
-      .seq(function () {
-        TestEntity.match('iPair').equals(1).grab(this);
-      }).seq(function (entities) {
-      assert.equal(entities.length, count / 2)
-      this(null, entities)
-    }).seqEach(function (entity) {
-      entity.delete(this)
-    }).done(done)
-  })
-
-  it("Suppression 'douce' d'une entité", function (done) {
-    let oid = null
-    const started = new Date()
-    flow().seq(function () {
-      TestEntity.create({d: null}).store(this)
-    }).seq(function (entity) {
-      oid = entity.oid
-      entity.softDelete(this)
-    }).seq(function () {
-      TestEntity.match('oid').equals(oid).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity, undefined)
-      TestEntity
-        .match('__deletedAt').lowerThanOrEquals(new Date())
-        .onlyDeleted()
-        .grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity.oid, oid)
-      TestEntity.match().deletedAfter(started).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity.oid, oid)
-      TestEntity.match().deletedAfter(new Date()).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity, undefined)
-      // new Date(started.getYear(), started.getMonth(), started.getDay() + 1)
-      TestEntity.match().deletedBefore(new Date()).grabOne(this)
-      // si on met du strict dans deletedBefore, ce test passe pas, même en prenant une date lointaine…
-      // const dateFuture = new Date(Date.now() + 1000 * 3600 * 24 * 366)
-      // console.log(entity.__deletedAt)
-      // console.log(dateFuture)
-      // TestEntity.match().deletedBefore(dateFuture).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity.oid, oid)
-      TestEntity.match().deletedBefore(started).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity, undefined)
-      TestEntity.match('oid').equals(oid).onlyDeleted().grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity.oid, oid)
-      entity.restore(this)
-    }).seq(function () {
-      TestEntity.match('oid').equals(oid).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity.oid, oid)
-      entity.delete(this)
-    }).seq(function () {
-      TestEntity.match('oid').equals(oid).grabOne(this)
-    }).seq(function (entity) {
-      assert.equal(entity, undefined)
-      this()
-    }).done(done)
-  })
-
-  it("Vérification des suppressions", function (done) {
-    TestEntity.match('iPair').equals(1).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 0)
-      done()
+      flow().seq(function () {
+        TestEntity.create().store(this)
+      }).seq(function (entity) {
+        entity.delete(this)
+      }).seq(function () {
+        assert.equal(deleted, 'oui!')
+        TestEntity.beforeDelete(function (cb) {cb()})
+        this()
+      }).done(done)
     })
   })
 
-  it("Vérification des non suppressions", function (done) {
-    TestEntity.match('iPair').equals(0).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, count / 2)
-      done()
-    })
-  })
-
-  it("Une recherche simple ne donnant rien", function (done) {
-    TestEntity.match('iPair').equals(666).grabOne(function (error, result) {
-      if (error) return done(error)
-      assert(result === undefined)
-      done()
-    })
-  })
-
-  it("Une recherche multiple ne donnant rien", function (done) {
-    TestEntity.match('iPair').equals(666).grab(function (error, result) {
-      if (error) return done(error)
-      assert(result.length === 0)
-      done()
-    })
-  })
-
-  it("= string", function (done) {
-    TestEntity.match('s').equals(STRING_PREFIX + '198').grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 1)
-      done()
-    })
-  })
-  it("in string", function (done) {
-    TestEntity.match('s').in([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 2)
-      done()
-    })
-  })
-  it("not in string", function (done) {
-    TestEntity.match('s').notIn([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 748)
-      done()
-    })
-  })
-  it("in and not in string", function (done) {
-    // ce test vérifie aussi qu'on peut appeler plusieurs matcher sur un même champ
-    TestEntity
-      .match('s').notIn([STRING_PREFIX + '200', STRING_PREFIX + '198'])
-      .match('s').in([STRING_PREFIX + '200', STRING_PREFIX + '198', STRING_PREFIX + '196'])
-      .grab(function (error, result) {
+  describe('.match()', function () {
+    let oid
+    it(`Recherche avec l'opérateur AFTER pour un tableau de dates`, function (done) {
+      const d = new Date('2003-01-02T15:26:00.000Z')
+      TestEntity.match('dArray').after(d).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].s, STRING_PREFIX + '196')
+        assert.equal(result.length, 759)
+        oid = result[0].oid
         done()
       })
-  })
-  it("in string[]", function (done) {
-    TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 1)
-      done()
+    })
+
+    it(`Recherche exacte sur l'oid`, function (done) {
+      TestEntity.match('oid').equals(oid).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        done()
+      })
+    })
+
+    it('Recherche exacte sur une string', function (done) {
+      TestEntity.match('s').equals(STRING_PREFIX + '198').grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        done()
+      })
+    })
+
+    it(`Recherche avec l'opérateur IN pour une string`, function (done) {
+      TestEntity.match('s').in([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 2)
+        done()
+      })
+    })
+
+    it(`Recherche avec l'opérateur NOT IN pour une string`, function (done) {
+      let notInArray = []
+      for (let i = 0; i < count / 2; i++) {
+        notInArray.push(STRING_PREFIX + i)
+      }
+      TestEntity.match('s').notIn(notInArray).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 750)
+        done()
+      })
+    })
+
+    it('Double match sur le même attribut', function (done) {
+      flow().seq(function () {
+        // Si les matchs sont compatibles, ils "s'ajoutent"
+        TestEntity
+          .match('i').greaterThanOrEquals(5)
+          .match('i').lowerThanOrEquals(9)
+          .count(this)
+      }).seq(function (count) {
+        assert.equal(count, 5)
+        this()
+      }).seq(function () {
+        // On teste une combinaison impossible
+        TestEntity
+          .match('s').like("test-4")
+          .match('i').equals(5)
+          .grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 0)
+        this()
+      }).seq(function () {
+        // On teste un "écrasement"
+        TestEntity
+          .match('i').equals(4)
+          .match('i').equals(5)
+          .grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 1)
+        assert.equal(entities[0].i, 5)
+        this()
+      }).done(done)
+    })
+
+    it(`Double match sur le même attribut avec les opérateurs IN et NOT IN pour une string`, function (done) {
+      TestEntity
+        .match('s').in([STRING_PREFIX + '200', STRING_PREFIX + '198', STRING_PREFIX + '196'])
+        .match('s').notIn([STRING_PREFIX + '200', STRING_PREFIX + '198'])
+        .grab((error, result) => {
+          if (error) return done(error)
+          assert.equal(result.length, 1)
+          assert.equal(result[0].s, STRING_PREFIX + '196')
+          done()
+        })
+    })
+
+    it(`Recherche avec l'opérateur IN pour un tableau de string`, function (done) {
+      TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result)  {
+        if (error) return done(error)
+        assert.equal(result.length, 2)
+        done()
+      })
     })
   })
-  let oid
-  it("> date[]", function (done) {
-    const d = new Date('2003-01-02T04:11:00.000Z')
-    TestEntity.match('dArray').after(d).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 717)
-      oid = result[0].oid
-      done()
+
+  describe('.grab()', function () {
+    it(`Sélection d'entités`, function (done) {
+      this.timeout(10000)
+      flow().seq(function () {
+        TestEntity.match('iPair').equals(0).grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, count / 2)
+        entities.forEach(entity => assertEntity(entity.i, entity))
+        this()
+      }).done(done)
+    })
+
+    it(`Sélection d'entités avec limit`, function (done) {
+      this.timeout(10000)
+      flow().seq(function () {
+        TestEntity.match().grab({offset: 100, limit: 100}, this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 100)
+        entities.forEach(function (entity, i) {
+          assertEntity(100 + i, entity)
+        })
+        this()
+      }).done(done)
+    })
+
+    it(`Sélection d'entités avec hard limit`, function (done) {
+      this.timeout(10000)
+      flow().seq(function () {
+        TestEntity.match().grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 1000)
+        entities.forEach(function (entity, i) {
+          assertEntity(i, entity)
+        })
+        this()
+      }).seq(function () {
+        TestEntity.match().grab({limit: 1200}, this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 1000)
+        entities.forEach(function (entity, i) {
+          assertEntity(i, entity)
+        })
+        this()
+      }).done(done)
+    })
+
+    it('Recherche simple ne donnant rien', function (done) {
+      TestEntity.match('iPair').equals(666).grabOne(function (error, result) {
+        if (error) return done(error)
+        assert(result === undefined)
+        done()
+      })
+    })
+
+    it('Recherche multiple ne donnant rien', function (done) {
+      TestEntity.match('iPair').equals(666).grab(function (error, result) {
+        if (error) return done(error)
+        assert(result.length === 0)
+        done()
+      })
     })
   })
 
-  it("= oid", function (done) {
-    TestEntity.match('oid').equals(oid).grab(function (error, result) {
-      if (error) return done(error)
-      assert.equal(result.length, 1)
-      done()
+  describe('.sort()', function () {
+    it(`Tri d'entités`, function (done) {
+      flow().seq(function () {
+        TestEntity.match().sort('i', 'asc').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities[0].i, 0)
+        assert.equal(entities[1].i, 1)
+        this()
+      }).seq(function () {
+        TestEntity.match().sort('i', 'desc').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities[0].i, count - 1)
+        assert.equal(entities[1].i, count - 2)
+        this()
+      }).done(done)
     })
   })
 
-  it("ménage pour la suite", function (done) {
-    flow().seq(function () {
-      TestEntity.match().grab(this)
-    }).seqEach(function (entity) {
-      entity.delete(this)
-    }).done(done)
+  describe('.count()', function () {
+    it(`Compte d'entités`, function (done) {
+      flow().seq(function () {
+        TestEntity.match('i').equals(1).count(this)
+      }).seq(function (count) {
+        assert.equal(count, 1)
+        this()
+      }).seq(function () {
+        // Test avec un matcher plus complexe
+        TestEntity.match('i').lowerThanOrEquals(9).count(this)
+      }).seq(function (count) {
+        assert.equal(count, 10)
+        this()
+      }).done(done)
+    })
   })
 
-  it("cast automatique au select", function (done) {
-    function check (entity) {
-      assert.equal(entity.i, data.i)
-      assert.equal(entity.s, data.s)
-      assert.equal(entity.d, data.d)
-      assert.equal(typeof entity.i, 'string')
-      assert.equal(typeof entity.s, 'number')
-      assert.equal(typeof entity.d, 'string')
-    }
-
-    this.timeout(10000)
-    const int = 42
-    const str = String(int)
-    const timestamp = bt + MINUTE * int
-    const date = new Date(timestamp)
-    // on crée un objet avec des propriétés de type différents des index
-    const data = {
-      i: str,
-      s: int,
-      d: date.toString()
-    }
-
-    flow().seq(function () {
-      // ajout d'une entité avec les mauvais type
-      TestEntity.create(data).store(this)
-    }).seq(function (entity) {
-      // on vérifie la création qui laisse les datas comme on les a mises
-      check(entity)
-      // et on test les selects avec les bons types d'index
-      TestEntity.match('i').equals(int).grabOne(this)
-    }).seq(function (entity) {
-      check(entity)
-      TestEntity.match('s').equals(str).grabOne(this)
-    }).seq(function (entity) {
-      check(entity)
-      TestEntity.match('d').equals(date).grabOne(this)
-    }).seq(function (entity) {
-      check(entity)
-      // on passe au select avec les mauvais types qui devraient être castés automatiquement
-      TestEntity.match('i').equals(str).grabOne(this)
-    }).seq(function (entity) {
-      check(entity)
-      TestEntity.match('s').equals(int).grabOne(this)
-    }).seq(function (entity) {
-      check(entity)
-      TestEntity.match('d').equals(date.toString()).grabOne(this)
-    }).seq(function (entity) {
-      check(entity)
-      // on efface cette entité de test pour pas perturber les tests suivants
-      entity.delete(this)
-    }).done(done)
+  describe('.like()', function () {
+    it('Recherche avec like', function (done) {
+      let texteOriginal
+      flow().seq(function () {
+        TestEntity.match().grabOne(this)
+      }).seq(function (entity) {
+        texteOriginal = entity.s
+        entity.s = 'texte à chercher'
+        entity.store(this)
+      }).seq(function () {
+        TestEntity.match('s').like('%cherche%').grab(this)
+      }).seq(function (resultats) {
+        assert.equal(resultats.length, 1)
+        assert.equal(resultats[0].s, 'texte à chercher')
+        resultats[0].s = texteOriginal
+        resultats[0].store(this)
+      }).done(done)
+    })
   })
 
-  it('violent (en // nombreux insert puis update puis delete)', function (done) {
-    this.timeout(30 * 1000); // 30s
-    const count = 10000
-    const objs = []
-    for (let i = 0; i < count; i++) {
-      objs.push(TestEntity.create({
-        i: i,
-        s: STRING_PREFIX + i,
-        d: new Date(new Date().getTime() + 1000 * i)
-      }))
-    }
-    flow(objs)
-      .callbackWrapper(process.nextTick)
-      .parEach(function (obj) {
+  describe('.softDelete()', function () {
+    it(`Suppression 'douce' d'une entité`, function (done) {
+      let oid = null
+      const started = new Date()
+      flow().seq(function () {
+        TestEntity.create({d: null}).store(this)
+      }).seq(function (entity) {
+        oid = entity.oid
+        entity.softDelete(this)
+      }).seq(function () {
+        TestEntity.match('oid').equals(oid).grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity, undefined)
+        TestEntity
+          .match('__deletedAt').lowerThanOrEquals(new Date())
+          .onlyDeleted()
+          .grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity.oid, oid)
+        TestEntity.match().deletedAfter(started).grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity.oid, oid)
+        TestEntity.match().deletedAfter(new Date()).grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity, undefined)
+        TestEntity.match().deletedBefore(new Date()).grabOne(this)
+        // si on met du strict dans deletedBefore, ce test passe pas, même en prenant une date lointaine…
+      }).seq(function (entity) {
+        assert.equal(entity.oid, oid)
+        TestEntity.match().deletedBefore(started).grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity, undefined)
+        TestEntity.match('oid').equals(oid).onlyDeleted().grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity.oid, oid)
+        entity.restore(this)
+      }).seq(function () {
+        TestEntity.match('oid').equals(oid).grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity.oid, oid)
+        entity.delete(this)
+      }).seq(function () {
+        TestEntity.match('oid').equals(oid).grabOne(this)
+      }).seq(function (entity) {
+        assert.equal(entity, undefined)
+        this()
+      }).done(done)
+    })
+  })
+
+  describe('.delete()', function () {
+    it('Suppression de la moitié des entités', function (done) {
+      flow()
+        .callbackWrapper(process.nextTick)
+        .seq(function () {
+          TestEntity.match('iPair').equals(1).grab(this);
+        }).seq(function (entities) {
+        assert.equal(entities.length, count / 2)
+        this(null, entities)
+      }).seqEach(function (entity) {
+        entity.delete(this)
+      }).done(done)
+    })
+
+    it('Vérification des suppressions', function (done) {
+      TestEntity.match('iPair').equals(1).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 0)
+        done()
+      })
+    })
+
+    it('Vérification des non suppressions', function (done) {
+      TestEntity.match('iPair').equals(0).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, count / 2)
+        done()
+      })
+    })
+  })
+
+  describe('Nombreuses manipulations de données', function () {
+    before(function (done) {
+      flow().seq(function () {
+        TestEntity.match().grab(this)
+      }).seqEach(function (entity) {
+        entity.delete(this)
+      }).done(done)
+    })
+
+    it('Cast automatique au select', function (done) {
+      this.timeout(10000)
+      const int = 42
+      const str = String(int)
+      const timestamp = bt + MINUTE * int
+      const date = new Date(timestamp)
+      // on crée un objet avec des propriétés de type différents des index
+      const data = {
+        i: str,
+        s: int,
+        d: date.toString()
+      }
+
+      function check (entity) {
+        assert.equal(entity.i, data.i)
+        assert.equal(entity.s, data.s)
+        assert.equal(entity.d, data.d)
+        assert.equal(typeof entity.i, 'string')
+        assert.equal(typeof entity.s, 'number')
+        assert.equal(typeof entity.d, 'string')
+      }
+
+      flow().seq(function () {
+        // Ajout d'une entité avec les mauvais types
+        TestEntity.create(data).store(this)
+      }).seq(function (entity) {
+        // On vérifie la création qui laisse les datas comme on les a mises
+        check(entity)
+        // On teste les selects avec les bons types d'index
+        TestEntity.match('i').equals(int).grabOne(this)
+      }).seq(function (entity) {
+        check(entity)
+        TestEntity.match('s').equals(str).grabOne(this)
+      }).seq(function (entity) {
+        check(entity)
+        TestEntity.match('d').equals(date).grabOne(this)
+      }).seq(function (entity) {
+        check(entity)
+        // on passe au select avec les mauvais types qui devraient être castés automatiquement
+        TestEntity.match('i').equals(str).grabOne(this)
+      }).seq(function (entity) {
+        check(entity)
+        TestEntity.match('s').equals(int).grabOne(this)
+      }).seq(function (entity) {
+        check(entity)
+        TestEntity.match('d').equals(date.toString()).grabOne(this)
+      }).seq(function (entity) {
+        check(entity)
+        // on efface cette entité de test pour pas perturber les tests suivants
+        entity.delete(this)
+      }).done(done)
+    })
+
+    it('Insert, update et delete en parallèle', function (done) {
+      this.timeout(30 * 1000); // 30s
+      const count = 10000
+      const objs = []
+      for (let i = 0; i < count; i++) {
+        objs.push(TestEntity.create({
+          i: i,
+          s: STRING_PREFIX + i,
+          d: new Date(new Date().getTime() + 1000 * i)
+        }))
+      }
+
+      flow(objs)
+        .callbackWrapper(process.nextTick)
+        .parEach(function (obj) {
+          obj.store(this)
+        }).parEach(function (obj) {
+        obj.i *= 2
+        obj.tag = 'updated'
         obj.store(this)
-      }).parEach(function (obj) {
-      obj.i *= 2
-      obj.tag = 'updated'
-      obj.store(this)
-    }).seqEach(function (obj) {
-      obj.delete(this)
-    }).seq(function () {
-      done();
-    }).catch(console.error)
+      }).seqEach(function (obj) {
+        obj.delete(this)
+      }).seq(function () {
+        done();
+      }).catch(console.error)
+    })
   })
-})
+
+  describe('.textSearch()', function () {
+    let createdEntities;
+    beforeEach(function (done) {
+      const entities = [
+        { i: 42000, text1: 'foo', text2: 'bar', type: 'foo' },
+        { i: 42001, text1: 'foo', text2: 'foo', type: 'bar' },
+        { i: 42002, text1: 'bar', text2: 'bar', type: 'foo' },
+        { i: 42003, text1: 'foo bar', text2: 'bar', type: 'bar' },
+      ];
+      flow(entities)
+      .seqEach(function (entity) {
+        TestEntity.create(entity).store(this);
+      })
+      .seq(function (instances) {
+        createdEntities = instances;
+        this();
+      })
+      .done(done);
+    })
+    afterEach(function (done) {
+      // Cleanup
+      flow(createdEntities)
+      .seqEach(function (entity) {
+        entity.delete(this);
+      })
+      .done(done);
+    })
+
+    it('Fait une recherche sur plusieurs champs', function (done) {
+      TestEntity.match().textSearch('foo').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(results.length, 3);
+        // 42001 arrive premier car il a "foo" dans les champs text1 ET text2
+        assert.equal(results[0].i, 42001);
+        assert.equal(results[1].i, 42000);
+        assert.equal(results[2].i, 42003);
+        done();
+      })
+    })
+
+    it('Fait une recherche sur plusieurs mots', function (done) {
+      TestEntity.match().textSearch('foo bar').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(results.length, 4);
+        // 42004 arrive premier car il a un "foo bar" exact
+        assert.equal(results[0].i, 42003);
+        done();
+      })
+    })
+
+    it('Fait une recherche exacte', function (done) {
+      TestEntity.match().textSearch('"foo bar"').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(1, results.length);
+        assert.equal(results[0].i, 42003);
+        done();
+      })
+    })
+
+    it('Fait une recherche inexacte', function (done) {
+      TestEntity.match().textSearch('baz').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(0, results.length);
+        done();
+      })
+    })
+
+    it('Fait une recherche avec un match', function (done) {
+      TestEntity.match('type').equals('foo').textSearch('foo').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(1, results.length);
+        assert.equal(results[0].i, 42000);
+        done();
+      })
+    })
+
+    it('Fait une recherche sur plusieurs mots avec un match', function (done) {
+      TestEntity.match('type').equals('bar').textSearch('foo bar').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(2, results.length);
+        // 42004 arrive premier car il a un "foo bar" exact
+        assert.equal(results[0].i, 42003);
+        assert.equal(results[1].i, 42001);
+        done();
+      })
+    })
+
+    it('Fait une recherche exacte avec un match', function (done) {
+      TestEntity.match('type').equals('bar').textSearch('"foo bar"').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(1, results.length);
+        assert.equal(results[0].i, 42003);
+        done();
+      })
+    })
+
+    it('Fait une recherche inexacte avec un match', function (done) {
+      TestEntity.match('type').equals('foo').textSearch('baz').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(0, results.length);
+        done();
+      })
+    })
+
+    it('Fait une recherche sur plusieurs champs avec un sort', function (done) {
+      TestEntity.match().textSearch('foo').sort('type', 'desc').grab(function (error, results) {
+        if (error) return done(error);
+        assert.equal(results.length, 3);
+        // 42001 arrive premier car il a "foo" dans les champs text1 ET text2
+        assert.equal(results[0].i, 42001);
+        // 42001 arrive second car on a trié par type en ordre décroissant
+        assert.equal(results[1].i, 42000);
+        assert.equal(results[2].i, 42003);
+        done();
+      })
+    })
+  });
+});
