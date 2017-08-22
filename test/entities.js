@@ -67,7 +67,7 @@ function checkMongoConnexion (next) {
   })
 }
 
-const count = 1000
+const count = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
 const MINUTE = 1000*60
 const STRING_PREFIX = 'test-'
@@ -223,10 +223,10 @@ describe('$entities', function () {
   describe('.match()', function () {
     let oid
     it(`Recherche avec l'opérateur AFTER pour un tableau de dates`, function (done) {
-      const d = new Date('2003-01-02T04:11:00.000Z')
+      const d = new Date('2003-01-02T15:26:00.000Z')
       TestEntity.match('dArray').after(d).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 934)
+        assert.equal(result.length, 759)
         oid = result[0].oid
         done()
       })
@@ -257,9 +257,13 @@ describe('$entities', function () {
     })
 
     it(`Recherche avec l'opérateur NOT IN pour une string`, function (done) {
-      TestEntity.match('s').notIn([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
+      let notInArray = []
+      for (let i = 0; i < count / 2; i++) {
+        notInArray.push(STRING_PREFIX + i)
+      }
+      TestEntity.match('s').notIn(notInArray).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 998)
+        assert.equal(result.length, 750)
         done()
       })
     })
@@ -337,6 +341,27 @@ describe('$entities', function () {
         assert.equal(entities.length, 100)
         entities.forEach(function (entity, i) {
           assertEntity(100 + i, entity)
+        })
+        this()
+      }).done(done)
+    })
+
+    it(`Sélection d'entités avec hard limit`, function (done) {
+      this.timeout(10000)
+      flow().seq(function () {
+        TestEntity.match().grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 1000)
+        entities.forEach(function (entity, i) {
+          assertEntity(i, entity)
+        })
+        this()
+      }).seq(function () {
+        TestEntity.match().grab({limit: 1200}, this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 1000)
+        entities.forEach(function (entity, i) {
+          assertEntity(i, entity)
         })
         this()
       }).done(done)

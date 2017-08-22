@@ -441,11 +441,12 @@ class EntityQuery {
     if (skip > 0) record.options.skip = skip;
 
     let limit;
-    if (options.limit > 0 && options.limit < hardLimit) {
+    if (options.limit && options.limit > 0 && options.limit < hardLimit) {
       limit = options.limit;
       delete options.limit;
     } else {
       limit = hardLimit;
+      log(`Attention, hardLimit de lassi atteinte`)
     }
 
     var self = this;
