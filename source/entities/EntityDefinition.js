@@ -195,7 +195,7 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush (cb) {
-    const collection = this.entities.db.collection(this.name);
+    const collection = this.getCollection();
     // Si la collection n'existe pas, "MongoError: ns not found" est renvoyée
     if (collection) collection.drop(cb);
     else cb();
@@ -260,8 +260,7 @@ class EntityDefinition {
 }
 
 for (var method in EntityQuery.prototype) {
-  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort',
-    'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
+  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
     EntityDefinition.prototype[method] = (function (method) { return function () {
         var args = Array.prototype.slice.call(arguments);
         var field = args.shift();
