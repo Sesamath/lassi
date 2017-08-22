@@ -138,7 +138,10 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
       this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
         if (err) { callback(err); return }
         fs.readFile(path, 'utf8', function(err, str) {
-          if (err) { callback(err); return }
+          if (err) {
+            console.error(err)
+            return callback(new Error(`La vue ${path} n’existe pas`))
+          }
           template = self.dust.compileFn(str);
           if (self.cache) self.cacheStore[unresolvedPath] = template;
           template(locals, callback);

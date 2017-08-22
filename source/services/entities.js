@@ -15,8 +15,7 @@ module.exports = function($settings) {
    * @memberof $entities
    * @private
    */
-  entities.setup = function(cb) {
-    entities.initialize(cb);
-  }
+  entities.setup = entities.initialize
+  
   return entities;
 }
