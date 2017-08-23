@@ -2,74 +2,118 @@
 'use strict'
 
 const assert = require('assert')
-const assertEntity = require('./index.js').assertEntity
-const constants = require('./constants.js')
 const flow = require('an-flow')
 const Entities = require('../source/entities')
-const checkMongoConnexion = require('./index.js').checkMongoConnexion
-const dbSettings = require('./index.js').dbSettings
+const MongoClient = require('mongodb').MongoClient
 
-const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
+// test database access
+const defaultDbSettings = {
+  name: 'testLassi',
+  host : 'localhost',
+  port: 27017,
+  user: 'mocha',
+  password: 'mocha',
+  authMechanism: 'DEFAULT',
+  authSource: '',
+  options: {
+    poolSize: 10
+  }
+}
+const dbSettings = defaultDbSettings
+
+// override dbSettings with argv
+function overRideSettings () {
+  let i = 3
+  let a
+  while (process.argv[i]) {
+    a = process.argv[i]
+    if (a === '--name') dbSettings.name = process.argv[i + 1]
+    if (a === '--host') dbSettings.host = process.argv[i + 1]
+    if (a === '--port') dbSettings.port = process.argv[i + 1]
+    if (a === '--user') dbSettings.user = process.argv[i + 1]
+    if (a === '--pass') dbSettings.password = process.argv[i + 1]
+    if (a === '--ssl-cert') dbSettings.sslCert = process.argv[i + 1]
+    if (a === '--ssl-key') dbSettings.sslKey = process.argv[i + 1]
+    if (a === '--auth-mechanism') dbSettings.authMechanism = process.argv[i + 1]
+    if (a === '--auth-source') dbSettings.authSource = process.argv[i + 1]
+    if (a === '--pool-size') dbSettings.poolSize = process.argv[i + 1]
+    // et on accepte aussi db pour name
+    if (a === '--db') dbSettings.name = process.argv[i + 1]
+    i += 2
+  }
+}
+
+// teste la connexion à mongo (on gère pas certif ssl ni kerberos)
+function checkMongoConnexion (next) {
+  const {name, host, port, authMechanism} = dbSettings
+  let url = 'mongodb://'
+  // ssl prioritaire sur user/pass
+  if (dbSettings.user && dbSettings.password) {
+    url += `${encodeURIComponent(dbSettings.user)}:${encodeURIComponent(dbSettings.password)}@`
+  }
+  url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
+  if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
+  const {options} = dbSettings
+  MongoClient.connect(url, options, (error, db) => {
+    // en cas d'erreur, le process s'arrête avant d'exécuter ça…
+    if (error) {
+      console.error('La connexion mongoDb a échoué')
+      return next(error)
+    } else {
+      console.log('Connexion mongo OK')
+    }
+    db.close()
+    next()
+  })
+}
+
+const count = 1500 // doit être supérieur à la hard limit de lassi
+const bt = 1041476706000
+const MINUTE = 1000*60
+const STRING_PREFIX = 'test-'
 
 let entities
 let TestEntity
 
-/**
- * Ajout des données aux entités
- *
- * @param {Callback} next
- */
-function addData (next) {
-  const entities = []
-  for (let i = 0; i < nbEntities; i++) {
-    const d = new Date(constants.BT + constants.MINUTE * i)
-    entities.push(TestEntity.create({
-      i: i,
-      s: constants.STRING_PREFIX + i,
-      d: d,
-      iArray: [
-        i * 3,
-        i * 3 + 1,
-        i * 3 + 2
-      ],
-      sArray: [
-        constants.STRING_PREFIX + (i * 3),
-        constants.STRING_PREFIX + (i * 3 + 1),
-        constants.STRING_PREFIX + (i * 3 + 2)
-      ],
-      dArray: [
-        new Date(d),
-        new Date(d + 3600000),
-        new Date(d + 7200000)
-      ]
-    }))
-  }
-  entities.forEach(function (entity, i) {
-    assertEntity(i, entity)
-  })
-  flow(entities).seqEach(function (entity, i) {
-    const nextSeq = this
-    entity.store(function (error, entity) {
-      if (error) return nextSeq(error)
-      assertEntity(i, entity)
-      nextSeq()
-    })
-  }).done(next)
+function assertEntity (i, entity) {
+  assert.equal(typeof entity.i, 'number')
+  assert.equal(entity.d.constructor.name, 'Date')
+  assert.equal(typeof entity.s, 'string')
+  assert.equal(entity.i, i)
+  assert.equal(entity.s, STRING_PREFIX+i)
+  assert.equal(entity.d.getTime(), bt+MINUTE*i)
+  assert(Array.isArray(entity.sArray))
+  assert(Array.isArray(entity.iArray))
+  assert(Array.isArray(entity.dArray))
+  assert.equal(entity.sArray.length, 3)
+  assert.equal(entity.iArray.length, 3)
+  assert.equal(entity.dArray.length, 3)
+  assert.equal(typeof entity.iArray[0], 'number')
+  assert.equal(typeof entity.sArray[0], 'string')
+  assert.equal(entity.dArray[0].constructor.name, 'Date')
+  assert.equal(entity.created.constructor.name, 'Date')
+  if (entity.oid) assert.equal(entity.oid.length, 24)
 }
 
-/**
- * Initialisation des entités
- *
- * @param {Callback} next
- */
-function initEntities(next) {
-  entities = new Entities({database: dbSettings})
-  flow().seq(function() {
-    entities.initialize(this)
-  }).seq(function() {
-    TestEntity = entities.define('TestEntity')
-    TestEntity.flush(this)
-  }).seq(function () {
+describe('$entities', function () {
+  before('checkMongoConnexion', function (done) {
+    overRideSettings()
+    console.log('Lancement avec les paramètres de connexion')
+    console.log(dbSettings)
+    checkMongoConnexion(done)
+  })
+
+  it('Initialisation des entités', function (done) {
+    entities = new Entities({database: dbSettings})
+    flow().seq(function() {
+      entities.initialize(this)
+    }).seq(function() {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.flush(this)
+    }).done(done)
+  })
+
+  it(`Initialisation de l'entité de test`, function (done) {
     TestEntity.construct(function () {
       this.created = new Date()
       this.i = undefined
@@ -91,18 +135,45 @@ function initEntities(next) {
     TestEntity.defineIndex('text2', 'string')
     TestEntity.defineTextSearchFields(['text1', 'text2'])
 
-    entities.initializeEntity(TestEntity, this)
-  }).seq(function () {
-    addData(this)
-  }).done(next)
-}
+    entities.initializeEntity(TestEntity, done)
+  })
 
-describe('$entities', function () {
-  before('Connexion à Mongo et initialisation des entités', function (done) {
-    flow().seq(function () {
-      checkMongoConnexion(this)
-    }).seq(function () {
-      initEntities(this)
+  it(`Ajout de ${count} données dans l'entité`, function (done) {
+    this.timeout(10000)
+    const entities = []
+    for (let i = 0; i < count; i++) {
+      const d = new Date(bt + MINUTE * i)
+      entities.push(TestEntity.create({
+        i: i,
+        s: STRING_PREFIX + i,
+        d: d,
+        iArray: [
+          i * 3,
+          i * 3 + 1,
+          i * 3 + 2
+        ],
+        sArray: [
+          STRING_PREFIX + (i * 3),
+          STRING_PREFIX + (i * 3 + 1),
+          STRING_PREFIX + (i * 3 + 2)
+        ],
+        dArray: [
+          new Date(d),
+          new Date(d + 3600000),
+          new Date(d + 7200000)
+        ]
+      }))
+    }
+    entities.forEach(function (entity, i) {
+      assertEntity(i, entity)
+    })
+    flow(entities).seqEach(function (entity, i) {
+      const next = this
+      entity.store(function (error, entity) {
+        if (error) return next(error)
+        assertEntity(i, entity)
+        next()
+      })
     }).done(done)
   })
 
@@ -170,7 +241,7 @@ describe('$entities', function () {
     })
 
     it('Recherche exacte sur une string', function (done) {
-      TestEntity.match('s').equals(constants.STRING_PREFIX + '198').grab(function (error, result) {
+      TestEntity.match('s').equals(STRING_PREFIX + '198').grab(function (error, result) {
         if (error) return done(error)
         assert.equal(result.length, 1)
         done()
@@ -178,7 +249,7 @@ describe('$entities', function () {
     })
 
     it(`Recherche avec l'opérateur IN pour une string`, function (done) {
-      TestEntity.match('s').in([constants.STRING_PREFIX + '198', constants.STRING_PREFIX + '196']).grab(function (error, result) {
+      TestEntity.match('s').in([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
         assert.equal(result.length, 2)
         done()
@@ -187,8 +258,8 @@ describe('$entities', function () {
 
     it(`Recherche avec l'opérateur NOT IN pour une string`, function (done) {
       let notInArray = []
-      for (let i = 0; i < nbEntities / 2; i++) {
-        notInArray.push(constants.STRING_PREFIX + i)
+      for (let i = 0; i < count / 2; i++) {
+        notInArray.push(STRING_PREFIX + i)
       }
       TestEntity.match('s').notIn(notInArray).grab(function (error, result) {
         if (error) return done(error)
@@ -231,18 +302,18 @@ describe('$entities', function () {
 
     it(`Double match sur le même attribut avec les opérateurs IN et NOT IN pour une string`, function (done) {
       TestEntity
-        .match('s').in([constants.STRING_PREFIX + '200', constants.STRING_PREFIX + '198', constants.STRING_PREFIX + '196'])
-        .match('s').notIn([constants.STRING_PREFIX + '200', constants.STRING_PREFIX + '198'])
+        .match('s').in([STRING_PREFIX + '200', STRING_PREFIX + '198', STRING_PREFIX + '196'])
+        .match('s').notIn([STRING_PREFIX + '200', STRING_PREFIX + '198'])
         .grab((error, result) => {
           if (error) return done(error)
           assert.equal(result.length, 1)
-          assert.equal(result[0].s, constants.STRING_PREFIX + '196')
+          assert.equal(result[0].s, STRING_PREFIX + '196')
           done()
         })
     })
 
     it(`Recherche avec l'opérateur IN pour un tableau de string`, function (done) {
-      TestEntity.match('sArray').in([constants.STRING_PREFIX + '199', constants.STRING_PREFIX + '196']).grab(function (error, result)  {
+      TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result)  {
         if (error) return done(error)
         assert.equal(result.length, 2)
         done()
@@ -256,7 +327,7 @@ describe('$entities', function () {
       flow().seq(function () {
         TestEntity.match('iPair').equals(0).grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.length, nbEntities / 2)
+        assert.equal(entities.length, count / 2)
         entities.forEach(entity => assertEntity(entity.i, entity))
         this()
       }).done(done)
@@ -324,8 +395,8 @@ describe('$entities', function () {
       }).seq(function () {
         TestEntity.match().sort('i', 'desc').grab(this)
       }).seq(function (entities) {
-        assert.equal(entities[0].i, nbEntities - 1)
-        assert.equal(entities[1].i, nbEntities - 2)
+        assert.equal(entities[0].i, count - 1)
+        assert.equal(entities[1].i, count - 2)
         this()
       }).done(done)
     })
@@ -425,7 +496,7 @@ describe('$entities', function () {
         .seq(function () {
           TestEntity.match('iPair').equals(1).grab(this);
         }).seq(function (entities) {
-        assert.equal(entities.length, nbEntities / 2)
+        assert.equal(entities.length, count / 2)
         this(null, entities)
       }).seqEach(function (entity) {
         entity.delete(this)
@@ -443,7 +514,7 @@ describe('$entities', function () {
     it('Vérification des non suppressions', function (done) {
       TestEntity.match('iPair').equals(0).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, nbEntities / 2)
+        assert.equal(result.length, count / 2)
         done()
       })
     })
@@ -462,7 +533,7 @@ describe('$entities', function () {
       this.timeout(10000)
       const int = 42
       const str = String(int)
-      const timestamp = constants.BT + constants.MINUTE * int
+      const timestamp = bt + MINUTE * int
       const date = new Date(timestamp)
       // on crée un objet avec des propriétés de type différents des index
       const data = {
@@ -518,7 +589,7 @@ describe('$entities', function () {
       for (let i = 0; i < count; i++) {
         objs.push(TestEntity.create({
           i: i,
-          s: constants.STRING_PREFIX + i,
+          s: STRING_PREFIX + i,
           d: new Date(new Date().getTime() + 1000 * i)
         }))
       }
