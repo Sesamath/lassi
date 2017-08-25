@@ -304,8 +304,8 @@ function purge (entity, nbDays, done) {
         et un nombre de jours en second argument`);
   }
   if (typeof done !== 'function') throw new Error('Erreur interne, pas de callback de commande');
-  nbDays = parseInt(nbDays);
-  if (!nbDays) throw new Error('Le second argument doit être un nombre positif');
+  nbDays = Number(nbDays);
+  if (!nbDays || nbDays <= 0) throw new Error('Le second argument doit être un nombre positif');
 
   try {
     let Entity;
@@ -332,12 +332,8 @@ function purge (entity, nbDays, done) {
     .seqEach(function (entity) {
       const nextEntity = this;
       process.nextTick(function () {
-        flow()
-        .seq(function () {
-          nb++;
-          entity.delete(nextEntity);
-        })
-        .done(nextEntity);
+        nb++;
+        entity.delete(nextEntity);
       })
     })
     .seq(function () {
