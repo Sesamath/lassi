@@ -122,7 +122,7 @@ class Entity {
   }
 
   /**
-   * Restore un élément supprimé en soft-delete
+   * Restaure un élément supprimé en soft-delete
    * @param {SimpleCallback} callback
    */
   restore (callback) {
@@ -131,8 +131,8 @@ class Entity {
 
     flow()
     .seq(function() {
-      if (!self.oid) return this('Impossible de restorer une entité sans oid');
-      entity.entities.db.collection(entity.name).update({
+      if (!self.oid) return this('Impossible de restaurer une entité sans oid');
+      entity.getCollection().update({
         _id: self.oid
       },{
         $unset: {__deletedAt: ''}
@@ -155,7 +155,7 @@ class Entity {
     flow()
     .seq(function() {
       if (!self.oid) return this();
-      entity.entities.db.collection(entity.name).update({
+      entity.getCollection().update({
         _id: self.oid
       }, {
         $set: {__deletedAt: new Date() }

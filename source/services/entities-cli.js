@@ -1,6 +1,8 @@
 'use strict'
 
+const _ = require('lodash');
 const flow = require('an-flow');
+const moment = require('moment');
 const anLog = require('an-log')('lassi');
 // sera redéfini par chaque commande pour avoir le bon préfixe
 let log = (...args) => anLog('entities-cli', ...args);
@@ -184,10 +186,6 @@ function select (entityName, fields, wheres, options, done) {
   }
   if (typeof done !== 'function') throw new Error('Erreur interne, pas de callback de commande');
   if (typeof entityName !== 'string') return done(new Error('Il faut passer un nom d’entity (ou "help") en 1er argument'));
-  if (entityName === 'help') {
-    select.help();
-    return done();
-  }
 
   const opts = {};
   options.split(',').forEach(elt => {
@@ -265,11 +263,6 @@ function count (entityName, wheres, done) {
   }
   if (typeof done !== 'function') throw new Error('Erreur interne, pas de callback de commande');
 
-  if (entityName === 'help') {
-    count.help();
-    return done();
-  }
-
   try {
     let Entity;
     try {
@@ -298,6 +291,69 @@ La commande count demande 1 ou 2 arguments :
 }
 
 /**
+ * Purge les entités datant du nombre de jours indiqués
+ * @param {string|Object} entity Le nom de l'entité, mettre help pour avoir la syntaxe des arguments
+ * @param {string}        nbDays Nombre de jours minimum pour que l'entité soit purgée
+ * @param {errorCallback} done   Callback
+ */
+function purge (entity, nbDays, done) {
+  log = (...args) => anLog('entities-cli purge', ...args);
+  if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande');
+  if (arguments.length !== 3) {
+    throw new Error(`Il faut passer un nom d’entity (ou l'entity) en premier argument
+        et un nombre de jours en second argument`);
+  }
+  if (typeof done !== 'function') throw new Error('Erreur interne, pas de callback de commande');
+  nbDays = Number(nbDays);
+  if (!nbDays || nbDays <= 0) throw new Error('Le second argument doit être un nombre positif');
+
+  try {
+    let Entity;
+    if (_.isObject(entity)) {
+      Entity = entity
+    } else if (_.isString(entity)) {
+      try {
+        Entity = lassi.service(entity);
+      } catch (error) {
+        return done(new Error(`Aucune entity nommée ${entity} (utiliser la commande "allServices" pour voir services et entités)`));
+      }
+    } else {
+      throw new Error('Le premier argument doit être une string ou un objet')
+    }
+    let nb = 0;
+    const date = moment().subtract(nbDays, 'days').toDate();
+    flow()
+    .seq(function () {
+      Entity
+        .match('__deletedAt').lowerThanOrEquals(date)
+        .onlyDeleted()
+        .grab(this);
+    })
+    .seqEach(function (entity) {
+      const nextEntity = this;
+      process.nextTick(function () {
+        nb++;
+        entity.delete(nextEntity);
+      })
+    })
+    .seq(function () {
+      log(`${nb} entités ${Entity.name} viennent d'être purgées`);
+      this();
+    })
+    .done(done);
+  } catch (error) {
+    done(error);
+  }
+}
+purge.help = function purgeHelp () {
+  log = (...args) => anLog('entities-cli purge', 'usage', ...args);
+  log(`
+La commande purge demande 2 arguments :
+#1 : le nom de l’entité cherchée ou l'entité cherchée
+#2 : le nombre de jours minimum pour que l'entité soit purgée`);
+}
+
+/**
  * Service de gestion des entités via cli
  * @service $entities-cli
  */
@@ -305,6 +361,7 @@ module.exports = function() {
   return {
     commands: () => ({
       count,
+      purge,
       reindexAll,
       select
     })
