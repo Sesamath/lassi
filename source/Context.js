@@ -193,7 +193,7 @@ class Context {
 
   /**
    * Renvoie en json un message d'erreur attaché à un champ
-   * L'objet envoyé sera de la forme {field:'le nom du champ passé (ou absent)', message:'le message', ok:false}
+   * L'objet envoyé sera de la forme {field: 'le nom du champ passé (ou absent)', message: 'le message', success: false}
    * @param {string|null} field le nom du champ en erreur
    * @param message Le message d'erreur
    */
@@ -201,17 +201,17 @@ class Context {
     var data = {};
     if (field) data.field = field;
     data.message = message;
-    data.ok = false;
+    data.success = false;
     this.json(data);
   }
 
   /**
-   * Envoi data (cloné) en json en ajoutant une propriété ok mise à true
+   * Envoi data (cloné) en json en ajoutant une propriété success mise à true
    * @param data Les données à envoyer en json
    */
 	rest(data) {
     data = _.clone(data);
-    data.ok = true;
+    data.success = true;
     this.json(data);
   }
 
