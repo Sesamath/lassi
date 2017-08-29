@@ -128,7 +128,7 @@ class Controller extends EventEmitter {
   /**
    * Publie l'ensemble des fichiers d'un dossier physique.
    * @param {String} [path] le chemin absolu ou relatif au controller .
-   * @param {String} fsPath Le chemin physique
+   * @param {String|Object} options Si c'est une string ça doit être le chemin physique, sinon un objet avec fsPath ou d'autres propriétés qui seront passées à express.static
    * @return {Controller} Chaînable
    */
   serve(path, options) {
