@@ -28,7 +28,7 @@ const _    = require('lodash');
 const flow = require('an-flow');
 
 // une limite hard pour grab
-const hardLimit = 1000
+const hardLimit = 5000
 
 class EntityQuery {
   /**
@@ -440,13 +440,14 @@ class EntityQuery {
     const skip = options.offset || options.skip
     if (skip > 0) record.options.skip = skip;
 
-    let limit;
-    if (options.limit && options.limit > 0 && options.limit < hardLimit) {
-      limit = options.limit;
+    let limit = hardLimit;
+    if (options.limit) {
+      if (options.limit > 0 && options.limit < hardLimit) {
+        limit = options.limit;
+      } else {
+        log(`Attention, hardLimit de lassi atteinte`)
+      }
       delete options.limit;
-    } else {
-      limit = hardLimit;
-      log(`Attention, hardLimit de lassi atteinte`)
     }
 
     var self = this;
