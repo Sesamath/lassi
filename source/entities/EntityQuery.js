@@ -28,7 +28,7 @@ const _    = require('lodash');
 const flow = require('an-flow');
 
 // une limite hard pour grab
-const hardLimit = 5000
+const hardLimit = 1000
 
 class EntityQuery {
   /**
@@ -426,6 +426,20 @@ class EntityQuery {
     return this;
   }
 
+  /**
+   * Callback d'exécution d'une requête grab
+   * @callback EntityQuery~GrabCallback
+   * @param {Error} error
+   * @param {Array} entities La liste des entités remontées
+   */
+
+  /**
+   * Récupère des entités
+   * @param {number|object}           [options]      Si seulement un nombre est fourni, il sera traité comme options.limit
+   * @param {number}                   options.limit Entier >0 et < 1000
+   * @param {number}                   options.skip  Entier >0, pour démarrer avec un offset
+   * @param {EntityQuery~GrabCallback} callback rappelée avec l'erreur ou les résultats
+   */
   grab (options, callback) {
     if (_.isFunction(options)) {
       callback = options
@@ -434,12 +448,13 @@ class EntityQuery {
     if (typeof options == 'number') {
       options = {limit : options}
     }
-    options = options || {};
+    if (!options) options = {};
     var record = {query: {}, options: {}};
     // on accepte offset ou skip
     const skip = options.offset || options.skip
     if (skip > 0) record.options.skip = skip;
 
+    // set limit
     let limit = hardLimit;
     if (options.limit) {
       if (options.limit > 0 && options.limit < hardLimit) {
@@ -464,19 +479,24 @@ class EntityQuery {
 
       let recordQuery = _.merge(record.query, {$text: {$search: this.search}});
       let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}});
+
       this.entity.getCollection()
       .find(recordQuery, recordOptions)
       .sort(recordSort)
       .limit(limit)
       .toArray(function (error, rows) {
-        callback(error, self.createEntitiesFromRows(rows));
+        if (error) return callback(error)
+        if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
+        callback(null, self.createEntitiesFromRows(rows));
       });
     } else {
       this.entity.getCollection()
       .find(record.query, record.options)
       .limit(limit)
       .toArray(function (error, rows) {
-        callback(error, self.createEntitiesFromRows(rows));
+        if (error) return callback(error)
+        if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
+        callback(null, self.createEntitiesFromRows(rows));
       });
     }
   }
@@ -485,7 +505,7 @@ class EntityQuery {
    * Callback d'exécution d'une requête.
    * @callback EntityQuery~CountCallback
    * @param {Error} error Une erreur est survenue.
-   * @param {Integer} count compote
+   * @param {Integer} count le nb de résultat
    */
 
   /**
@@ -505,7 +525,7 @@ class EntityQuery {
   }
 
   /**
-   * Callback d'exécution d'une requête.
+   * Callback d'exécution d'une requête grabOne
    * @callback EntityQuery~GrabOneCallback
    * @param {Error} error Une erreur est survenue.
    * @param {Entity} entites L'objet trouvé (ou null)
