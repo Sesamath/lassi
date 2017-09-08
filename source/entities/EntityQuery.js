@@ -62,6 +62,20 @@ class EntityQuery {
   }
 
   /**
+   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est différente à une
+   * valeur donnée.
+   * @param {String|Integer|Date} value La valeur cherchée
+   * @return {EntityQuery} La requête (chaînable donc}
+   */
+  notEquals (value, fieldValue) {
+    if (typeof fieldValue !== 'undefined') {
+      this.match(value);
+      value = fieldValue;
+    }
+    return this.alterLastMatch({value: value,  operator: '<>'});
+  }
+
+  /**
    * Limite les enregistrements dont la valeur (de l'index imposé précédemment) ressemble à une
    * valeur donnée (Cf signification du _ et % avec like).
    * @see https://dev.mysql.com/doc/refman/5.5/en/pattern-matching.html
@@ -343,6 +357,10 @@ class EntityQuery {
       switch (clause.operator) {
         case '=':
           condition = {$eq: cast(clause.value)};
+          break;
+
+        case '<>':
+          condition = {$ne: cast(clause.value)};
           break;
 
         case '>':
