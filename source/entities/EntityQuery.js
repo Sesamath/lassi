@@ -43,6 +43,7 @@ class EntityQuery {
     this.entity = entity;
     this.clauses = [];
     this.search = null;
+    this._includeDeleted = false;
   }
 
   /**
@@ -256,6 +257,15 @@ class EntityQuery {
   }
 
   /**
+   * Remonte uniquement toutes les entités softdeleted ou non
+   * @return {EntityQuery}
+   */
+  includeDeleted() {
+    this._includeDeleted = true;
+    return this
+  }
+
+  /**
    * Remonte les entités softDeleted après when
    * @param {Date} when
    * @return {EntityQuery}
@@ -384,8 +394,8 @@ class EntityQuery {
       Object.assign(query[index], condition);
     })
 
-    // Par défaut, on ne prend pas les softDeleted
-    if (!query['__deletedAt']) query['__deletedAt'] = {$eq : null}
+    // par défaut on prend pas les softDeleted
+    if (!query['__deletedAt'] && !this._includeDeleted) query['__deletedAt'] = {$eq : null}
   }
 
   /**
