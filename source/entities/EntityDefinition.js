@@ -196,9 +196,19 @@ class EntityDefinition {
    */
   flush (cb) {
     const collection = this.getCollection();
-    // Si la collection n'existe pas, "MongoError: ns not found" est renvoyée
-    if (collection) collection.drop(cb);
-    else cb();
+    // Si la collection n'existe pas, getCollection renvoie un objet
+    // mais "MongoError: ns not found" est renvoyé sur le drop
+    if (collection) {
+      collection.drop(function (error) {
+        if (error) {
+          if (/ns not found/.test(error.message)) return cb()
+          return cb(error)
+        }
+        cb()
+      });
+    } else {
+      cb();
+    }
   }
 
   /**
