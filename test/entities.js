@@ -392,54 +392,175 @@ describe('$entities', function () {
       }).done(done)
     })
   })
+  describe(`Suppression "douce" d'une entité()`, function() {
+    var createdEntities
+    var deletedEntity
+    var nonDeletedEntity
+    var started
 
-  describe('.softDelete()', function () {
-    it(`Suppression 'douce' d'une entité`, function (done) {
-      let oid = null
-      const started = new Date()
-      flow().seq(function () {
-        TestEntity.create({d: null}).store(this)
-      }).seq(function (entity) {
-        oid = entity.oid
-        entity.softDelete(this)
-      }).seq(function () {
-        TestEntity.match('oid').equals(oid).grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity, undefined)
-        TestEntity
-          .match('__deletedAt').lowerThanOrEquals(new Date())
-          .onlyDeleted()
-          .grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity.oid, oid)
-        TestEntity.match().deletedAfter(started).grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity.oid, oid)
-        TestEntity.match().deletedAfter(new Date()).grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity, undefined)
-        TestEntity.match().deletedBefore(new Date()).grabOne(this)
-        // si on met du strict dans deletedBefore, ce test passe pas, même en prenant une date lointaine…
-      }).seq(function (entity) {
-        assert.equal(entity.oid, oid)
-        TestEntity.match().deletedBefore(started).grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity, undefined)
-        TestEntity.match('oid').equals(oid).onlyDeleted().grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity.oid, oid)
-        entity.restore(this)
-      }).seq(function () {
-        TestEntity.match('oid').equals(oid).grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity.oid, oid)
-        entity.delete(this)
-      }).seq(function () {
-        TestEntity.match('oid').equals(oid).grabOne(this)
-      }).seq(function (entity) {
-        assert.equal(entity, undefined)
-        this()
-      }).done(done)
+    beforeEach(function(done) {
+      started = new Date()
+
+      var entities = [
+        { i: 42000 }, // <-- celle là sera soft-deleted
+        { i: 42001 },
+      ]
+
+      flow(entities)
+      .seqEach(function(entity) {
+        TestEntity.create(entity).store(this);
+      })
+      .seq(function(instances) {
+        createdEntities = instances;
+        nonDeletedEntity = createdEntities[1];
+        createdEntities[0].softDelete(this)
+      })
+      .seq(function(_deletedEntity) {
+        deletedEntity = _deletedEntity;
+        done();
+      })
+      .catch(done)
+    })
+
+    afterEach(function(done) {
+      // Cleanup
+      flow(createdEntities)
+      .seqEach(function(entity) {
+        entity.delete(this);
+      })
+      .done(done)
+    })
+
+    describe('deleted entity', function(done) {
+      it("renvoie true pour isDeleted", function() {
+        assert.equal(deletedEntity.isDeleted(), true)
+      })
+      it("n'apparait plus dans le grab par defaut", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity, undefined);
+          this();
+        })
+        .done(done)
+      })
+      it("apparait avec onlyDeleted()", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity.oid, deletedEntity.oid);
+          this();
+        })
+        .done(done)
+      })
+      it("apparait avec includeDeleted()", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match('oid').equals(deletedEntity.oid).includeDeleted().grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity.oid, deletedEntity.oid);
+          this();
+        })
+        .done(done)
+      })
+      it("peut être trouve par deletedAfter()", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match().deletedAfter(started).grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity.oid, deletedEntity.oid);
+          TestEntity.match().deletedAfter(Date.now()).grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity, undefined);
+          this();
+        })
+        .done(done)
+      })
+      it("peut être trouve par deletedBefore()", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match().deletedBefore(new Date()).grabOne(this)
+          // si on met du strict dans deletedBefore, ce test passe pas, même en prenant une date lointaine…
+        })
+        .seq(function(entity) {
+          assert.equal(entity.oid, deletedEntity.oid);
+          TestEntity.match().deletedBefore(started).grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity, undefined);
+          this();
+        })
+        .done(done)
+      })
+      it("peut être restorée", function(done) {
+        flow()
+        .seq(function() {
+          deletedEntity.restore(this);
+        })
+        .seq(function() {
+          // On vérifie la mise à jour en bdd
+          TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity.isDeleted(), false);
+          assert.equal(entity.oid, deletedEntity.oid);
+          this();
+        })
+        .done(done)
+      })
+      it("peut être store", function(done) {
+        flow()
+        .seq(function() {
+          deletedEntity.store(this);
+        })
+        .seq(function(entity) {
+          // Elle doit toujours etre "deleted"
+          assert.equal(entity.isDeleted(), true);
+          // On vérifie en bdd
+          TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity.isDeleted(), true);
+          assert.equal(entity.oid, deletedEntity.oid);
+          this();
+        })
+        .done(done)
+      })
+    })
+
+    describe('non-deleted entity', function(done) {
+      it("renvoie false pour isDeleted", function() {
+        assert.equal(nonDeletedEntity.isDeleted(), false)
+      })
+      it("n'apparait pas avec onlyDeleted()", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity, undefined);
+          this();
+        })
+        .done(done)
+      })
+      it("apparait avec includeDeleted()", function(done) {
+        flow()
+        .seq(function() {
+          TestEntity.match('oid').equals(nonDeletedEntity.oid).includeDeleted().grabOne(this)
+        })
+        .seq(function(entity) {
+          assert.equal(entity.oid, nonDeletedEntity.oid);
+          this();
+        })
+        .done(done)
+      })
     })
   })
 

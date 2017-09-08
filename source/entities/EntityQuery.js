@@ -43,6 +43,7 @@ class EntityQuery {
     this.entity = entity;
     this.clauses = [];
     this.search = null;
+    this._includeDeleted = false;
   }
 
   /**
@@ -58,6 +59,20 @@ class EntityQuery {
       value = fieldValue;
     }
     return this.alterLastMatch({value: value,  operator: '='});
+  }
+
+  /**
+   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est différente à une
+   * valeur donnée.
+   * @param {String|Integer|Date} value La valeur cherchée
+   * @return {EntityQuery} La requête (chaînable donc}
+   */
+  notEquals (value, fieldValue) {
+    if (typeof fieldValue !== 'undefined') {
+      this.match(value);
+      value = fieldValue;
+    }
+    return this.alterLastMatch({value: value,  operator: '<>'});
   }
 
   /**
@@ -256,6 +271,15 @@ class EntityQuery {
   }
 
   /**
+   * Remonte uniquement toutes les entités softdeleted ou non
+   * @return {EntityQuery}
+   */
+  includeDeleted() {
+    this._includeDeleted = true;
+    return this
+  }
+
+  /**
    * Remonte les entités softDeleted après when
    * @param {Date} when
    * @return {EntityQuery}
@@ -335,6 +359,10 @@ class EntityQuery {
           condition = {$eq: cast(clause.value)};
           break;
 
+        case '<>':
+          condition = {$ne: cast(clause.value)};
+          break;
+
         case '>':
           condition = {$gt: cast(clause.value)};
           break;
@@ -384,8 +412,8 @@ class EntityQuery {
       Object.assign(query[index], condition);
     })
 
-    // Par défaut, on ne prend pas les softDeleted
-    if (!query['__deletedAt']) query['__deletedAt'] = {$eq : null}
+    // par défaut on prend pas les softDeleted
+    if (!query['__deletedAt'] && !this._includeDeleted) query['__deletedAt'] = {$eq : null}
   }
 
   /**

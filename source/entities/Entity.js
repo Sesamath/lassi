@@ -46,6 +46,13 @@ class Entity {
   isNew () {
     return !this.oid;
   }
+  /**
+   * Répond true si l'instance de cette Entity est "soft deleted"
+   * @return {boolean}
+   */
+  isDeleted () {
+    return !!this.__deletedAt;
+  }
 
   buildIndexes () {
     function cast (fieldType, value) {
@@ -102,6 +109,7 @@ class Entity {
         self.oid = ObjectID().toString();
       }
       var indexes = self.buildIndexes();
+      indexes.__deletedAt = self.__deletedAt;
       indexes._id = self.oid;
       indexes._data = JSON.stringify(self, function(k,v) {
         if (_.isFunction(v)) return;
@@ -149,19 +157,10 @@ class Entity {
    * @param {SimpleCallback} callback
    * @see restore
    */
-  softDelete (callback) {
-    var self = this;
-    var entity = this.definition;
-    flow()
-    .seq(function() {
-      if (!self.oid) return this();
-      entity.getCollection().update({
-        _id: self.oid
-      }, {
-        $set: {__deletedAt: new Date() }
-      }, this);
-    })
-    .done(callback)
+  softDelete(callback) {
+    if (!this.oid) return callback(new Error(`Impossible de softDelete une entité qui n'a pas encore été sauvegardée`));
+    this.__deletedAt = new Date();
+    this.store(callback);
   }
 
   /**
