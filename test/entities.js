@@ -431,11 +431,11 @@ describe('$entities', function () {
       .done(done)
     })
 
-    describe('deleted entity', function(done) {
-      it("renvoie true pour isDeleted", function() {
+    describe('Deleted entity', function(done) {
+      it('Renvoie true pour isDeleted()', function() {
         assert.equal(deletedEntity.isDeleted(), true)
       })
-      it("n'apparait plus dans le grab par defaut", function(done) {
+      it(`N'apparaît plus dans le grab par defaut`, function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
@@ -446,7 +446,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("apparait avec onlyDeleted()", function(done) {
+      it('Apparaît avec onlyDeleted()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
@@ -457,7 +457,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("apparait avec includeDeleted()", function(done) {
+      it('Apparaît avec includeDeleted()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(deletedEntity.oid).includeDeleted().grabOne(this)
@@ -468,7 +468,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être trouve par deletedAfter()", function(done) {
+      it('Peut être trouvée par deletedAfter()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match().deletedAfter(started).grabOne(this)
@@ -483,7 +483,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être trouve par deletedBefore()", function(done) {
+      it('Peut être trouvée par deletedBefore()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match().deletedBefore(new Date()).grabOne(this)
@@ -499,7 +499,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être restorée", function(done) {
+      it('Peut être restaurée', function(done) {
         flow()
         .seq(function() {
           deletedEntity.restore(this);
@@ -515,7 +515,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être store", function(done) {
+      it('Peut être store', function(done) {
         flow()
         .seq(function() {
           deletedEntity.store(this);
@@ -535,11 +535,11 @@ describe('$entities', function () {
       })
     })
 
-    describe('non-deleted entity', function(done) {
-      it("renvoie false pour isDeleted", function() {
+    describe('Non-deleted entity', function(done) {
+      it('Renvoie false pour isDeleted()', function() {
         assert.equal(nonDeletedEntity.isDeleted(), false)
       })
-      it("n'apparait pas avec onlyDeleted()", function(done) {
+      it(`N'apparaît pas avec onlyDeleted()`, function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
@@ -550,7 +550,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("apparait avec includeDeleted()", function(done) {
+      it('Apparaît avec includeDeleted()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(nonDeletedEntity.oid).includeDeleted().grabOne(this)

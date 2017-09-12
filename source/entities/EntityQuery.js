@@ -326,12 +326,12 @@ class EntityQuery {
       return value;
     }
 
-    var query = rec.query;
+    var query = record.query;
 
     this.clauses.forEach((clause) => {
       if (clause.type === 'sort') {
-        rec.options.sort = rec.options.sort || [];
-        rec.options.sort.push([clause.index, clause.order]);
+        record.options.sort = record.options.sort || [];
+        record.options.sort.push([clause.index, clause.order]);
         return;
       }
 
@@ -456,7 +456,7 @@ class EntityQuery {
     }
 
     this.buildQuery(record);
-    return record
+    return record;
   }
 
   /**
@@ -516,7 +516,7 @@ class EntityQuery {
       callback = options
       options = {};
     }
-    const record = this.prepareRecord(options)
+    const record = this.prepareRecord(options);
 
     if (this.search) {
       let sorts = {};
@@ -534,19 +534,19 @@ class EntityQuery {
       .find(recordQuery, recordOptions)
       .sort(recordSort)
       .limit(record.limit)
-      .toArray(function (error, rows) {
+      .toArray((error, rows) => {
         if (error) return callback(error)
         if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
-        callback(null, self.createEntitiesFromRows(rows));
+        callback(null, this.createEntitiesFromRows(rows));
       });
     } else {
       this.entity.getCollection()
       .find(record.query, record.options)
-      .limit(limit)
-      .toArray(function (error, rows) {
+      .limit(record.limit)
+      .toArray((error, rows) => {
         if (error) return callback(error)
         if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
-        callback(null, self.createEntitiesFromRows(rows));
+        callback(null, this.createEntitiesFromRows(rows));
       });
     }
   }
@@ -561,9 +561,9 @@ class EntityQuery {
    * @param {purgeCallback} callback
    */
   purge (callback) {
-    const record = this.prepareRecord()
+    const record = this.prepareRecord();
     this.entity.getCollection()
-      .deleteMany(record.query, null, callback)
+      .deleteMany(record.query, null, callback);
   }
 
   /**
