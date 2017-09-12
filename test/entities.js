@@ -694,7 +694,7 @@ describe('$entities', function () {
   describe('.purge()', function () {
     before(function (done) {
       const entities = [];
-      for (let i = 1; i <= nbEntities; i++) {
+      for (let i = 0; i < nbEntities; i++) {
         entities.push({
           i: i,
           s: STRING_PREFIX + i,
@@ -708,18 +708,24 @@ describe('$entities', function () {
     })
 
     it('Purge des entités', function (done) {
-      flow()
-      .seq(function () {
+      flow().seq(function () {
         TestEntity.match().count(this);
-      })
-      .seq(function (count) {
-        assert.equal(count, nbEntities);
+      }).seq(function (nb) {
+        assert.equal(nb, nbEntities);
+        TestEntity.match('i').lowerThan(8).purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, 8);
+        TestEntity.match('s').equals(STRING_PREFIX + 42).purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, 1);
+        TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, 3); // 41, 43, 44
         TestEntity.match().purge(this);
-      })
-      .seq(function () {
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, nbEntities - 12);
         TestEntity.match().count(this);
-      })
-      .seq(function (count) {
+      }).seq(function (count) {
         assert.equal(count, 0);
         this();
       }).done(done)
