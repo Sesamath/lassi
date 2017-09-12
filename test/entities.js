@@ -685,6 +685,41 @@ describe('$entities', function () {
     })
   })
 
+  describe('.purge()', function () {
+    before(function (done) {
+      const entities = [];
+      for (let i = 1; i <= nbEntities; i++) {
+        entities.push({
+          i: i,
+          s: STRING_PREFIX + i,
+        });
+      }
+      flow(entities)
+      .seqEach(function (entity) {
+        TestEntity.create(entity).store(this);
+      })
+      .done(done);
+    })
+
+    it('Purge des entités', function (done) {
+      flow()
+      .seq(function () {
+        TestEntity.match().count(this);
+      })
+      .seq(function (count) {
+        assert.equal(count, nbEntities);
+        TestEntity.match().purge(this);
+      })
+      .seq(function () {
+        TestEntity.match().count(this);
+      })
+      .seq(function (count) {
+        assert.equal(count, 0);
+        this();
+      }).done(done)
+    })
+  })
+
   describe('.textSearch()', function () {
     let createdEntities;
     beforeEach(function (done) {
