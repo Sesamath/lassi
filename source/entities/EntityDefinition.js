@@ -43,6 +43,10 @@ class EntityDefinition {
     this._textSearchFields = null;
   }
 
+  /**
+   * Retourne l'objet Collection de mongo de cette EntityDefinition
+   * @return {Collection}
+   */
   getCollection () {
     return this.entities.db.collection(this.name);
   }

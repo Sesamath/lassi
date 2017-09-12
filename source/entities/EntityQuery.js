@@ -30,6 +30,7 @@ const flow = require('an-flow');
 // une limite hard pour grab
 const hardLimit = 1000
 
+// @todo documenter proprement tous les arguments et les callbacks
 class EntityQuery {
   /**
    * Construction d'une requête sur entité.
@@ -40,6 +41,10 @@ class EntityQuery {
    * @param {Entity} entity L'entité
    */
   constructor (entity) {
+    /**
+     * La définition de l'entité
+     * @type {EntityDefinition}
+     */
     this.entity = entity;
     this.clauses = [];
     this.search = null;
@@ -300,12 +305,11 @@ class EntityQuery {
   }
 
   /**
-   * Applique les clauses à la requête.
-   * @param {KnexQuery} query La requête à altérer.
-   * @return {KnexQuery} la requête modifiée
+   * Applique les clauses pendantes à la requête courante
+   * @param {EntityQuery~record} record
    * @private
    */
-  buildQuery (rec) {
+  buildQuery (record) {
     function castToType (value, type) {
       if (typeof value === type) return value
       switch (type) {
@@ -417,6 +421,45 @@ class EntityQuery {
   }
 
   /**
+   * @typedef EntityQuery~record
+   * @property {EntityQuery~query} query
+   * @property {number} limit toujours fourni, hardLimit par défaut
+   * @property {object} options sera passé tel quel à mongo
+   * @property {number} options.skip Offset pour un find
+   */
+  /**
+   * Prépare la requête pour un find ou un delete (helper de grab ou purge)
+   * @param {object} options
+   */
+  prepareRecord (options) {
+    if (options) { // null est de type object…
+      if (typeof options == 'number') {
+        options = {limit: options}
+      } else if (typeof options !== 'object') {
+        log.error(new Error('options invalides'), options)
+        options = {}
+      }
+    } else {
+      options = {}
+    }
+    const record = {query: {}, options: {}, limit: hardLimit};
+    // on accepte offset ou skip
+    const skip = options.offset || options.skip
+    if (skip > 0) record.options.skip = skip;
+    // set limit
+    if (options.limit) {
+      if (options.limit > 0 && options.limit < hardLimit) {
+        record.limit = options.limit;
+      } else {
+        log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${hardLimit} (hardLimit)`)
+      }
+    }
+
+    this.buildQuery(record);
+    return record
+  }
+
+  /**
    * Tri le résultat de la requête.
    * @param {String} index L'index sur lequel trier
    * @param {String=} [order=asc] Comme en SQL, asc ou desc.
@@ -473,28 +516,7 @@ class EntityQuery {
       callback = options
       options = {};
     }
-    if (typeof options == 'number') {
-      options = {limit : options}
-    }
-    if (!options) options = {};
-    var record = {query: {}, options: {}};
-    // on accepte offset ou skip
-    const skip = options.offset || options.skip
-    if (skip > 0) record.options.skip = skip;
-
-    // set limit
-    let limit = hardLimit;
-    if (options.limit) {
-      if (options.limit > 0 && options.limit < hardLimit) {
-        limit = options.limit;
-      } else {
-        log(`Attention, hardLimit de lassi atteinte`)
-      }
-      delete options.limit;
-    }
-
-    var self = this;
-    self.buildQuery(record);
+    const record = this.prepareRecord(options)
 
     if (this.search) {
       let sorts = {};
@@ -511,7 +533,7 @@ class EntityQuery {
       this.entity.getCollection()
       .find(recordQuery, recordOptions)
       .sort(recordSort)
-      .limit(limit)
+      .limit(record.limit)
       .toArray(function (error, rows) {
         if (error) return callback(error)
         if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
@@ -527,6 +549,21 @@ class EntityQuery {
         callback(null, self.createEntitiesFromRows(rows));
       });
     }
+  }
+
+  /**
+   * @callback purgeCallback
+   * @param {Error} error
+   * @param {Object} result avec propriété deletedCount ou result.ok = 1 (si rien effacé ?)
+   */
+  /**
+   * Efface toutes les entités de la collection (qui matchent la requête si y'en a une qui précède)
+   * @param {purgeCallback} callback
+   */
+  purge (callback) {
+    const record = this.prepareRecord()
+    this.entity.getCollection()
+      .deleteMany(record.query, null, callback)
   }
 
   /**
