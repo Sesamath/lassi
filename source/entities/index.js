@@ -66,7 +66,7 @@ class Entities extends EventEmitter {
   /**
    * Initialisation du stockage en base de données pour une entité.
    *
-   * @param {Entity} entity L'entité
+   * @param {EntityDefinition} entity L'entité
    * @param {SimpleCallback} cb callback de retour
    * @private
    */
