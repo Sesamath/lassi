@@ -153,6 +153,16 @@ class Entity {
   }
 
   /**
+   * Imposera la restauration au prochain store si c'était un objet softDeleted
+   * (ne fait rien sinon)
+   * @return {Entity}
+   */
+  markToRestore () {
+    this.__deletedAt = null
+    return this
+  }
+
+  /**
    * Effectue une suppression "douce" de l'entité
    * @param {SimpleCallback} callback
    * @see restore

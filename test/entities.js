@@ -4,8 +4,7 @@
 const assert = require('assert')
 const flow = require('an-flow')
 const Entities = require('../source/entities')
-const checkMongoConnexion = require('./index.js').checkMongoConnexion
-const dbSettings = require('./index.js').dbSettings
+const init = require('./init')
 
 const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
@@ -87,7 +86,7 @@ function addData (next) {
  *
  * @param {Callback} next
  */
-function initEntities(next) {
+function initEntities(dbSettings, next) {
   entities = new Entities({database: dbSettings})
   flow().seq(function() {
     entities.initialize(this)
@@ -116,7 +115,14 @@ function initEntities(next) {
     TestEntity.defineIndex('text2', 'string')
     TestEntity.defineTextSearchFields(['text1', 'text2'])
 
-    entities.initializeEntity(TestEntity, this)
+    entities.initializeEntity(TestEntity, error => {
+      if (error) {
+        // @FIXME, pas normal ça
+        if (error.message === `Database ${dbSettings.name} doesn't exist`) console.log(`Mongo trouve pas ${dbSettings.name} mais on continue`)
+        else return this(error)
+      }
+      this()
+    })
   }).seq(function () {
     addData(this)
   }).done(next)
@@ -125,9 +131,9 @@ function initEntities(next) {
 describe('$entities', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
-      checkMongoConnexion(this)
-    }).seq(function () {
-      initEntities(this)
+      init(this)
+    }).seq(function (dbSettings) {
+      initEntities(dbSettings, this)
     }).done(done)
   })
 
@@ -431,11 +437,11 @@ describe('$entities', function () {
       .done(done)
     })
 
-    describe('deleted entity', function(done) {
-      it("renvoie true pour isDeleted", function() {
+    describe('Deleted entity', function(done) {
+      it('Renvoie true pour isDeleted()', function() {
         assert.equal(deletedEntity.isDeleted(), true)
       })
-      it("n'apparait plus dans le grab par defaut", function(done) {
+      it(`N'apparaît plus dans le grab par defaut`, function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
@@ -446,7 +452,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("apparait avec onlyDeleted()", function(done) {
+      it('Apparaît avec onlyDeleted()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
@@ -457,7 +463,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("apparait avec includeDeleted()", function(done) {
+      it('Apparaît avec includeDeleted()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(deletedEntity.oid).includeDeleted().grabOne(this)
@@ -468,7 +474,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être trouve par deletedAfter()", function(done) {
+      it('Peut être trouvée par deletedAfter()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match().deletedAfter(started).grabOne(this)
@@ -483,7 +489,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être trouve par deletedBefore()", function(done) {
+      it('Peut être trouvée par deletedBefore()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match().deletedBefore(new Date()).grabOne(this)
@@ -499,7 +505,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être restorée", function(done) {
+      it('Peut être restaurée', function(done) {
         flow()
         .seq(function() {
           deletedEntity.restore(this);
@@ -515,7 +521,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("peut être store", function(done) {
+      it('Peut être store', function(done) {
         flow()
         .seq(function() {
           deletedEntity.store(this);
@@ -535,11 +541,11 @@ describe('$entities', function () {
       })
     })
 
-    describe('non-deleted entity', function(done) {
-      it("renvoie false pour isDeleted", function() {
+    describe('Non-deleted entity', function(done) {
+      it('Renvoie false pour isDeleted()', function() {
         assert.equal(nonDeletedEntity.isDeleted(), false)
       })
-      it("n'apparait pas avec onlyDeleted()", function(done) {
+      it(`N'apparaît pas avec onlyDeleted()`, function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
@@ -550,7 +556,7 @@ describe('$entities', function () {
         })
         .done(done)
       })
-      it("apparait avec includeDeleted()", function(done) {
+      it('Apparaît avec includeDeleted()', function(done) {
         flow()
         .seq(function() {
           TestEntity.match('oid').equals(nonDeletedEntity.oid).includeDeleted().grabOne(this)
@@ -682,6 +688,47 @@ describe('$entities', function () {
       }).seq(function () {
         done();
       }).catch(console.error)
+    })
+  })
+
+  describe('.purge()', function () {
+    before(function (done) {
+      const entities = [];
+      for (let i = 0; i < nbEntities; i++) {
+        entities.push({
+          i: i,
+          s: STRING_PREFIX + i,
+        });
+      }
+      flow(entities)
+      .seqEach(function (entity) {
+        TestEntity.create(entity).store(this);
+      })
+      .done(done);
+    })
+
+    it('Purge des entités', function (done) {
+      flow().seq(function () {
+        TestEntity.match().count(this);
+      }).seq(function (nb) {
+        assert.equal(nb, nbEntities);
+        TestEntity.match('i').lowerThan(8).purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, 8);
+        TestEntity.match('s').equals(STRING_PREFIX + 42).purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, 1);
+        TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, 3); // 41, 43, 44
+        TestEntity.match().purge(this);
+      }).seq(function (nbDeleted) {
+        assert.equal(nbDeleted, nbEntities - 12);
+        TestEntity.match().count(this);
+      }).seq(function (count) {
+        assert.equal(count, 0);
+        this();
+      }).done(done)
     })
   })
 
