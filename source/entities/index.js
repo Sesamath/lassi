@@ -71,22 +71,7 @@ class Entities extends EventEmitter {
    * @private
    */
   initializeEntity (entity, cb) {
-    var self = this;
-    flow()
-    .seq(function () {
-      entity.initialize(this);
-    })
-    .seq(function () {
-      self.db.collection('counters').findOne({_id: entity.name}, this)
-    })
-    .seq(function (seq) {
-      if (!seq) {
-        self.db.collection('counters').save({_id: entity.name, seq: 0}, this)
-      } else {
-        this();
-      }
-    })
-    .done(cb);
+    entity.initialize(cb);
   }
 
   /**

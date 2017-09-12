@@ -7,8 +7,7 @@ const flow = require('an-flow')
 const moment = require('moment')
 const Entities = require('../source/entities')
 const EntitiesCli = require('../source/services/entities-cli')()
-const checkMongoConnexion = require('./index.js').checkMongoConnexion
-const dbSettings = require('./index.js').dbSettings
+const init = require('./init')
 
 let entities
 let TestEntity
@@ -54,7 +53,7 @@ function addData (next) {
  *
  * @param {Callback} next
  */
-function initEntities(next) {
+function initEntities(dbSettings, next) {
   entities = new Entities({database: dbSettings})
   flow().seq(function() {
     entities.initialize(this)
@@ -78,9 +77,9 @@ function initEntities(next) {
 describe('$entities-cli', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
-      checkMongoConnexion(this)
-    }).seq(function () {
-      initEntities(this)
+      init(this)
+    }).seq(function (dbSettings) {
+      initEntities(dbSettings, this)
     }).done(done)
   })
 

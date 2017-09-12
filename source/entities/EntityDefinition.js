@@ -28,8 +28,23 @@ const Entity      = require('./Entity');
 const EntityQuery = require('./EntityQuery');
 const flow        = require('an-flow');
 
-function fooCb (cb) { cb(); }
+/**
+ * Exécute la fonction passée en paramètre (genre de pipe pour une chaîne de callback)
+ * @param {function} cb
+ * @private
+ */
+function fooCb (cb) {
+  cb();
+}
 
+/**
+ * @callback simpleCallback
+ * @param {Error} [error]
+ */
+/**
+ * Définition d'une entité, avec les méthodes pour la définir
+ * mais aussi récupérer sa collection, une EntityQuery, etc.
+ */
 class EntityDefinition {
   /**
    * Construction d'une définition d'entité. Passez par la méthode {@link Component#entity} pour créer une entité.
@@ -94,34 +109,12 @@ class EntityDefinition {
   }
 
   initializeTextSearchFieldsIndex (callback) {
-    var self = this;
-
-    var dbCollection = self.getCollection();
-    var indexName = null;
-
-    if (self._textSearchFields) {
-      indexName = 'text_index_' + self._textSearchFields.join('_');
-    }
-
-    var findExistingTextIndex = function (cb) {
-      dbCollection.listIndexes().toArray(function (error, indexes) {
-        if (error) {
-          if (error.message === 'no collection') {
-            // Ce cas peut se produire si la collection vient d'être créée
-            return cb(null, null);
-          }
-          return cb(error);
-        }
-
-        var textIndex = indexes && _.find(indexes, function (index) {
-          return !!index.name.match(/^text_index/);
-        });
-
-        cb(null, textIndex ? textIndex.name : null);
-      })
-    }
-
-    var createIndex = function (cb) {
+    /**
+     * Crée l'index texte pour cette entité
+     * @param {simpleCallback} cb
+     * @private
+     */
+    function createIndex (cb) {
       // Pas de nouvel index à créer
       if (!self._textSearchFields) { return cb(); }
 
@@ -132,9 +125,36 @@ class EntityDefinition {
       dbCollection.createIndex(indexParams, {name: indexName}, cb)
     }
 
+    /**
+     * Passe le nom du 1er index texte (normalement le seul)
+     * @param {simpleCallback} cb
+     */
+    function findFirstExistingTextIndex (cb) {
+      dbCollection.listIndexes().toArray(function (error, indexes) {
+        if (error) {
+          // mongo 3.2 ou 3.4…
+          if (error.message === 'no collection' || /^Collection.*doesn't exist$/.test(error.message)) {
+            // Ce cas peut se produire si la collection vient d'être créée
+            return cb(null, null);
+          }
+          return cb(error);
+        }
+
+        // le 1er index dont le nom commence par text_index
+        var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name));
+
+        cb(null, textIndex ? textIndex.name : null);
+      })
+    }
+
+    var self = this;
+
+    var dbCollection = self.getCollection();
+    var indexName = self._textSearchFields ? 'text_index_' + self._textSearchFields.join('_') : null;
+
     flow()
     .seq(function () {
-      findExistingTextIndex(this);
+      findFirstExistingTextIndex(this);
     })
     .seq(function (oldTextIndex) {
       var next = this;

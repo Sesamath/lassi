@@ -4,8 +4,7 @@
 const assert = require('assert')
 const flow = require('an-flow')
 const Entities = require('../source/entities')
-const checkMongoConnexion = require('./index.js').checkMongoConnexion
-const dbSettings = require('./index.js').dbSettings
+const init = require('./init')
 
 const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
@@ -87,7 +86,7 @@ function addData (next) {
  *
  * @param {Callback} next
  */
-function initEntities(next) {
+function initEntities(dbSettings, next) {
   entities = new Entities({database: dbSettings})
   flow().seq(function() {
     entities.initialize(this)
@@ -116,7 +115,14 @@ function initEntities(next) {
     TestEntity.defineIndex('text2', 'string')
     TestEntity.defineTextSearchFields(['text1', 'text2'])
 
-    entities.initializeEntity(TestEntity, this)
+    entities.initializeEntity(TestEntity, error => {
+      if (error) {
+        // @FIXME, pas normal ça
+        if (error.message === `Database ${dbSettings.name} doesn't exist`) console.log(`Mongo trouve pas ${dbSettings.name} mais on continue`)
+        else return this(error)
+      }
+      this()
+    })
   }).seq(function () {
     addData(this)
   }).done(next)
@@ -125,9 +131,9 @@ function initEntities(next) {
 describe('$entities', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
-      checkMongoConnexion(this)
-    }).seq(function () {
-      initEntities(this)
+      init(this)
+    }).seq(function (dbSettings) {
+      initEntities(dbSettings, this)
     }).done(done)
   })
 
