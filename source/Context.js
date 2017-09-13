@@ -216,6 +216,38 @@ class Context {
   }
 
   /**
+   * envoie data en json, avec toujours succes:false et message (ajouté si non fourni)
+   * Si data est une Error, ça l'écrira en console.error (en ne passant que le message en json, sans la stack)
+   * Pour éviter ce console.error, il suffit donc d'appeler cette fonction avec error.message plutôt que error
+   * Cette méthode ne gère pas de niveau d'erreur, pour le faire l'appelant devra passer un objet {message, level}
+   * (ou {message, errorLevel} ou {message, priority} ou ce qui lui plaît davantage)
+   * @param {String|Error|Object} data
+   */
+  restKo (data) {
+    let response
+    if (typeof data === 'string') {
+      response = {
+        message: data
+      }
+    } else if (data instanceof Error) {
+      console.error(data)
+      response = {
+        message: data.message
+      }
+    } else if (typeof data === 'object') {
+      response = _.clone(data)
+      if (!response.message) response.message = 'erreur inconnue'
+    } else {
+      console.error(new Error('restKO appelé avec un argument invalide'), data)
+      response = {
+        message: 'erreur inconnue'
+      }
+    }
+    response.success = false
+    this.json(response)
+  }
+
+  /**
    * Ajoute un header à la réponse
    * @param name
    * @param value
