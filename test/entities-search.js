@@ -4,7 +4,38 @@
 const assert = require('assert')
 const flow = require('an-flow')
 
-module.exports = function run (TestEntity) {
+const Entities = require('../source/entities')
+const init = require('./init')
+
+let TestEntity;
+
+function initEntities(dbSettings, next) {
+  const entities = new Entities({database: dbSettings})
+  flow().seq(function() {
+    entities.initialize(this)
+  }).seq(function() {
+    TestEntity = entities.define('TestEntity')
+    TestEntity.flush(this)
+  }).seq(function () {
+
+    TestEntity.defineIndex('type', 'string')
+    TestEntity.defineIndex('text1', 'string')
+    TestEntity.defineIndex('text2', 'string')
+    TestEntity.defineTextSearchFields(['text1', 'text2'])
+
+    entities.initializeEntity(TestEntity, this)
+  }).done(next)
+}
+
+describe('Test entities-search', function() {
+  before('Connexion à Mongo et initialisation des entités', function (done) {
+    flow().seq(function () {
+      init(this)
+    }).seq(function (dbSettings) {
+      initEntities(dbSettings, this)
+    }).done(done)
+  })
+
   describe('.textSearch()', function () {
     let createdEntities;
     beforeEach(function (done) {
@@ -122,4 +153,4 @@ module.exports = function run (TestEntity) {
       })
     })
   });
-}
+});
