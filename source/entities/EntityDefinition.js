@@ -27,6 +27,11 @@ const _           = require('lodash');
 const Entity      = require('./Entity');
 const EntityQuery = require('./EntityQuery');
 const flow        = require('an-flow');
+const log              = require('an-log')('EntityDefinition');
+
+// pour marquer les index mis par lassi (et ne pas risquer d'en virer des mis par qqun d'autre,
+// internes à mongo par ex, genre _id_…)
+const INDEX_PREFIX = 'entity_index_'
 
 /**
  * Exécute la fonction passée en paramètre (genre de pipe pour une chaîne de callback)
@@ -54,6 +59,7 @@ class EntityDefinition {
   constructor (name) {
     this.name = name;
     this.indexes = {};
+    this.indexesByMongoIndexName = {};
     this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
     this._textSearchFields = null;
   }
@@ -64,6 +70,21 @@ class EntityDefinition {
    */
   getCollection () {
     return this.entities.db.collection(this.name);
+  }
+
+  /**
+   * Retourne l'objet db de la connexion à Mongo
+   * À n'utiliser que dans des cas très particuliers pour utiliser directement des commandes du driver mongo
+   * Si lassi ne propose pas la méthode pour votre besoin, il vaudrait mieux l'ajouter à lassi
+   * plutôt que d'utiliser directement cet objet, on vous le donne à vos risques et périls…
+   * @return {Db}
+   */
+  getDb () {
+    return this.entities.db
+  }
+
+  getMongoIndexName (fieldName) {
+    return `${INDEX_PREFIX}${fieldName}`;
   }
 
   /**
@@ -84,16 +105,112 @@ class EntityDefinition {
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (fieldName, fieldType, callback) {
-    this.indexes[fieldName] = {
-      callback: callback?callback:function() { return this[fieldName]; },
-      fieldType: fieldType,
-      fieldName: fieldName
+    const mongoIndexName = this.getMongoIndexName(fieldName);
+
+    // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
+    // en cas d'accents dans name 127 chars font plus de 128 bytes
+    if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
+
+    const index = {
+      fieldType,
+      fieldName,
+      mongoIndexName,
+      // Si on nous passe pas de callback, on retourne la valeur du champ
+      callback: callback || function() { return this[fieldName]; }
     };
+
+    this.indexes[fieldName] = index;
+    this.indexesByMongoIndexName[mongoIndexName] = index;
     return this;
   }
 
   initialize (cb) {
-    this.initializeTextSearchFieldsIndex(cb);
+    log(this.name, 'initialize')
+    this.initializeIndexes(error => {
+      if (error) return cb(error)
+      this.initializeTextSearchFieldsIndex(cb);
+    });
+  }
+
+  /**
+   * @callback indexesCallback
+   * @param {Error} [error]
+   * @param {Object[]} [createdIndexes] tableau d'index mongo (retourné par listIndexes ou createIndexes)
+   */
+  /**
+   * Récupère tous les index existants
+   * @param {indexesCallback} cb
+   */
+  getMongoIndexes (cb) {
+    this.getCollection().listIndexes().toArray(function (error, indexes) {
+      if (error) {
+        // mongo 3.2 ou 3.4…il semblerait que les message ne soient pas uniformes
+        if (
+          error.message === 'no collection' ||
+          error.message === 'no database' ||
+          /^Collection.*doesn't exist$/.test(error.message) ||
+          /^Database.*doesn't exist$/.test(error.message)
+        ) {
+          // Ce cas peut se produire si la collection/database vient d'être créée
+          // il n'y a donc pas d'index existant
+          return cb(null, []);
+        }
+        return cb(error);
+      }
+
+      return cb(null, indexes);
+    })
+  }
+
+  /**
+   * Init des indexes
+   * - virent ceux qu'on avait mis et qui ont disparu de l'entity
+   * - ajoute ceux qui manquent
+   * @param {indexesCallback} cb rappelée avec (error, createdIndexes), le 2e argument est undefined si on a rien créé
+   */
+  initializeIndexes (cb) {
+    const def = this
+    const coll = def.getCollection()
+    const existingIndexes = {}
+    flow().seq(function () {
+      def.getMongoIndexes(this);
+    // on parse l'existant
+    }).seqEach(function (existingIndex) {
+      const mongoIndexName = existingIndex.name;
+      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
+        if (def.indexesByMongoIndexName[mongoIndexName]) {
+          // la notion de type de valeur à indexer n'existe pas dans mongo.
+          // seulement des type d'index champ unique / composé / texte / etc.
+          // https://docs.mongodb.com/manual/indexes/#index-types
+          // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
+          // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
+          // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
+          existingIndexes[mongoIndexName] = existingIndex
+          log(def.name, `index ${mongoIndexName} ok`)
+          return this()
+        } else {
+          // on en veut plus
+          coll.dropIndex(mongoIndexName, this)
+          log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
+        }
+      } else {
+        if (mongoIndexName !== '_id_') log.error(def.name, `index ${mongoIndexName} existe dans mongo mais il n’a pas été défini par lassi`, existingIndex)
+        return this()
+      }
+
+    }).seq(function () {
+      // et on regarde ce qui manque
+      // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
+      let indexesToAdd = []
+      _.each(def.indexes, ({fieldName, mongoIndexName}) => {
+        if (existingIndexes[mongoIndexName]) return
+        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
+        log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
+      })
+
+      if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
+      else cb()
+    }).catch(cb)
   }
 
   defineTextSearchFields (fields) {
@@ -130,16 +247,8 @@ class EntityDefinition {
      * @param {simpleCallback} cb
      */
     function findFirstExistingTextIndex (cb) {
-      dbCollection.listIndexes().toArray(function (error, indexes) {
-        if (error) {
-          // mongo 3.2 ou 3.4…
-          if (error.message === 'no collection' || /^Collection.*doesn't exist$/.test(error.message)) {
-            // Ce cas peut se produire si la collection vient d'être créée
-            return cb(null, null);
-          }
-          return cb(error);
-        }
-
+      self.getMongoIndexes(function (error, indexes) {
+        if (error) return cb(error);
         // le 1er index dont le nom commence par text_index
         var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name));
 
@@ -179,7 +288,7 @@ class EntityDefinition {
   }
 
   /**
-   * Finalisation de l'objet Entité.
+   * Finalisation de l'objet Entité, appelé en fin de définition, avant initialize
    * @param {Entities} entities le conteneur d'entités.
    * @return {Entity} l'entité (chaînable)
    * @private
@@ -219,20 +328,15 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush (cb) {
-    const collection = this.getCollection();
-    // Si la collection n'existe pas, getCollection renvoie un objet
+    // Si la collection n'existe pas, getCollection renvoie quand même un objet
     // mais "MongoError: ns not found" est renvoyé sur le drop
-    if (collection) {
-      collection.drop(function (error) {
-        if (error) {
-          if (/ns not found/.test(error.message)) return cb()
-          return cb(error)
-        }
-        cb()
-      });
-    } else {
-      cb();
-    }
+    this.getCollection().drop(function (error) {
+      if (error) {
+        if (/ns not found/.test(error.message)) return cb()
+        return cb(error)
+      }
+      cb()
+    });
   }
 
   /**

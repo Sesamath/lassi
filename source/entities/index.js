@@ -28,7 +28,7 @@ const flow             = require('an-flow');
 const EntityDefinition = require('./EntityDefinition');
 const EventEmitter     = require('events').EventEmitter
 const MongoClient = require('mongodb').MongoClient
-const log              = require('an-log')('Entities');
+const log              = require('an-log')('$entities');
 
 const defaultPoolSize = 10
 
@@ -56,7 +56,8 @@ class Entities extends EventEmitter {
   define (name) {
     const def = new EntityDefinition(name);
     def.bless(this);
-    return this.entities[name] = def;
+    this.entities[name] = def;
+    return def
   }
 
   definitions () {
@@ -96,8 +97,12 @@ class Entities extends EventEmitter {
     // on peut connecter
     MongoClient.connect(url, options, function (error, db) {
       if (error) return cb(error)
+      // on a une db
       self.db = db
-      cb()
+      // on passe à l'init de toutes les entities
+      flow(Object.values(self.entities)).seqEach(function (entityDefinition) {
+        entityDefinition.initialize(this)
+      }).done(cb)
     })
   }
 

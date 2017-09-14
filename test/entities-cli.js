@@ -74,7 +74,7 @@ function initEntities(dbSettings, next) {
   }).done(next)
 }
 
-describe('$entities-cli', function () {
+describe('Test $entities-cli', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
       init(this)
@@ -106,7 +106,7 @@ describe('$entities-cli', function () {
         assert.equal(count, 3)
         EntitiesCli.commands().purge(TestEntity, 13, this)
       }).seq(function () {
-        TestEntity.match().onlyDeleted().grab(this)
+        TestEntity.match().onlyDeleted().sort('i', 'asc').grab(this)
       }).seq(function (entities) {
         assert.equal(entities.length, 2)
         assert.equal(entities[0].i, 1000)
