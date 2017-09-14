@@ -9,7 +9,7 @@ const init = require('./init')
 
 const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
-const minute = 60 * 1000
+const seconde = 1000
 const STRING_PREFIX = 'test-'
 
 let TestEntity;
@@ -25,7 +25,7 @@ function assertEntity (i, entity) {
   assert.equal(typeof entity.s, 'string')
   assert.equal(entity.i, i)
   assert.equal(entity.s, STRING_PREFIX + i)
-  assert.equal(entity.d.getTime(), bt + minute * i)
+  assert.equal(entity.d.getTime(), bt + seconde * i)
   assert(Array.isArray(entity.sArray))
   assert(Array.isArray(entity.iArray))
   assert(Array.isArray(entity.dArray))
@@ -47,11 +47,11 @@ function assertEntity (i, entity) {
 function addData (next) {
   const entities = []
   for (let i = 0; i < nbEntities; i++) {
-    const d = new Date(bt + minute * i)
+    const dTimeStamp = bt + seconde * i
     entities.push(TestEntity.create({
       i: i,
       s: STRING_PREFIX + i,
-      d: d,
+      d: new Date(dTimeStamp),
       iArray: [
         i * 3,
         i * 3 + 1,
@@ -63,9 +63,9 @@ function addData (next) {
         STRING_PREFIX + (i * 3 + 2)
       ],
       dArray: [
-        new Date(d),
-        new Date(d + 3600000),
-        new Date(d + 7200000)
+        new Date(dTimeStamp),
+        new Date(dTimeStamp + 100), // < 1000 car sinon ça ca chevaucher avec le suivant...
+        new Date(dTimeStamp + 200)
       ]
     }))
   }
@@ -110,18 +110,19 @@ function initEntities(dbSettings, next) {
     TestEntity.defineIndex('dArray', 'date')
 
     entities.initializeEntity(TestEntity, this)
-  }).seq(function () {
-    addData(this)
   }).done(next)
 };
 
 describe('Test entities-queries', function () {
+  let dbSettings;
 
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
       init(this)
     }).seq(function (dbSettings) {
       initEntities(dbSettings, this)
+    }).seq( function () {
+      addData(this)
     }).done(done)
   })
 
@@ -181,12 +182,31 @@ describe('Test entities-queries', function () {
   })
 
   describe('.match()', function () {
+    it(`jette une exception si le champ n'est pas indexé`, function () {
+      assert.throws(function() {
+        TestEntity.match('nonIndexed').equals(1).grab(function (error, result) {
+          // devrait throw avant d'arriver là
+        })
+      })
+    })
     let oid
-    it(`Recherche avec l'opérateur AFTER pour un tableau de dates`, function (done) {
-      const d = new Date('2003-01-02T15:26:00.000Z')
-      TestEntity.match('dArray').after(d).grab(function (error, result) {
+    it(`Recherche avec l'opérateur AFTER sur une date`, function (done) {
+      const d = new Date(bt + seconde * (nbEntities - 760))
+      TestEntity.match('d').after(d).grab(function (error, result) {
         if (error) return done(error)
         assert.equal(result.length, 759)
+        oid = result[0].oid
+        done()
+      })
+    })
+
+    it(`Recherche avec l'opérateur AFTER pour un tableau de dates`, function (done) {
+      const d = new Date(bt + seconde * (nbEntities - 760))
+      TestEntity.match('dArray').after(d).grab(function (error, result) {
+        if (error) return done(error)
+        // cas intéressant, on a un résultat en plus car l'entité dont entity.d === d
+        // a aussi une valeur dans son dArray qui est "after" d.
+        assert.equal(result.length, 760)
         oid = result[0].oid
         done()
       })
@@ -204,6 +224,52 @@ describe('Test entities-queries', function () {
       TestEntity.match('s').equals(STRING_PREFIX + '198').grab(function (error, result) {
         if (error) return done(error)
         assert.equal(result.length, 1)
+        assert.equal(result[0].i, 198)
+        done()
+      })
+    })
+
+    it('Recherche exacte sur un entier', function (done) {
+      TestEntity.match('i').equals(198).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        assert.equal(result[0].i, 198)
+        done()
+      })
+    })
+
+    it('Recherche exacte sur une date', function (done) {
+      TestEntity.match('d').equals(new Date(bt + seconde * 198)).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        assert.equal(result[0].i, 198)
+        done()
+      })
+    })
+
+    it(`Recherche exacte sur une element d'un tableau de string`, function (done) {
+      TestEntity.match('sArray').equals(STRING_PREFIX + (198 * 3 + 1)).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        assert.equal(result[0].i, 198)
+        done()
+      })
+    })
+
+    it(`Recherche exacte sur un element d'un tableau d’entiers`, function (done) {
+      TestEntity.match('iArray').equals(198 * 3 + 1).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        assert.equal(result[0].i, 198)
+        done()
+      })
+    })
+
+    it(`Recherche exacte sur un element d'un tableau de dates`, function (done) {
+      TestEntity.match('dArray').equals(new Date((bt + seconde * 198) + 100)).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 1)
+        assert.equal(result[0].i, 198)
         done()
       })
     })
@@ -492,8 +558,7 @@ describe('Test entities-queries', function () {
       it('Peut être trouvée par deletedBefore()', function(done) {
         flow()
         .seq(function() {
-          TestEntity.match().deletedBefore(new Date()).grabOne(this)
-          // si on met du strict dans deletedBefore, ce test passe pas, même en prenant une date lointaine…
+          TestEntity.match().deletedBefore(new Date(Date.now() + 1000)).grabOne(this)
         })
         .seq(function(entity) {
           assert.equal(entity.oid, deletedEntity.oid);
@@ -614,7 +679,7 @@ describe('Test entities-queries', function () {
       this.timeout(10000)
       const int = 42
       const str = String(int)
-      const timestamp = bt + minute * int
+      const timestamp = bt + seconde * int
       const date = new Date(timestamp)
       // on crée un objet avec des propriétés de type différents des index
       const data = {
@@ -731,5 +796,5 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
   })
-})
+});
 
