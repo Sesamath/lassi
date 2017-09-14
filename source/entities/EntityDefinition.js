@@ -28,6 +28,10 @@ const Entity      = require('./Entity');
 const EntityQuery = require('./EntityQuery');
 const flow        = require('an-flow');
 
+// pour marquer les index mis par lassi (et ne pas risquer d'en virer des mis par qqun d'autre,
+// internes à mongo par ex, genre _id_…)
+const indexPrefix = 'entity_index_'
+
 /**
  * Exécute la fonction passée en paramètre (genre de pipe pour une chaîne de callback)
  * @param {function} cb
@@ -67,6 +71,17 @@ class EntityDefinition {
   }
 
   /**
+   * Retourne l'objet db de la connexion à Mongo
+   * À n'utiliser que dans des cas très particuliers pour utiliser directement des commandes du driver mongo
+   * Si lassi ne propose pas la méthode pour votre besoin, il vaudrait mieux l'ajouter à lassi
+   * plutôt que d'utiliser directement cet objet, on vous le donne à vos risques et périls…
+   * @return {Db}
+   */
+  getDb () {
+    return this.entities.db
+  }
+
+  /**
    * Ajoute un indexe à l'entité. Contrairement à la logique SGBD, on ne type pas
    * l'indexe. En réalité il faut comprendre un index comme "Utilise la valeur du
    * champ XXX et indexe-la".
@@ -84,7 +99,11 @@ class EntityDefinition {
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (fieldName, fieldType, callback) {
+    // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
+    // en cas d'accents dans name 127 chars font plus de 128 bytes
+    if (fieldName.length > 128 - indexPrefix.length) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${indexPrefix.length} occupés par notre préfixe`)
     this.indexes[fieldName] = {
+      // @FIXME pourquoi créer une callback qui retourne qqchose que personne ne va lire ?
       callback: callback?callback:function() { return this[fieldName]; },
       fieldType: fieldType,
       fieldName: fieldName
@@ -93,7 +112,52 @@ class EntityDefinition {
   }
 
   initialize (cb) {
-    this.initializeTextSearchFieldsIndex(cb);
+    this.initializeIndexes(error => {
+      if (error) return cb(error)
+      this.initializeTextSearchFieldsIndex(cb);
+    });
+  }
+
+  initializeIndexes (cb) {
+    const def = this
+    console.log(`initializeIndexes de ${def.name}`)
+    const coll = def.getCollection()
+    const existingIndexes = {}
+    flow().seq(function () {
+      coll.listIndexes().toArray(this)
+
+    // on parse l'existant
+    }).seqEach(function (existingIndex) {
+      const {name} = existingIndex
+      if (RegExp(`/^${indexPrefix}/`).test(name)) {
+        if (def.indexes[name]) {
+          // la notion de type de valeur à indexer n'existe pas dans mongo.
+          // seulement des type d'index champ unique / composé / texte / etc.
+          // https://docs.mongodb.com/manual/indexes/#index-types
+          console.log(`index ${name} existe`, index)
+          existingIndexes[name] = existingIndex
+          return this()
+        } else {
+          // on en veut plus
+          console.log(`index ${name} existe dans mongo mais plus dans l'Entity ${def.name}`, index)
+          coll.dropIndex(name, this)
+        }
+      } else {
+        console.log(`index existant ${name} ignoré (match pas notre préfixe)`)
+        return this()
+      }
+
+    }).seq(function () {
+      // et on regarde ce qui manque
+      // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
+      let indexesToAdd = []
+      // @todo vérifier la syntaxe
+      _.each(def.indexes, (index, name) => {
+        if (existingIndexes[name]) return
+        indexesToAdd.push({key: {[name]: 1}, name: `${indexPrefix}${name}`})
+      })
+      coll.createIndexes(indexesToAdd, this)
+    }).done(cb)
   }
 
   defineTextSearchFields (fields) {
@@ -219,20 +283,15 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush (cb) {
-    const collection = this.getCollection();
-    // Si la collection n'existe pas, getCollection renvoie un objet
+    // Si la collection n'existe pas, getCollection renvoie quand même un objet
     // mais "MongoError: ns not found" est renvoyé sur le drop
-    if (collection) {
-      collection.drop(function (error) {
-        if (error) {
-          if (/ns not found/.test(error.message)) return cb()
-          return cb(error)
-        }
-        cb()
-      });
-    } else {
-      cb();
-    }
+    this.getCollection().drop(function (error) {
+      if (error) {
+        if (/ns not found/.test(error.message)) return cb()
+        return cb(error)
+      }
+      cb()
+    });
   }
 
   /**
