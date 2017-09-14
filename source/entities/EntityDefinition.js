@@ -131,6 +131,15 @@ class EntityDefinition {
     });
   }
 
+  /**
+   * @callback indexesCallback
+   * @param {Error} [error]
+   * @param {Object[]} [createdIndexes] tableau d'index mongo (retourné par listIndexes ou createIndexes)
+   */
+  /**
+   * Récupère tous les index existants
+   * @param {indexesCallback} cb
+   */
   getMongoIndexes (cb) {
     this.getCollection().listIndexes().toArray(function (error, indexes) {
       if (error) {
@@ -152,6 +161,12 @@ class EntityDefinition {
     })
   }
 
+  /**
+   * Init des indexes
+   * - virent ceux qu'on avait mis et qui ont disparu de l'entity
+   * - ajoute ceux qui manquent
+   * @param {indexesCallback} cb rappelée avec (error, createdIndexes), le 2e argument est undefined si on a rien créé
+   */
   initializeIndexes (cb) {
     const def = this
     console.log(`initializeIndexes de ${def.name}`)
@@ -167,13 +182,22 @@ class EntityDefinition {
           // la notion de type de valeur à indexer n'existe pas dans mongo.
           // seulement des type d'index champ unique / composé / texte / etc.
           // https://docs.mongodb.com/manual/indexes/#index-types
-          existingIndexes[name] = existingIndex
+          // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
+          // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
+          // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
+          existingIndexes[mongoIndexName] = existingIndex
+          // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
+          console.log(`index ${mongoIndexName} existe déjà`)
           return this()
         } else {
           // on en veut plus
           coll.dropIndex(mongoIndexName, this)
+          // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
+          console.log(`index ${mongoIndexName} existe dans mongo mais plus dans l'Entity ${def.name}`, existingIndex)
         }
       } else {
+        // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
+        if (mongoIndexName !== '_id_') console.error(`index ${mongoIndexName} existe dans mongo (Entity ${def.name}) mais il n’a pas été défini par lassi`, existingIndex)
         return this()
       }
 
@@ -182,18 +206,16 @@ class EntityDefinition {
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
       // @todo vérifier la syntaxe
-      _.each(def.indexes, (index) => {
-        if (existingIndexes[index.mongoIndexName]) return
-        indexesToAdd.push({key: {[index.fieldName]: 1}, name: index.mongoIndexName})
+      _.each(def.indexes, ({fieldName, mongoIndexName}) => {
+        if (existingIndexes[mongoIndexName]) return
+        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
+        // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
+        console.log(`index ${mongoIndexName} n’existait pas dans l'Entity ${def.name}, on va le créer`)
       })
 
-      if (indexesToAdd.length) {
-        coll.createIndexes(indexesToAdd, this)
-      } else {
-        this();
-      }
-
-    }).done(cb)
+      if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
+      else cb()
+    }).catch(cb)
   }
 
   defineTextSearchFields (fields) {
