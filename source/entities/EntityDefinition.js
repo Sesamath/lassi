@@ -103,10 +103,10 @@ class EntityDefinition {
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (fieldName.length > 128 - indexPrefix.length) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${indexPrefix.length} occupés par notre préfixe`)
     this.indexes[fieldName] = {
-      // @FIXME pourquoi créer une callback qui retourne qqchose que personne ne va lire ?
-      callback: callback?callback:function() { return this[fieldName]; },
+      fieldName: fieldName,
       fieldType: fieldType,
-      fieldName: fieldName
+      // Si on nous passe pas de callback, on retourne la valeur du champ
+      callback: callback || function() { return this[fieldName]; }
     };
     return this;
   }
