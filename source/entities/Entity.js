@@ -26,7 +26,7 @@
 const _    = require('lodash');
 const flow = require('an-flow');
 const ObjectID = require('mongodb').ObjectID;
-const log = require('an-log')('$entities');
+const log = require('an-log')('Entity');
 
 /**
  * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.

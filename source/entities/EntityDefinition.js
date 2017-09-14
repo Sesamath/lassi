@@ -27,6 +27,7 @@ const _           = require('lodash');
 const Entity      = require('./Entity');
 const EntityQuery = require('./EntityQuery');
 const flow        = require('an-flow');
+const log              = require('an-log')('EntityDefinition');
 
 // pour marquer les index mis par lassi (et ne pas risquer d'en virer des mis par qqun d'autre,
 // internes à mongo par ex, genre _id_…)
@@ -123,8 +124,8 @@ class EntityDefinition {
     return this;
   }
 
-
   initialize (cb) {
+    log(this.name, 'initialize')
     this.initializeIndexes(error => {
       if (error) return cb(error)
       this.initializeTextSearchFieldsIndex(cb);
@@ -169,7 +170,6 @@ class EntityDefinition {
    */
   initializeIndexes (cb) {
     const def = this
-    console.log(`initializeIndexes de ${def.name}`)
     const coll = def.getCollection()
     const existingIndexes = {}
     flow().seq(function () {
@@ -186,18 +186,15 @@ class EntityDefinition {
           // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
           // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
           existingIndexes[mongoIndexName] = existingIndex
-          // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
-          console.log(`index ${mongoIndexName} existe déjà`)
+          log(def.name, `index ${mongoIndexName} ok`)
           return this()
         } else {
           // on en veut plus
           coll.dropIndex(mongoIndexName, this)
-          // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
-          console.log(`index ${mongoIndexName} existe dans mongo mais plus dans l'Entity ${def.name}`, existingIndex)
+          log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
         }
       } else {
-        // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
-        if (mongoIndexName !== '_id_') console.error(`index ${mongoIndexName} existe dans mongo (Entity ${def.name}) mais il n’a pas été défini par lassi`, existingIndex)
+        if (mongoIndexName !== '_id_') log.error(def.name, `index ${mongoIndexName} existe dans mongo mais il n’a pas été défini par lassi`, existingIndex)
         return this()
       }
 
@@ -205,12 +202,10 @@ class EntityDefinition {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
-      // @todo vérifier la syntaxe
       _.each(def.indexes, ({fieldName, mongoIndexName}) => {
         if (existingIndexes[mongoIndexName]) return
         indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
-        // @todo voir si ça passe par an-log ou log.info, on le garde pour avoir ces infos au boot pour le moment
-        console.log(`index ${mongoIndexName} n’existait pas dans l'Entity ${def.name}, on va le créer`)
+        log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
       })
 
       if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
@@ -293,7 +288,7 @@ class EntityDefinition {
   }
 
   /**
-   * Finalisation de l'objet Entité.
+   * Finalisation de l'objet Entité, appelé en fin de définition, avant initialize
    * @param {Entities} entities le conteneur d'entités.
    * @return {Entity} l'entité (chaînable)
    * @private
