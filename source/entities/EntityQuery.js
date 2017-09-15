@@ -448,7 +448,7 @@ class EntityQuery {
     if (skip > 0) record.options.skip = skip;
     // set limit
     if (options.limit) {
-      if (options.limit > 0 && options.limit < hardLimit) {
+      if (options.limit > 0 && options.limit <= hardLimit) {
         record.limit = options.limit;
       } else {
         log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${hardLimit} (hardLimit)`)
