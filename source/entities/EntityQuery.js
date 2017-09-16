@@ -471,17 +471,30 @@ class EntityQuery {
     return this;
   }
 
+  /**
+   * (Internal) Retourne un tableau d'entities à partir d'un array de documents mongo
+   * @param {Array} rows
+   * @return {Entity[]}
+   * @throws Si _data n'est pas du json valide
+   */
   createEntitiesFromRows (rows) {
-    var dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    var jsonReviver = function (key, value) {
-      if (typeof value === 'string' && dateRegExp.exec(value)) {
-        return new Date(value);
-      }
-      return value;
-    }
+    // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
+    const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+    const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
 
     return rows.map((row) => {
-      var data = JSON.parse(row._data, jsonReviver)
+      let data
+      if (row._data) {
+        try {
+          data = JSON.parse(row._data, jsonReviver)
+        } catch (error) {
+          console.error(error, 'avec les _data', row._data)
+          // on renvoie un message plus compréhensible
+          throw new Error(`Données corrompues pour ${this.entity.name}/${row._id}`)
+        }
+      } else {
+        throw new Error(`Données corrompues pour ${this.entity.name}/${row._id}`)
+      }
       data.oid = row._id.toString();
       // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
       if (row.__deletedAt) {
@@ -531,23 +544,31 @@ class EntityQuery {
       let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}});
 
       this.entity.getCollection()
-      .find(recordQuery, recordOptions)
-      .sort(recordSort)
-      .limit(record.limit)
-      .toArray((error, rows) => {
-        if (error) return callback(error)
-        if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
-        callback(null, this.createEntitiesFromRows(rows));
-      });
+        .find(recordQuery, recordOptions)
+        .sort(recordSort)
+        .limit(record.limit)
+        .toArray((error, rows) => {
+          if (error) return callback(error)
+          if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
+          try {
+            callback(null, this.createEntitiesFromRows(rows));
+          } catch (error) {
+            callback(error)
+          }
+        });
     } else {
       this.entity.getCollection()
-      .find(record.query, record.options)
-      .limit(record.limit)
-      .toArray((error, rows) => {
-        if (error) return callback(error)
-        if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
-        callback(null, this.createEntitiesFromRows(rows));
-      });
+        .find(record.query, record.options)
+        .limit(record.limit)
+        .toArray((error, rows) => {
+          if (error) return callback(error)
+          if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
+          try {
+            callback(null, this.createEntitiesFromRows(rows));
+          } catch (error) {
+            callback(error)
+          }
+        });
     }
   }
 
