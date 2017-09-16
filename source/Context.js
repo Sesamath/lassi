@@ -97,10 +97,12 @@ class Context {
    *
    * @param {String} path Le chemin de la redirection
    * @param {Integer=} [code=302] Le code de redirection à utiliser (301 pour une redirection permanente)
+   * @param {boolean} [disableAutoCacheControl] Passer true pour que cette fct n'ajoute pas de header cache-control (sinon elle ajoute du noCache sur les code≠301)
    */
-	redirect (path, code) {
+	redirect (path, code, disableAutoCacheControl) {
     this.location = path;
     this.status = code || 302;
+    if (this.status !== 301 && !disableAutoCacheControl) this.setNoCache();
     this.next();
   }
 
@@ -254,6 +256,13 @@ class Context {
    */
 	setHeader(name, value) {
     this.response.setHeader(name, value);
+  }
+
+  /**
+   * Ajoute un header Cache-Control pour empêcher la mise en cache de la réponse
+   */
+  setNoCache() {
+    this.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   }
 
   /**
