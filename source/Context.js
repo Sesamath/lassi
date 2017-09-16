@@ -43,6 +43,26 @@ class Context {
      * @see http://expressjs.com/api.html#response
      */
     this.response     = response;
+
+    /**
+     * Alias de response.cookie
+     * @see http://expressjs.com/en/4x/api.html#res.cookie
+     * @type function
+     * @param {string} name Nom du cookie
+     * @param {string} value Sa valeur
+     * @param {object} [options]
+     * @param {string} [options.domain]
+     * @param {function} [options.encode=encodeURIComponent] Callback synchrone d'encodage de la valeur du cookie
+     * @param {Date} [options.expires]
+     * @param {boolean} [options.httpOnly]
+     * @param {number} [options.maxAge] en s (depuis cette réponse)
+     * @param {string} [options.path]
+     * @param {boolean} [options.secure]
+     * @param {boolean} [options.signed]
+     * @param {boolean} [options.sameSite]
+     */
+    this.setCookie = this.response.cookie
+
     /** La méthode http utilisée (en minuscules) */
     this.method       = request.method.toLowerCase();
     /**
@@ -66,6 +86,16 @@ class Context {
      * @event Lassi#context
      */
     lassi.emit('context', this);
+  } // constructor
+
+  /**
+   * Retourne la valeur du cookie (qui était dans la requête), lit simplement request.cookies
+   * @see http://expressjs.com/en/4x/api.html#req.cookies
+   * @param {string} name
+   * @return {string|undefined} undefined si le cookie n'existe pas, chaine vide si c'est sa valeur
+   */
+  getCookie (name) {
+    return this.request.cookies && this.request.cookies[name]
   }
 
   /**
@@ -278,7 +308,6 @@ class Context {
       return defaultValue;
     }
   }
-
 }
 
 
