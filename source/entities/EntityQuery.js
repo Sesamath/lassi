@@ -30,6 +30,48 @@ const flow = require('an-flow');
 // une limite hard pour grab
 const hardLimit = 1000
 
+/**
+ * cast de value en type
+ * @param {*} value
+ * @param {string} type boolean|string|integer|date
+ * @return {*} value mise dans le type voulu
+ * @throws si le type n'est pas boolean|string|integer|date
+ */
+function castToType (value, type) {
+  if (typeof value === type) return value
+  switch (type) {
+    case 'boolean': value = !!value; break;
+    case 'string': value = String(value);break;
+    case 'integer': value =  Math.round(Number(value));break;
+    case 'date':
+      if (!(value instanceof Date)) {
+        value = new Date(value);
+      }
+      break;
+    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
+  }
+  return value;
+}
+
+/**
+ * Vérifie que value est un array non vide
+ * @param value
+ * @throws si value invalide
+ */
+function checkArrayNotEmpty (value) {
+  if (!Array.isArray(value) || !value.length) throw new Error('paramètre de requête invalide')
+}
+function checkCompareValue (value) {
+  // le seul falsy qui est valable pour une comparaison
+  if (value === 0) return
+  // Et en attendant plus précis, on refuse tous les autres falsy
+  if (!value) throw new Error('paramètre de requête invalide')
+}
+function checkDate (value) {
+  // on accepte tout sauf falsy
+  if (!value) throw new Error('paramètre de requête invalide')
+}
+
 // @todo documenter proprement tous les arguments et les callbacks
 class EntityQuery {
   /**
@@ -89,6 +131,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   like (value) {
+    checkCompareValue(value)
     return this.alterLastMatch({value: value,  operator: 'LIKE'});
   }
 
@@ -136,6 +179,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   greaterThan (value) {
+    checkCompareValue(value)
     return this.alterLastMatch({value: value,  operator: '>'});
   }
 
@@ -148,6 +192,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   after (value) {
+    checkDate(value)
     return this.alterLastMatch({value: value,  operator: '>'});
   }
 
@@ -159,6 +204,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   lowerThan (value) {
+    checkCompareValue(value)
     return this.alterLastMatch({value: value,  operator: '<'});
   }
 
@@ -171,6 +217,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   before (value) {
+    checkDate(value)
     return this.alterLastMatch({value: value,  operator: '<'});
   }
 
@@ -182,6 +229,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   greaterThanOrEquals (value) {
+    checkCompareValue(value)
     return this.alterLastMatch({value: value,  operator: '>='});
   }
 
@@ -193,6 +241,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   lowerThanOrEquals (value) {
+    checkCompareValue(value)
     return this.alterLastMatch({value: value,  operator: '<='});
   }
 
@@ -244,6 +293,8 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   between (from, to) {
+    checkDate(from)
+    checkDate(to)
     return this.alterLastMatch({value: [from,to],  operator: 'BETWEEN'});
   }
 
@@ -254,6 +305,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   in (values) {
+    checkArrayNotEmpty(values)
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
@@ -263,6 +315,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   notIn (values) {
+    checkArrayNotEmpty(values)
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
@@ -290,6 +343,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   deletedAfter (when) {
+    checkDate(when)
     this.clauses.push({type:'match', index: '__deletedAt', operator: '>', value: when});
     return this
   }
@@ -300,6 +354,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   deletedBefore (when) {
+    checkDate(when)
     this.clauses.push({type:'match', index: '__deletedAt', operator: '<', value: when});
     return this
   }
@@ -310,25 +365,10 @@ class EntityQuery {
    * @private
    */
   buildQuery (record) {
-    function castToType (value, type) {
-      if (typeof value === type) return value
-      switch (type) {
-        case 'boolean': value = !!value; break;
-        case 'string': value = String(value);break;
-        case 'integer': value =  Math.round(Number(value));break;
-        case 'date':
-          if (!(value instanceof Date)) {
-            value = new Date(value);
-          }
-          break;
-          default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
-      }
-      return value;
-    }
-
     var query = record.query;
 
     this.clauses.forEach((clause) => {
+      if (!clause) throw new Error('Erreur interne, requête invalide')
       if (clause.type === 'sort') {
         record.options.sort = record.options.sort || [];
         record.options.sort.push([clause.index, clause.order]);
