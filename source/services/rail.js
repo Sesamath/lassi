@@ -1,5 +1,6 @@
 'use strict';
 
+const express = require('express');
 const fs = require('fs');
 const log = require('an-log')('$rail');
 
@@ -7,9 +8,9 @@ const log = require('an-log')('$rail');
  * Service de gestion des middlewares
  * @namespace $rail
  */
-module.exports = function ($settings) {
-  const express = require('express');
+module.exports = function ($settings, $cache) {
   const _rail = express();
+  let _redisClient
 
   /**
    * Enregistrer un middleware sur le rail Express avec lancement des events beforeRailUse et afterRailUse
@@ -99,13 +100,13 @@ module.exports = function ($settings) {
     }
     railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
 
-    // session
-    railUse('session', railConfig.session, (settings) => {
+    // session mise dans Lassi car elle a besoin de redis
+    /* railUse('session', railConfig.session, (settings) => {
       const session = require('express-session');
       const SessionStore = require('../SessionStore');
       settings.store = new SessionStore();
       return session(settings);
-    });
+    }); */
 
     // maintenance ou controleurs "normaux"
     const maintenanceConfig = $settings.get('application.maintenance');
@@ -128,6 +129,10 @@ module.exports = function ($settings) {
      * @return {Express} express
      * @memberof $rail
      */
-    get : () => _rail
+    get : () => _rail,
+    /**
+     * Quick&Dirty récupération du client redis pour MemoryEngine
+     */
+    getRedisClient: () => _redisClient
   }
 }

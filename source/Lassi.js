@@ -31,6 +31,8 @@ const Services     = require('./tools/Services');
 const EventEmitter = require('events').EventEmitter;
 const fs           = require('fs');
 const log          = require('an-log')('lassi');
+// ce module js n'a pas de dépendances sur les services lassi, ça tombe bien on en a besoin avant leur setup
+const CacheManager = require('./cache')
 require('colors');
 
 var shutdownRequested = false;
@@ -75,6 +77,23 @@ class Lassi extends EventEmitter {
       lassiComponent.service('$entities-cli', require('./services/entities-cli'))
       lassiComponent.service('$maintenance-cli', require('./services/maintenance-cli'))
     } else {
+      // on écoute afterRailUse pour ajouter la session qui utilise le cache redis
+      lassi.on('afterRailUse', function (rail, name) {
+        if (name === 'body-parser') {
+          // la session lassi a besoin d'un client redis
+          const redisSettings = lassi.settings.redis || {}
+          const cacheManager = new CacheManager()
+          cacheManager.addEngine('', 'redis', redisSettings)
+          const redisClient = cacheManager.getRedisClient()
+          const session = require('express-session');
+          const RedisStore = require('connect-redis')(session);
+          const secretSessionKey = lassi.settings.$rail.session.secret
+          rail.use(session({
+            store: new RedisStore({client: redisClient}),
+            secret: secretSessionKey
+          }))
+        }
+      })
       lassiComponent.service('$rail', require('./services/rail'))
       lassiComponent.service('$server', require('./services/server'));
     }

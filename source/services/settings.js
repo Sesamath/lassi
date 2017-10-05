@@ -11,7 +11,7 @@ var isInitialized = false
 module.exports = function () {
   // initialise lassi.settings
   if (isInitialized) {
-    console.error('settings already initialized')
+    console.error(new Error('$settings already initialized'))
   } else {
     should.object(lassi.settings, 'La configuration doit être un objet');
     should.object(lassi.settings.application, "Le champ 'application' n'est pas présent dans la configuration");

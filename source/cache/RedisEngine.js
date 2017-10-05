@@ -22,31 +22,46 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var Memcached = require('memcached');
+var redis = require('redis');
 
-function MemcacheEngine(settings) {
-  this.memcached = new Memcached(settings);
-}
-
-MemcacheEngine.prototype.get = function(key, callback) {
-  this.memcached.get(key, callback);
+/**
+ * Constructeur du client redis
+ * @param {object} settings cf https://github.com/NodeRedis/node_redis#rediscreateclient
+ * @constructor
+ */
+function RedisEngine (settings) {
+  // @see https://github.com/NodeRedis/node_redis#rediscreateclient
+  this.client = redis.createClient(settings)
 }
 
 /**
- *
+ * Retourne une valeur de cache
+ * @param {string} key
+ * @param callback
+ */
+RedisEngine.prototype.get = function (key, callback) {
+  this.client.get(key, function (error, data) {
+    if (error) return callback(error)
+    if (data) return callback(null, data) // on transmet les falsy comme ils sont
+    callback(null, JSON.parse(data))
+  })
+}
+
+/**
+ * Affecte une valeur de cache
  * @param key
  * @param value
  * @param {number} ttl ttl en secondes
  * @param callback
  */
-MemcacheEngine.prototype.set = function(key, value, ttl, callback) {
+RedisEngine.prototype.set = function (key, value, ttl, callback) {
   // attention, memcache ne fait rien si on lui donne pas de callback
   if (!callback) callback = (error) => error && console.error(error)
-  this.memcached.set(key, value, ttl, callback);
+  this.client.set(key, JSON.stringify(value), 'EX', ttl, callback)
 }
 
-MemcacheEngine.prototype.delete = function(key, callback) {
-  this.memcached.del(key, callback);
+RedisEngine.prototype.delete = function (key, callback) {
+  this.client.del(key, callback)
 }
 
-module.exports = MemcacheEngine;
+module.exports = RedisEngine;

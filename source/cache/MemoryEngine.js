@@ -24,6 +24,7 @@
 
 
 function MemoryEngine() {
+  console.error('MemoryEngine isn’t designed for production')
   this.cache = {};
 }
 

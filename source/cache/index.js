@@ -24,43 +24,72 @@
 
 var MemoryEngine = require('./MemoryEngine');
 var MAX_TTL = 24*3600;
+
+// une seule instance de client par type d'engine, même pour plusieurs CacheManager
+let redisEngine
+let memcacheEngine
+
 /**
  * @constructor
  */
 function CacheManager() {
   this.engines = [];
-  this.addEngine('', 'memory', {});
 }
 
 /**
- * Ajoute un nouvel engine sur un slot.
- * @param {String} slot le chemin de clef pris en charge par l'engine.
- * @param {String} drive le pilote à utiliser (memory, memcache)
- * @param {Object} settings les réglages à envoyer au pilote.
+ * Ajoute un nouvel engine sur un keyPrefix
+ * @param {String} keyPrefix le préfixe de clé pris en charge par cet engine
+ * @param {String} driver le pilote à utiliser (memory, memcache)
+ * @param {Object} settings les réglages à envoyer au pilote (ou le client directement dans options.client dans le cas redis
  */
-CacheManager.prototype.addEngine = function(slot, driver, settings) {
+CacheManager.prototype.addEngine = function (keyPrefix, driver, settings) {
+  if (typeof keyPrefix !== 'string') throw new Error('keyPrefix must be a string (could be empty)')
+  if (typeof driver !== 'string') throw new Error('driver must be a string')
+
+  // on vérifie qu'on a pas déjà cet engine pour ce keyPrefix
+  if (this.engines.some(e => e.keyPrefix === keyPrefix && e.engine === engine)) {
+    console.error(new Error(`cacheEngine ${engine} already set for the key prefix ${keyPrefix}`))
+    return
+  }
+
   settings = settings || {};
-  var engine;
+  let engine;
   switch (driver) {
     case 'memory':
       engine = new MemoryEngine(settings);
       break;
     case 'memcache':
-      var MemcacheEngine = require('./MemcacheEngine');
-      var url = settings.host+':'+settings.port;
-      engine = new MemcacheEngine(url);
+      if (!memcacheEngine) {
+        var MemcacheEngine = require('./MemcacheEngine');
+        var url = settings.host + ':' + settings.port;
+        memcacheEngine = new MemcacheEngine(url);
+      }
+      engine = memcacheEngine
       break;
+    case 'redis':
+      if (!redisEngine) {
+        const RedisEngine = require('./RedisEngine')
+        redisEngine = new RedisEngine(settings)
+      }
+      engine = redisEngine
+      break
     default:
-      throw new Error('Unknow cache engine '+driver);
+      throw new Error(`Unknow cache engine ${driver}`);
   }
-
-  this.engines.unshift({slot: slot, engine: engine, prefix: settings.prefix});
+  this.engines.unshift({keyPrefix: keyPrefix, engine: engine, prefix: settings.prefix});
 }
 
-CacheManager.prototype.generateKey = function(engine, key) {
+CacheManager.prototype.generateKey = function (engine, key) {
   key = key.replace(/\x00-\x20\x7F-\xA0]/, '');
   if (!engine.prefix) return key;
   return engine.prefix+'::'+key;
+}
+
+CacheManager.prototype.getRedisClient = function () {
+  return redisEngine && redisEngine.client
+}
+CacheManager.prototype.getMemcacheClient = function () {
+  return memcacheEngine && memcacheEngine.memcached
 }
 
 /**
@@ -70,7 +99,8 @@ CacheManager.prototype.generateKey = function(engine, key) {
  * @param ttl
  * @param callback appelée avec (error)
  */
-CacheManager.prototype.set = function(key, value, ttl, callback) {
+CacheManager.prototype.set = function (key, value, ttl, callback) {
+  if (!this.engines.length) return callback(new Error('You should add a cache engine before using it'))
   if (typeof ttl === 'function') {
     callback = ttl;
     ttl = MAX_TTL;
@@ -80,7 +110,7 @@ CacheManager.prototype.set = function(key, value, ttl, callback) {
     ttl = MAX_TTL;
   }
   for(var i in this.engines) {
-    if (key.indexOf(this.engines[i].slot)===0) {
+    if (key.indexOf(this.engines[i].keyPrefix)===0) {
       key = this.generateKey(this.engines[i], key);
       this.engines[i].engine.set(key, value, ttl, callback);
       break;
@@ -93,9 +123,10 @@ CacheManager.prototype.set = function(key, value, ttl, callback) {
  * @param key
  * @param callback appellée avec (error, value)
  */
-CacheManager.prototype.get = function(key, callback) {
+CacheManager.prototype.get = function (key, callback) {
+  if (!this.engines.length) return callback(new Error('You should add a cache engine before using it'))
   for(var i in this.engines) {
-    if (key.indexOf(this.engines[i].slot)===0) {
+    if (key.indexOf(this.engines[i].keyPrefix)===0) {
       key = this.generateKey(this.engines[i], key);
       return this.engines[i].engine.get(key, callback);
     }
@@ -108,8 +139,9 @@ CacheManager.prototype.get = function(key, callback) {
  * @param callback appelée avec (error)
  */
 CacheManager.prototype.delete = function(key, callback) {
+  if (!this.engines.length) return callback(new Error('You should add a cache engine before using it'))
   for(var i in this.engines) {
-    if (key.indexOf(this.engines[i].slot)===0) {
+    if (key.indexOf(this.engines[i].keyPrefix)===0) {
       key = this.generateKey(this.engines[i], key);
       return this.engines[i].engine.delete(key, callback);
     }

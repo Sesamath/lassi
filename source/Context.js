@@ -77,7 +77,8 @@ class Context {
     this.post         = this.request.body;
 
     /** La session */
-    this.session      = this.request.session;
+    this.session      = this.request.session || {};
+    // @todo virer ça car personne ne l'utilise
     /** Le user courant */
     this.user         = this.request.user;
     /**
