@@ -121,6 +121,8 @@ class Entity {
     }).seq(function (result) {
       entity._afterStore.call(self, this)
     }).seq(function () {
+      // On appelle le afterLoad() car l'état de l'entité en BDD a changé
+      entity._afterLoad.call(self);
       callback(null, self)
     }).catch(callback)
   }

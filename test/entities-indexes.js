@@ -2,7 +2,6 @@
 'use strict'
 
 const assert = require('assert')
-const expect = require('chai').expect
 const flow = require('an-flow')
 const moment = require('moment')
 const Entities = require('../source/entities')

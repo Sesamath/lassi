@@ -39,10 +39,9 @@ lassi.component('example-entities')
       cb();
     })
 
-    //this.afterLoad(function(cb) {
-      //this.$loaded = new Date();
-      //cb();
-    //})
+    this.afterLoad(function() {
+      this.$loaded = new Date();
+    })
 
     this.defineIndex('name', 'string');
   })
