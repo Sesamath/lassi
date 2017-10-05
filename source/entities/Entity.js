@@ -101,7 +101,11 @@ class Entity {
     flow()
 
     .seq(function () {
-      entity._beforeStore.call(self, this);
+      if (entity._beforeStore) {
+        entity._beforeStore.call(self, this);
+      } else {
+        this();
+      }
     })
 
     .seq(function () {
@@ -119,10 +123,15 @@ class Entity {
       // @todo save est deprecated, utiliser insertMany ou updateMany
       entity.getCollection().save(indexes, { w: 1 }, this);
     }).seq(function (result) {
-      entity._afterStore.call(self, this)
+      if (entity._afterStore) {
+        entity._afterStore.call(self, this)
+      } else {
+        this();
+      }
     }).seq(function () {
-      // On appelle le afterLoad() car l'état de l'entité en BDD a changé
-      entity._afterLoad.call(self);
+      // On appelle le onLoad() car l'état de l'entité en BDD a changé,
+      // comme si l'entity avait été "rechargée".
+      if (entity._onLoad) entity._onLoad.call(self);
       callback(null, self)
     }).catch(callback)
   }
@@ -149,6 +158,9 @@ class Entity {
       }, this);
     })
     .seq(function() {
+      // On appelle le onLoad() car l'état de l'entité en BDD a changé,
+      // comme si l'entity avait été "rechargée".
+      if (entity._onLoad) entity._onLoad.call(self);
       callback(null, self)
     })
     .catch(callback)
@@ -185,7 +197,11 @@ class Entity {
     var entity = this.definition;
     flow()
     .seq(function () {
-      entity._beforeDelete.call(self, this)
+      if (entity._beforeDelete ) {
+        entity._beforeDelete.call(self, this)
+      } else {
+        this();
+      }
     })
     .seq(function() {
       if (!self.oid) return this();

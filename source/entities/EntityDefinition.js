@@ -34,15 +34,6 @@ const log              = require('an-log')('EntityDefinition');
 const INDEX_PREFIX = 'entity_index_'
 
 /**
- * Exécute la fonction passée en paramètre (genre de pipe pour une chaîne de callback)
- * @param {function} cb
- * @private
- */
-function fooCb (cb) {
-  cb();
-}
-
-/**
  * @callback simpleCallback
  * @param {Error} [error]
  */
@@ -60,8 +51,6 @@ class EntityDefinition {
     this.name = name;
     this.indexes = {};
     this.indexesByMongoIndexName = {};
-    this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
-    this._afterLoad = () => {};
     this._textSearchFields = null;
   }
 
@@ -322,8 +311,8 @@ class EntityDefinition {
       if (values) _.extend(instance, values);
     }
 
-    if (instance.oid) {
-      this._afterLoad.call(instance);
+    if (!instance.isNew() && this._onLoad) {
+      this._onLoad.call(instance);
     }
 
     return instance;
@@ -400,14 +389,14 @@ class EntityDefinition {
    *            à implémenter ici.
    *            Par exemple, sur une entité utilisateur:
    *
-   *            this.afterLoad(function {
+   *            this.onLoad(function {
    *                this.$dbPassword = this.password // permettra de voir plus tard si le password a été changé
    *            })
    *
    * @param {simpleCallback} fn fonction à exécuter qui ne prend pas de paramètre
    */
-  afterLoad (fn) {
-    this._afterLoad = fn;
+  onLoad (fn) {
+    this._onLoad = fn;
   }
 
   /**

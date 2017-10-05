@@ -26,12 +26,12 @@ describe('Entity', () => {
     .catch(done)
   })
 
-  describe('.afterLoad', function () {
+  describe('.onLoad', function () {
     let count = 0;
     before(function (done) {
       // Plus d'index
       TestEntity = entities.define('TestEntity')
-      TestEntity.afterLoad(function() {
+      TestEntity.onLoad(function() {
         this.$loaded = `load-${++count}`;
       })
       TestEntity.flush(() => {

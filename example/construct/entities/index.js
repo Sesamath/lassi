@@ -39,7 +39,7 @@ lassi.component('example-entities')
       cb();
     })
 
-    this.afterLoad(function() {
+    this.onLoad(function() {
       this.$loaded = new Date();
     })
 
