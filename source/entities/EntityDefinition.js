@@ -34,15 +34,6 @@ const log              = require('an-log')('EntityDefinition');
 const INDEX_PREFIX = 'entity_index_'
 
 /**
- * Exécute la fonction passée en paramètre (genre de pipe pour une chaîne de callback)
- * @param {function} cb
- * @private
- */
-function fooCb (cb) {
-  cb();
-}
-
-/**
  * @callback simpleCallback
  * @param {Error} [error]
  */
@@ -60,7 +51,6 @@ class EntityDefinition {
     this.name = name;
     this.indexes = {};
     this.indexesByMongoIndexName = {};
-    this._beforeDelete = this._beforeStore = this._afterStore = fooCb;
     this._textSearchFields = null;
   }
 
@@ -320,6 +310,11 @@ class EntityDefinition {
     } else {
       if (values) _.extend(instance, values);
     }
+
+    if (!instance.isNew() && this._onLoad) {
+      this._onLoad.call(instance);
+    }
+
     return instance;
   }
 
@@ -349,6 +344,7 @@ class EntityDefinition {
     if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments));
     return query;
   }
+
 
   /**
    * Ajoute un constructeur (appelé par create avec l'objet qu'on lui donne), s'il n'existe pas
@@ -381,6 +377,26 @@ class EntityDefinition {
    */
   afterStore (fn) {
     this._afterStore = fn;
+  }
+
+  /**
+   * Ajoute un traitement après récupération de l'entité en base de donnée
+   *
+   * ATTENTION: cette fonction sera appelée très souvent (pour chaque entity retournée) et doit se limiter
+   *            à des traitements très simples.
+   *            Contrairent aux autres before* ou after*, elle ne prend pas de callback pour le moment car dangereux
+   *            en terme de performance - on ne veut pas d'appel asynchrone sur ce genre de fonction - et plus compliqué
+   *            à implémenter ici.
+   *            Par exemple, sur une entité utilisateur:
+   *
+   *            this.onLoad(function {
+   *                this.$dbPassword = this.password // permettra de voir plus tard si le password a été changé
+   *            })
+   *
+   * @param {simpleCallback} fn fonction à exécuter qui ne prend pas de paramètre
+   */
+  onLoad (fn) {
+    this._onLoad = fn;
   }
 
   /**

@@ -570,6 +570,7 @@ class EntityQuery {
       options = {};
     }
     const record = this.prepareRecord(options);
+    let query;
 
     if (this.search) {
       let sorts = {};
@@ -583,33 +584,24 @@ class EntityQuery {
       let recordQuery = _.merge(record.query, {$text: {$search: this.search}});
       let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}});
 
-      this.entity.getCollection()
+      query = this.entity.getCollection()
         .find(recordQuery, recordOptions)
-        .sort(recordSort)
-        .limit(record.limit)
-        .toArray((error, rows) => {
-          if (error) return callback(error)
-          if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
-          try {
-            callback(null, this.createEntitiesFromRows(rows));
-          } catch (error) {
-            callback(error)
-          }
-        });
-    } else {
-      this.entity.getCollection()
-        .find(record.query, record.options)
-        .limit(record.limit)
-        .toArray((error, rows) => {
-          if (error) return callback(error)
-          if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
-          try {
-            callback(null, this.createEntitiesFromRows(rows));
-          } catch (error) {
-            callback(error)
-          }
-        });
+        .sort(recordSort);
+     } else {
+      query = this.entity.getCollection()
+        .find(record.query, record.options);
     }
+
+    query.limit(record.limit)
+      .toArray((error, rows) => {
+        if (error) return callback(error)
+        if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
+        try {
+          callback(null, this.createEntitiesFromRows(rows));
+        } catch (error) {
+          callback(error)
+        }
+      });
   }
 
   /**
