@@ -58,8 +58,8 @@ function castToType (value, type) {
  * @param value
  * @throws si value invalide
  */
-function checkArrayNotEmpty (value) {
-  if (!Array.isArray(value) || !value.length) throw new Error('paramètre de requête invalide')
+function checkIsArray (value) {
+  if (!Array.isArray(value)) throw new Error('paramètre de requête invalide')
 }
 function checkCompareValue (value) {
   // le seul falsy qui est valable pour une comparaison
@@ -305,7 +305,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   in (values) {
-    checkArrayNotEmpty(values)
+    checkIsArray(values)
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
@@ -315,7 +315,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   notIn (values) {
-    checkArrayNotEmpty(values)
+    checkIsArray(values)
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 

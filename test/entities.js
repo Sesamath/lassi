@@ -29,7 +29,6 @@ describe('Entity', () => {
   describe('.onLoad', function () {
     let count = 0;
     before(function (done) {
-      // Plus d'index
       TestEntity = entities.define('TestEntity')
       TestEntity.onLoad(function() {
         this.$loaded = `load-${++count}`;
@@ -62,6 +61,29 @@ describe('Entity', () => {
       })
       .seq(function(loadedEntityAfterStore) {
         expect(loadedEntityAfterStore.$loaded).to.equal('load-3');
+        this();
+      })
+      .done(done)
+    })
+  })
+
+  describe('.store', function () {
+    before(function (done) {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.flush(() => {
+        entities.initializeEntity(TestEntity, done);
+      })
+    })
+
+    it('enlève les attributs temporaire', (done) => {
+      const entity = TestEntity.create({nonTemporaire: 1, $temporaire: 2});
+      flow()
+      .seq(function() {
+        entity.store(this)
+      })
+      .seq(function(storedEntity) {
+        expect(storedEntity.nonTemporaire).to.equal(1);
+        expect(storedEntity.$temporaire).to.be.undefined;
         this();
       })
       .done(done)

@@ -117,6 +117,8 @@ describe('Test entities-queries', function () {
   let dbSettings;
 
   before('Connexion à Mongo et initialisation des entités', function (done) {
+    // Evite les erreurs de timeout sur une machine lente
+    this.timeout(10000);
     flow().seq(function () {
       init(this)
     }).seq(function (dbSettings) {
@@ -278,6 +280,14 @@ describe('Test entities-queries', function () {
       TestEntity.match('s').in([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
         assert.equal(result.length, 2)
+        done()
+      })
+    })
+
+    it(`Recherche avec l'opérateur IN sur un tableau vide`, function (done) {
+      TestEntity.match('s').in([]).grab(function (error, result) {
+        if (error) return done(error)
+        assert.equal(result.length, 0)
         done()
       })
     })

@@ -83,6 +83,13 @@ class Entity {
   db () {
     return this.definition.entities.db;
   }
+
+  removeTemporaryFields () {
+    const temporaryAttributes = _.filter(_.keys(this), (key) => key[0] === '$');
+    _.forEach(temporaryAttributes, (att) => {
+      delete this[att];
+    })
+  }
   /**
    * Stockage d'une instance d'entité.
    * @param {Object=} options non utilisé
@@ -109,6 +116,8 @@ class Entity {
     })
 
     .seq(function () {
+      self.removeTemporaryFields();
+
       if (!self.oid) {
         self.oid = ObjectID().toString();
       }
