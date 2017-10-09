@@ -607,7 +607,7 @@ class EntityQuery {
   /**
    * @callback purgeCallback
    * @param {Error} error
-   * @param {Object} result avec propriété deletedCount ou result.ok = 1 (si rien effacé ?)
+   * @param {number} le nb d'objets effacés
    */
   /**
    * Efface toutes les entités de la collection (qui matchent la requête si y'en a une qui précède)
