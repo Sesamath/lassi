@@ -84,12 +84,13 @@ class Entity {
     return this.definition.entities.db;
   }
 
+  /**
+   * Supprime les champs préfixés $ ou _ et les méthodes
+   */
   removeTemporaryFields () {
-    const temporaryAttributes = _.filter(_.keys(this), (key) => key[0] === '$');
-    _.forEach(temporaryAttributes, (att) => {
-      delete this[att];
-    })
+    _.forEach(_.keys(this), (key) => (key[0] === '$' || key[0] === '_' || typeof this[key] === 'function') && delete this[key])
   }
+
   /**
    * Stockage d'une instance d'entité.
    * @param {Object=} options non utilisé
@@ -105,6 +106,7 @@ class Entity {
     options = options || {object: true, index: true}
     callback = callback || function() {};
 
+    let indexes
     flow().seq(function () {
       if (entity._beforeStore) {
         entity._beforeStore.call(self, this);
@@ -112,26 +114,23 @@ class Entity {
         this();
       }
     }).seq(function () {
-      self.removeTemporaryFields();
-
-      if (!self.oid) {
-        self.oid = ObjectID().toString();
-      }
-      const indexes = self.buildIndexes();
+      // on génère un oid sur les créations
+      if (!self.oid) self.oid = ObjectID().toString();
+      // les index
+      indexes = self.buildIndexes();
       indexes.__deletedAt = self.__deletedAt;
       indexes._id = self.oid;
-      indexes._data = JSON.stringify(self, function(k,v) {
-        if (_.isFunction(v)) return;
-        if (k[0] === '_') return;
-        // cette ligne éviterait le removeTemporaryFields au-dessus
-        // if (k[0] === '$') return;
-        return v;
-      });
+      // on vire les _, $ et méthodes
+      self.removeTemporaryFields();
+      // serialize et sauvegarde
+      indexes._data = JSON.stringify(self);
       // @todo save est deprecated, utiliser insertMany ou updateMany
       entity.getCollection().save(indexes, { w: 1 }, this);
     }).seq(function (result) {
       if (entity._afterStore) {
-        // @todo faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base, sans les méthodes ni les _foo ni les $bar
+        // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
+        // mais on l'a pas sous la main, et self devrait être en tout point identique, à ça près
+        self.__deletedAt = indexes.__deletedAt
         entity._afterStore.call(self, this)
       } else {
         this();
