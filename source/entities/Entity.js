@@ -105,10 +105,11 @@ class Entity {
         this();
       }
     }).seq(function () {
-      if (!self.oid) {
-        self.oid = ObjectID().toString();
-      }
+      // on génère un oid sur les créations
+      if (!self.oid) self.oid = ObjectID().toString();
+      // les index
       const indexes = self.buildIndexes();
+      // pas mieux d'ajouter explicitement `|| null` ? (apparemment ça devient null dans mongo actuellement)
       indexes.__deletedAt = self.__deletedAt;
       indexes._id = self.oid;
       indexes._data = JSON.stringify(self, function(k,v) {
