@@ -118,6 +118,7 @@ class Entity {
       if (!self.oid) self.oid = ObjectID().toString();
       // les index
       indexes = self.buildIndexes();
+      // pas mieux d'ajouter explicitement `|| null` ? (apparemment ça devient null dans mongo actuellement)
       indexes.__deletedAt = self.__deletedAt;
       indexes._id = self.oid;
       // on vire les _, $ et méthodes
@@ -129,8 +130,10 @@ class Entity {
     }).seq(function (result) {
       if (entity._afterStore) {
         // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
-        // mais on l'a pas sous la main, et self devrait être en tout point identique, à ça près
-        self.__deletedAt = indexes.__deletedAt
+        // mais on l'a pas sous la main, et self devrait être en tout point identique,
+        // au __deletedAt près qui est un index pas toujours présent ajouté par
+        // EntityQuery.createEntitiesFromRows au retour de mongo
+        if (indexes.__deletedAt) self.__deletedAt = indexes.__deletedAt
         entity._afterStore.call(self, this)
       } else {
         this();
