@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "2.1.20",
+  "version": "2.1.21",
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
