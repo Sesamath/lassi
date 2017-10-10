@@ -54,22 +54,35 @@ function castToType (value, type) {
 }
 
 /**
- * Vérifie que value est un array non vide
+ * Vérifie que value est un array
+ * @private
  * @param value
  * @throws si value invalide
  */
-function checkArrayNotEmpty (value) {
-  if (!Array.isArray(value) || !value.length) throw new Error('paramètre de requête invalide')
+function checkArray (value) {
+  if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
 }
+
+/**
+ * Vérifie que value n'est pas falsy (sauf qui est 0 accepté)
+ * @private
+ * @param value
+ */
 function checkCompareValue (value) {
   // le seul falsy qui est valable pour une comparaison
   if (value === 0) return
   // Et en attendant plus précis, on refuse tous les autres falsy
   if (!value) throw new Error('paramètre de requête invalide')
 }
+
+/**
+ * Vérifie que value n'est pas falsy
+ * @private
+ * @param value
+ */
 function checkDate (value) {
   // on accepte tout sauf falsy
-  if (!value) throw new Error('paramètre de requête invalide')
+  if (!value) throw new Error('paramètre de requête invalide (date voulue)')
 }
 
 // @todo documenter proprement tous les arguments et les callbacks
@@ -305,7 +318,9 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   in (values) {
-    checkArrayNotEmpty(values)
+    checkArray(values)
+    // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
+    if (!value.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), this.clauses)
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
@@ -315,7 +330,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   notIn (values) {
-    checkArrayNotEmpty(values)
+    checkArray(values)
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
