@@ -145,6 +145,8 @@ class Entity {
   }
 
   reindex (callback) {
+    // faut pouvoir réindexer d'éventuel doublons pour mieux les trouver ensuite
+    this.$byPassDuplicate = true
     this.store(callback);
   }
 
