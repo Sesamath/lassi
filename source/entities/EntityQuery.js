@@ -627,8 +627,10 @@ class EntityQuery {
           } else {
             console.error('deleteMany remonte un result sans deletedCount', result, 'avec la query', record.query)
           }
+        } else if (!result.deletedCount) {
+          console.error('deleteMany remonte un result avec deletedCount falsy', result, 'avec la query', record.query)
         }
-        const deletedCount = (result && result.deletedCount) || 0
+        const deletedCount = (result && result.deletedCount) || (result && result.result && result.result.n) || 0
         callback(null, deletedCount)
       });
   }
