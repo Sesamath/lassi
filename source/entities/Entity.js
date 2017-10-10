@@ -88,8 +88,8 @@ class Entity {
    * @param {Object=} options non utilisé
    */
   store (options, callback) {
-    var self = this;
-    var entity = this.definition;
+    const self = this;
+    const entity = this.definition;
 
     if (_.isFunction(options)) {
       callback = options;
@@ -98,32 +98,30 @@ class Entity {
     options = options || {object: true, index: true}
     callback = callback || function() {};
 
-    flow()
-
-    .seq(function () {
+    flow().seq(function () {
       if (entity._beforeStore) {
         entity._beforeStore.call(self, this);
       } else {
         this();
       }
-    })
-
-    .seq(function () {
+    }).seq(function () {
       if (!self.oid) {
         self.oid = ObjectID().toString();
       }
-      var indexes = self.buildIndexes();
+      const indexes = self.buildIndexes();
       indexes.__deletedAt = self.__deletedAt;
       indexes._id = self.oid;
       indexes._data = JSON.stringify(self, function(k,v) {
         if (_.isFunction(v)) return;
-        if (k[0]=='_') return;
+        if (k[0] === '_') return;
+        if (k[0] === '$') return;
         return v;
       });
       // @todo save est deprecated, utiliser insertMany ou updateMany
       entity.getCollection().save(indexes, { w: 1 }, this);
     }).seq(function (result) {
       if (entity._afterStore) {
+        // @todo faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base, sans les méthodes ni les _foo ni les $bar
         entity._afterStore.call(self, this)
       } else {
         this();
