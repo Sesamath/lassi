@@ -39,6 +39,7 @@ const hardLimit = 1000
  */
 function castToType (value, type) {
   if (typeof value === type) return value
+  if (value === null || value === undefined) return value
   switch (type) {
     case 'boolean': value = !!value; break;
     case 'string': value = String(value);break;
@@ -320,7 +321,7 @@ class EntityQuery {
   in (values) {
     checkIsArray(values)
     // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
-    if (!value.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), this.clauses)
+    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), this.clauses)
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
