@@ -39,6 +39,7 @@ const hardLimit = 1000
  */
 function castToType (value, type) {
   if (typeof value === type) return value
+  if (value === null || value === undefined) return value
   switch (type) {
     case 'boolean': value = !!value; break;
     case 'string': value = String(value);break;
