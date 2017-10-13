@@ -27,6 +27,7 @@ const _    = require('lodash');
 const flow = require('an-flow');
 const ObjectID = require('mongodb').ObjectID;
 const log = require('an-log')('Entity');
+const {castToType} = require('./internals')
 
 /**
  * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
@@ -54,28 +55,24 @@ class Entity {
     return !!this.__deletedAt;
   }
 
+  /**
+   * Construits les index d'après l'entity
+   * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined)
+   */
   buildIndexes () {
-    function cast (fieldType, value) {
-      switch (fieldType) {
-        case 'boolean': return !!value;
-        case 'string': return String(value);
-        case 'integer': return Math.round(Number(value));
-        // Si la date n'a pas de valeur (undefined ou null, on l'indexe comme null)
-        case 'date': return value ? new Date(value) : null;
-        default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
-      }
-    }
-    var entity = this.definition
-    var indexes = {};
-    for (var field in entity.indexes) {
-      var index = entity.indexes[field];
-      var values = index.callback.apply(this);
+    const entityDefinition = this.definition
+    const indexes = {};
+    let field, index, values
+    for (field in entityDefinition.indexes) {
+      index = entityDefinition.indexes[field];
+      // valeurs retournées par la fct d'indexation
+      values = index.callback.apply(this);
+      // affectation après cast dans le type indiqué
       if (Array.isArray(values)) {
-        values = values.map(x => cast(index.fieldType, x));
+        indexes[field] = values.map(x => castToType(x, index.fieldType))
       } else {
-        values = cast(index.fieldType, values);
+        indexes[field] = castToType(values, index.fieldType)
       }
-      indexes[field] = values;
     }
     return indexes;
   }

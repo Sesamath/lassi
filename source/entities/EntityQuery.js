@@ -26,33 +26,10 @@
 const log = require('an-log')('EntityQuery');
 const _    = require('lodash');
 const flow = require('an-flow');
+const {castToType} = require('./internals')
 
 // une limite hard pour grab
 const hardLimit = 1000
-
-/**
- * cast de value en type
- * @param {*} value
- * @param {string} type boolean|string|integer|date
- * @return {*} value mise dans le type voulu
- * @throws si le type n'est pas boolean|string|integer|date
- */
-function castToType (value, type) {
-  if (typeof value === type) return value
-  if (value === null || value === undefined) return value
-  switch (type) {
-    case 'boolean': value = !!value; break;
-    case 'string': value = String(value);break;
-    case 'integer': value =  Math.round(Number(value));break;
-    case 'date':
-      if (!(value instanceof Date)) {
-        value = new Date(value);
-      }
-      break;
-    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
-  }
-  return value;
-}
 
 /**
  * Vérifie que value est un array
