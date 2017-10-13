@@ -106,7 +106,7 @@ class Entity {
     options = options || {object: true, index: true}
     callback = callback || function() {};
 
-    let indexes
+    let document
     flow().seq(function () {
       if (entity._beforeStore) {
         entity._beforeStore.call(self, this);
@@ -114,22 +114,26 @@ class Entity {
         this();
       }
     }).seq(function () {
+      let isNew = !self.oid
       // on génère un oid sur les créations
-      if (!self.oid) self.oid = ObjectID().toString();
+      if (isNew) self.oid = ObjectID().toString();
       // les index
-      indexes = self.buildIndexes();
+      document = self.buildIndexes();
       if (self.__deletedAt) {
-        indexes.__deletedAt = self.__deletedAt;
+        document.__deletedAt = self.__deletedAt;
       }
-      indexes._id = self.oid;
+      document._id = self.oid;
       // on vire les _, $ et méthodes
       self.removeTemporaryFields();
       // serialize et sauvegarde
-      indexes._data = JSON.stringify(self);
-      // @todo save est deprecated, utiliser insertMany ou updateMany
-      entity.getCollection().save(indexes, { w: 1 }, this);
+      document._data = JSON.stringify(self);
+      // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
+      // soit rappelée une fois que l'écriture est effective sur le 1er master)
+      // @see https://docs.mongodb.com/manual/reference/write-concern/
+      if (isNew) entity.getCollection().insertOne(document, {w: 1}, this);
+      else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this);
     }).seq(function (result) {
-      if (indexes.__deletedAt) self.__deletedAt = indexes.__deletedAt
+      if (document.__deletedAt) self.__deletedAt = document.__deletedAt
       if (entity._afterStore) {
         // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
         // mais on l'a pas sous la main, et self devrait être en tout point identique,
