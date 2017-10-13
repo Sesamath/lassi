@@ -57,7 +57,7 @@ class Entity {
 
   /**
    * Construits les index d'après l'entity
-   * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined)
+   * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
    */
   buildIndexes () {
     const entityDefinition = this.definition
