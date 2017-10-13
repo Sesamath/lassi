@@ -60,7 +60,7 @@ function castToType (value, type) {
  * @param value
  * @throws si value invalide
  */
-function checkArray (value) {
+function checkIsArray (value) {
   if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
 }
 
@@ -319,7 +319,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   in (values) {
-    checkArray(values)
+    checkIsArray(values)
     // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
     if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), this.clauses)
     return this.alterLastMatch({value: values,  operator: 'IN'});
@@ -331,7 +331,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   notIn (values) {
-    checkArray(values)
+    checkIsArray(values)
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
