@@ -298,7 +298,7 @@ class EntityQuery {
   in (values) {
     checkIsArray(values)
     // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
-    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), this.clauses)
+    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), 'appelé avec :\n', this.clauses)
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 

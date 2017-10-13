@@ -1,11 +1,16 @@
 /* eslint-env mocha */
 'use strict'
-
 const assert = require('assert')
 const flow = require('an-flow')
+const chai = require('chai')
+const {expect} = chai
+const sinon = require('sinon')
+const sinonChai = require('sinon-chai')
 
 const Entities = require('../source/entities')
 const init = require('./init')
+
+chai.use(sinonChai)
 
 const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
@@ -284,8 +289,12 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche avec l'opérateur IN sur un tableau vide`, function (done) {
+    it(`Recherche avec l'opérateur IN sur un tableau vide (râle en console et ne remonte rien)`, function (done) {
+      // attention, mocha utilise la console donc on le rend muet le temps de cet appel
+      sinon.stub(console, 'error')
       TestEntity.match('s').in([]).grab(function (error, result) {
+        expect(console.error).to.have.been.calledOnce
+        console.error.restore()
         if (error) return done(error)
         assert.equal(result.length, 0)
         done()
@@ -383,24 +392,33 @@ describe('Test entities-queries', function () {
     })
 
     it(`Sélection d'entités avec hard limit`, function (done) {
+      function last (error) {
+        expect(console.error).to.have.been.calledThrice
+        console.error.restore()
+        done(error)
+      }
       this.timeout(10000)
+      sinon.stub(console, 'error')
       flow().seq(function () {
         TestEntity.match().grab(this)
       }).seq(function (entities) {
         assert.equal(entities.length, 1000)
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/hardLimit atteint/))
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
         })
         this()
       }).seq(function () {
         TestEntity.match().grab({limit: 1200}, this)
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/limit 1200 trop élevée/))
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/hardLimit atteint/))
       }).seq(function (entities) {
         assert.equal(entities.length, 1000)
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
         })
         this()
-      }).done(done)
+      }).done(last)
     })
 
     it('Recherche simple ne donnant rien', function (done) {
@@ -422,14 +440,15 @@ describe('Test entities-queries', function () {
 
   describe('.sort()', function () {
     it(`Tri d'entités`, function (done) {
+      // on ajoute une limite pour pas tomber sur le hardLimit
       flow().seq(function () {
-        TestEntity.match().sort('i', 'asc').grab(this)
+        TestEntity.match().sort('i', 'asc').grab({limit: 10}, this)
       }).seq(function (entities) {
         assert.equal(entities[0].i, 0)
         assert.equal(entities[1].i, 1)
         this()
       }).seq(function () {
-        TestEntity.match().sort('i', 'desc').grab(this)
+        TestEntity.match().sort('i', 'desc').grab({limit: 10}, this)
       }).seq(function (entities) {
         assert.equal(entities[0].i, nbEntities - 1)
         assert.equal(entities[1].i, nbEntities - 2)
@@ -739,8 +758,8 @@ describe('Test entities-queries', function () {
     })
 
     it('Insert, update et delete en parallèle', function (done) {
-      this.timeout(30 * 1000); // 30s
-      const count = 10000
+      this.timeout(10 * 1000); // 10s
+      const count = 1000
       const objs = []
       for (let i = 0; i < count; i++) {
         objs.push(TestEntity.create({

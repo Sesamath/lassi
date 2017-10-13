@@ -2,6 +2,8 @@
 'use strict'
 
 const MongoClient = require('mongodb').MongoClient
+const anLog = require('an-log')
+const anLogLevels = require('an-log/source/lib/levels.js')
 
 let dbSettings = {
   name: 'testLassi',
@@ -91,5 +93,11 @@ function connectToMongo (next) {
 module.exports = function init (next) {
   overrideSettings()
   if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
+  // pour les tests on veut qu'ils se taisent
+  anLog.config({
+    EntityDefinition: {logLevel: anLogLevels.ERROR},
+    EntityQuery: {logLevel: anLogLevels.ERROR},
+    lassi: {logLevel: anLogLevels.ERROR}
+  })
   connectToMongo(next)
 }
