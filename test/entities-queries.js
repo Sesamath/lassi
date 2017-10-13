@@ -8,7 +8,7 @@ const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
 const Entities = require('../source/entities')
-const init = require('./init')
+const {checkEntity, getTestEntity, setup} = require('./init')
 
 chai.use(sinonChai)
 
@@ -25,23 +25,16 @@ let TestEntity;
  * @param {Object}  entity Entité
  */
 function assertEntity (i, entity) {
-  assert.equal(typeof entity.i, 'number')
-  assert.equal(entity.d.constructor.name, 'Date')
-  assert.equal(typeof entity.s, 'string')
+  checkEntity(entity)
   assert.equal(entity.i, i)
   assert.equal(entity.s, STRING_PREFIX + i)
   assert.equal(entity.d.getTime(), bt + seconde * i)
-  assert(Array.isArray(entity.sArray))
-  assert(Array.isArray(entity.iArray))
-  assert(Array.isArray(entity.dArray))
   assert.equal(entity.sArray.length, 3)
   assert.equal(entity.iArray.length, 3)
   assert.equal(entity.dArray.length, 3)
-  assert.equal(typeof entity.iArray[0], 'number')
-  assert.equal(typeof entity.sArray[0], 'string')
-  assert.equal(entity.dArray[0].constructor.name, 'Date')
-  assert.equal(entity.created.constructor.name, 'Date')
-  if (entity.oid) assert.equal(entity.oid.length, 24)
+  // assert.equal(typeof entity.iArray[0], 'number')
+  // assert.equal(typeof entity.sArray[0], 'string')
+  // assert.equal(entity.dArray[0].constructor.name, 'Date')
 }
 
 /**
@@ -85,88 +78,23 @@ function addData (next) {
   }).done(next)
 }
 
-/**
- * Initialisation des entités
- *
- * @param {Callback} next
- */
-function initEntities(dbSettings, next) {
-  const entities = new Entities({database: dbSettings})
-  flow().seq(function() {
-    entities.initialize(this)
-  }).seq(function() {
-    TestEntity = entities.define('TestEntity')
-    TestEntity.flush(this)
-  }).seq(function () {
-    TestEntity.construct(function () {
-      this.created = new Date()
-      this.i = undefined
-      this.s = undefined
-      this.d = undefined
-    })
-    TestEntity.defineIndex('i', 'integer')
-    TestEntity.defineIndex('s', 'string')
-    TestEntity.defineIndex('d', 'date')
-    TestEntity.defineIndex('iPair', 'integer', function () {
-      return this.i % 2
-    })
-    TestEntity.defineIndex('iArray', 'integer')
-    TestEntity.defineIndex('sArray', 'string')
-    TestEntity.defineIndex('dArray', 'date')
-
-    entities.initializeEntity(TestEntity, this)
-  }).done(next)
-};
-
 describe('Test entities-queries', function () {
-  let dbSettings;
-
   before('Connexion à Mongo et initialisation des entités', function (done) {
     // Evite les erreurs de timeout sur une machine lente
     this.timeout(10000);
     flow().seq(function () {
-      init(this)
-    }).seq(function (dbSettings) {
-      initEntities(dbSettings, this)
-    }).seq( function () {
+      setup(this)
+    }).seq(function (Entity) {
+      TestEntity = Entity
       addData(this)
     }).done(done)
   })
 
-  // @todo: à enlever quand on sera confiant dans notre gestion des index (normalement bien couvert par entities-indexes)
-  it('A créé les index demandés', function (done) {
-    const db = TestEntity.getDb()
-    flow().seq(function () {
-      TestEntity.getCollection().listIndexes().toArray(this)
-    }).seq(function (indexes) {
-      // Pour visualiser les index rapidement
-      // console.log('indexes de la collection', indexes)
-      this();
-    }).done(done)
-  })
-
-  it('Indexe une date non définie comme null - verifie aussi le isNull', function (done) {
-    const createdEntities = []
-    flow().seq(function () {
-      TestEntity.create({d: null, s: 'date nulle 1'}).store(this)
-    }).seq(function (e) {
-      createdEntities.push(e)
-      TestEntity.create({d: undefined, s: 'date nulle 2'}).store(this)
-    }).seq(function (e) {
-      createdEntities.push(e)
-      TestEntity.create({d: new Date(), s: 'avec date'}).store(this)
-    }).seq(function (e) {
-      createdEntities.push(e)
-      TestEntity.match('d').isNull().sort('s', 'asc').grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'date nulle 1')
-      assert.equal(entities[1].s, 'date nulle 2')
-
-      this(null, createdEntities)
-    }).seqEach(function (entity) {
-      entity.delete(this)
-    }).done(done)
+  after('Efface tous les documents', function (done) {
+    // on pourrait passer un purge natif mongo du genre
+    // TestEntity.getCollection().deleteMany({}, done)
+    // mais c'est plus lisible, même si on devrait pas tester purge ici
+    TestEntity.match().purge(done)
   })
 
   describe('.beforeDelete()', function () {
@@ -192,7 +120,8 @@ describe('Test entities-queries', function () {
     it(`jette une exception si le champ n'est pas indexé`, function () {
       assert.throws(function() {
         TestEntity.match('nonIndexed').equals(1).grab(function (error, result) {
-          // devrait throw avant d'arriver là
+          // devrait throw avant d'arriver là, on le vérifie avec une assertion toujours fausse
+          assert.equal('On aurait pas dû arriver là', '')
         })
       })
     })
@@ -758,7 +687,7 @@ describe('Test entities-queries', function () {
     })
 
     it('Insert, update et delete en parallèle', function (done) {
-      this.timeout(10 * 1000); // 10s
+      this.timeout(10000); // 10s
       const count = 1000
       const objs = []
       for (let i = 0; i < count; i++) {
