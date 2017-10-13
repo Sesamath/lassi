@@ -70,10 +70,14 @@ class Lassi extends EventEmitter {
     lassiComponent.service('$settings', require('./services/settings'))
     lassiComponent.service('$cache', require('./services/cache'))
     lassiComponent.service('$entities', require('./services/entities'))
+    lassiComponent.entity('LassiUpdate', require('./updates/LassiUpdate'))
+    lassiComponent.service('$updates', require('./services/updates'));
+    lassiComponent.service('$maintenance', require('./services/maintenance'));
     if (lassi.options.cli) {
       lassiComponent.service('$cli', require('./services/cli'))
       lassiComponent.service('$entities-cli', require('./services/entities-cli'))
       lassiComponent.service('$maintenance-cli', require('./services/maintenance-cli'))
+      lassiComponent.service('$updates-cli', require('./services/updates-cli'))
     } else {
       lassiComponent.service('$rail', require('./services/rail'))
       lassiComponent.service('$server', require('./services/server'));
@@ -101,6 +105,9 @@ class Lassi extends EventEmitter {
     // Configuration des services
     .seq(function () {
       var setupables = [];
+      // postSetup est utilisé pour les comportement qui ont besoin que tous les services soient setup
+      // (ex: que la BDD soit initialisée)
+      const postSetupable = [];
       _.each(self.services.services(), (service, name) => {
         service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
         if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
@@ -108,10 +115,19 @@ class Lassi extends EventEmitter {
           if (!self.options.cli) log('setting up', name.blue);
           setupables.push(service);
         }
+        if (service.postSetup) {
+          postSetupable.push(service);
+        }
       });
       flow(setupables)
       .seqEach(function (service) {
         service.setup(this);
+      })
+      .seq(function() {
+        this(null, postSetupable);
+      })
+      .seqEach(function (service) {
+        service.postSetup(this);
       })
       .done(this);
     })

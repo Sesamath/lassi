@@ -7,7 +7,7 @@ const log = require('an-log')('$rail');
  * Service de gestion des middlewares
  * @namespace $rail
  */
-module.exports = function ($settings) {
+module.exports = function ($settings, $maintenance) {
   const express = require('express');
   const _rail = express();
 
@@ -49,32 +49,6 @@ module.exports = function ($settings) {
   }
 
   /**
-   * Retourne un booléen permettant de savoir si le mode maintenance est activé
-   * @param {Object} maintenanceConfig             Les réglages qui seront appliqués au middleware :
-   * @param {boolean} maintenanceConfig.active     booléen indiquant s'il faut activer le mode maintenance (prioritaire sur le lockFile)
-   * @param {string} maintenanceConfig.lockFile    chemin du fichier indiquant si le mode maintenance est activé
-   * @param {string} [maintenanceConfig.message]   message de maintenance à afficher
-   * @param {string} [maintenanceConfig.htmlPage]  chemin relatif à la racine d'une page html à afficher
-   * @param {string} [maintenanceConfig.staticDir] chemin relatif à la racine indiquant des éléments statiques pour htmlPage
-   * @return {Boolean} Indique si le mode maintenance est activé
-   */
-  function isMaintenance (maintenanceConfig) {
-    if (!maintenanceConfig) return false;
-
-    let isActive = maintenanceConfig.active;
-    // Par défaut, on privilégie les settings
-    if (typeof isActive === 'boolean') return isActive;
-
-    let lockFile = maintenanceConfig.lockFile;
-    if (!lockFile) {
-      log.error('lockFile manquant dans config.application.maintenance');
-      return false;
-    }
-
-    return fs.existsSync(lockFile);
-  }
-
-  /**
    * Initialisation du service utilisé par lassi lors de la configuration du composant parent.
    * @param {function} next callback de retour
    * @memberof $rail
@@ -107,16 +81,11 @@ module.exports = function ($settings) {
       return session(settings);
     });
 
-    // maintenance ou controleurs "normaux"
-    const maintenanceConfig = $settings.get('application.maintenance');
-    if (isMaintenance(maintenanceConfig)) {
-      maintenanceConfig.app = _rail;
-      railUse('maintenance', maintenanceConfig, require('../controllers/maintenance'));
-    } else {
-      const Controllers = require('../controllers');
-      const controllers = new Controllers(this);
-      railUse('controllers', {}, () => controllers.middleware());
-    }
+    railUse('maintenance', {}, () => $maintenance.middleware());
+
+    const Controllers = require('../controllers');
+    const controllers = new Controllers(this);
+    railUse('controllers', {}, () => controllers.middleware());
 
     next();
   }
