@@ -5,11 +5,9 @@ const assert = require('assert')
 const expect = require('chai').expect
 const flow = require('an-flow')
 const moment = require('moment')
-const Entities = require('../source/entities')
 const EntitiesCli = require('../source/services/entities-cli')()
-const init = require('./init')
+const {checkEntity, setup} = require('./init')
 
-let entities
 let TestEntity
 
 /**
@@ -19,13 +17,12 @@ let TestEntity
  * @param {Object}  entity Entité
  */
 function assertEntity (i, entity) {
-  assert.equal(typeof entity.i, 'number')
+  checkEntity(entity)
   assert.equal(entity.i, i)
-  if (entity.oid) assert.equal(entity.oid.length, 24)
 }
 
 /**
- * Ajout des données aux entités
+ * Ajoute 3 entités softDeleted
  *
  * @param {Callback} next
  */
@@ -42,44 +39,16 @@ function addData (next) {
       if (error) return nextSeq(error)
       nextSeq()
     });
-  })
-  .seq(function() {
-    next()
-  }).catch(next);
-}
-
-/**
- * Initialisation des entités
- *
- * @param {Callback} next
- */
-function initEntities(dbSettings, next) {
-  entities = new Entities({database: dbSettings})
-  flow().seq(function() {
-    entities.initialize(this)
-  }).seq(function() {
-    TestEntity = entities.define('TestEntity')
-    TestEntity.flush(this)
-  }).seq(function () {
-    TestEntity.construct(function () {
-      this.created = new Date()
-      this.i = undefined
-    })
-    TestEntity.defineIndex('i', 'integer')
-    TestEntity.defineIndex('__deletedAt', 'date')
-
-    entities.initializeEntity(TestEntity, this)
-  }).seq(function () {
-    addData(this)
-  }).done(next)
+  }).done(next);
 }
 
 describe('Test $entities-cli', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
-      init(this)
-    }).seq(function (dbSettings) {
-      initEntities(dbSettings, this)
+      setup(this)
+    }).seq(function (Entity) {
+      TestEntity = Entity
+      addData(this)
     }).done(done)
   })
 

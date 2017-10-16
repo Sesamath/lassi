@@ -6,7 +6,7 @@ const expect = require('chai').expect
 const flow = require('an-flow')
 const Entities = require('../source/entities')
 const _ = require('lodash')
-const init = require('./init')
+const {checkEntity, getTestEntity, setup} = require('./init')
 
 let entities
 let TestEntity
@@ -17,9 +17,9 @@ describe('Entity', () => {
   before((done) => {
     flow()
     .seq(function () {
-      init(this)
+      setup(this)
     })
-    .seq(function (dbSettings) {
+    .seq(function (Entity, dbSettings) {
       entities = new Entities({database: dbSettings})
       entities.initialize(done)
     })

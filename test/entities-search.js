@@ -5,7 +5,7 @@ const assert = require('assert')
 const flow = require('an-flow')
 
 const Entities = require('../source/entities')
-const init = require('./init')
+const {checkEntity, getTestEntity, setup} = require('./init')
 
 let TestEntity;
 
@@ -30,8 +30,8 @@ function initEntities(dbSettings, next) {
 describe('Test entities-search', function() {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
-      init(this)
-    }).seq(function (dbSettings) {
+      setup(this)
+    }).seq(function (Entity, dbSettings) {
       initEntities(dbSettings, this)
     }).done(done)
   })
