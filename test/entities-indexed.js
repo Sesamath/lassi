@@ -197,5 +197,81 @@ describe('Test entities-queries', function () {
       TestEntity.match().purge(this)
     }).done(done)
   })
-});
 
+  it('Indexe un tableau de booleans', function (done) {
+    let entities = [
+      {bArray: [true], s: 'boolean true'},
+      {bArray: [null], s: 'boolean null'},
+      {bArray: [undefined], s: 'boolean undefined'},
+      {bArray: [false], s: 'boolean false'},
+      {bArray: [0], s: 'boolean zéro'},
+      {bArray: [''], s: 'boolean empty string'},
+      {bArray: [42], s: 'boolean truthy int'},
+      {bArray: ['foo'], s: 'boolean truthy string'},
+      {bArray: [{}], s: 'boolean truthy obj'},
+      {bArray: [new Date()], s: 'boolean truthy date'},
+    ]
+    flow(entities).seqEach(function (entity) {
+      TestEntity.create(entity).store(this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 10)
+      TestEntity.match('bArray').isNull().sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities[0].s, 'boolean null')
+      assert.equal(entities[1].s, 'boolean undefined')
+      TestEntity.match('bArray').isNotNull().sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 8)
+      assert.equal(entities[0].s, 'boolean true')
+      assert.equal(entities[1].s, 'boolean false')
+      assert.equal(entities[2].s, 'boolean zéro')
+      assert.equal(entities[3].s, 'boolean empty string')
+      assert.equal(entities[4].s, 'boolean truthy int')
+      assert.equal(entities[5].s, 'boolean truthy string')
+      assert.equal(entities[6].s, 'boolean truthy obj')
+      assert.equal(entities[7].s, 'boolean truthy date')
+      TestEntity.match('bArray').equals(true).sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 5)
+      assert.equal(entities[0].s, 'boolean true')
+      assert.equal(entities[1].s, 'boolean truthy int')
+      assert.equal(entities[2].s, 'boolean truthy string')
+      assert.equal(entities[3].s, 'boolean truthy obj')
+      assert.equal(entities[4].s, 'boolean truthy date')
+      TestEntity.match('bArray').equals(false).sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 3)
+      assert.equal(entities[0].s, 'boolean false')
+      assert.equal(entities[1].s, 'boolean zéro')
+      assert.equal(entities[2].s, 'boolean empty string')
+      TestEntity.match().purge(this)
+    }).seq(function () {
+      // on recommence avec un tableau à plusieurs boolean
+      entities = [
+        {bArray: [true, 42, true], i: 1},
+        {bArray: [null, false], i: 2},
+        {bArray: [false, undefined], i: 3},
+        {bArray: [true, false], i: 4},
+      ]
+      this(null, entities)
+    }).seqEach(function (entity) {
+      TestEntity.create(entity).store(this)
+    }).seq(function (entities) {
+      assert.equal(entities.length, 4)
+      TestEntity.match('bArray').isNull().sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.map(e => e.i).join(','), '2,3')
+      TestEntity.match('bArray').isNotNull().sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.map(e => e.i).join(','), '1,4')
+      TestEntity.match('bArray').equals(false).sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.map(e => e.i).join(','), '2,3,4')
+      TestEntity.match('bArray').equals(true).sort('oid').grab(this)
+    }).seq(function (entities) {
+      assert.equal(entities.map(e => e.i).join(','), '1,4')
+      TestEntity.match().purge(this)
+    }).done(done)
+  })
+  // @todo array de date/int/string
+});
