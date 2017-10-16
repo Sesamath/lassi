@@ -754,5 +754,43 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
   })
+
+  describe('sort', function () {
+    before(function (done) {
+      const entities = [
+        {oid: 'b', i: 2, s: 'deux', sArray: ['bb, ba, bc']},
+        {oid: 'c', i: 3, s: 'trois', sArray: ['ca', 'cc', 'cb']},
+        {oid: 'a', i: 1, s: 'un', sArray: ['ac', 'ab', 'aa']},
+      ]
+      flow(entities).seqEach(function (entity) {
+        TestEntity.create(entity).store(this)
+      }).done(done)
+    })
+    after(function (done) {
+      TestEntity.match().purge(done)
+    })
+
+    it('byOid', function (done) {
+      flow().seq(function () {
+        TestEntity.match().grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '2,3,1') // dans l'ordre d'insertion par défaut
+        TestEntity.match().sort('oid').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par oid
+        TestEntity.match().sort('i').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par i
+        TestEntity.match().sort('s').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '2,3,1') // par string
+        TestEntity.match().sort('sArray').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par sArray
+        this()
+      }).done(done)
+
+    })
+  })
 });
 

@@ -500,6 +500,7 @@ class EntityQuery {
    */
   sort (index, order) {
     order = order || 'asc';
+    if (index === 'oid') index = '_id';
     this.clauses.push({type: 'sort', index: index, order: order});
     return this;
   }
