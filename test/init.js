@@ -140,15 +140,17 @@ function initEntities(next) {
       this.s = undefined
       this.d = undefined
     })
+    TestEntity.defineIndex('b', 'boolean')
+    TestEntity.defineIndex('d', 'date')
     TestEntity.defineIndex('i', 'integer')
     TestEntity.defineIndex('s', 'string')
-    TestEntity.defineIndex('d', 'date')
     TestEntity.defineIndex('iPair', 'integer', function () {
       return this.i % 2
     })
+    TestEntity.defineIndex('bArray', 'boolean')
+    TestEntity.defineIndex('dArray', 'date')
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
-    TestEntity.defineIndex('dArray', 'date')
 
     entities.initializeEntity(TestEntity, this)
   }).seq(function () {

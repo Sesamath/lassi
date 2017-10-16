@@ -615,13 +615,7 @@ class EntityQuery {
         if (!result) {
           console.error('deleteMany ne remonte pas de result dans purge, avec', record.query)
         } else if (!result.hasOwnProperty('deletedCount')) {
-          if (result.ok === 1) {
-            console.error('deleteMany remonte un result avec ok=1 mais pas de deletedCount, avec la query', record.query)
-          } else {
-            console.error('deleteMany remonte un result sans deletedCount', result, 'avec la query', record.query)
-          }
-        } else if (!result.deletedCount) {
-          console.error('deleteMany remonte un result avec deletedCount falsy', result, 'avec la query', record.query)
+          console.error('deleteMany remonte un result sans propriété deletedCount', result, 'avec la query', record.query)
         }
         const deletedCount = (result && result.deletedCount) || (result && result.result && result.result.n) || 0
         callback(null, deletedCount)

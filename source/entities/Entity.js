@@ -211,6 +211,8 @@ class Entity {
    */
   delete (callback) {
     var self = this;
+    // @todo activer ce throw ?
+    // if (!self.oid) throw new Error('Impossible d’effacer une entity sans oid')
     var entity = this.definition;
     flow()
     .seq(function () {
@@ -222,9 +224,7 @@ class Entity {
     })
     .seq(function() {
       if (!self.oid) return this();
-      entity.getCollection().remove({
-        _id: self.oid
-      },{w : 1}, this);
+      entity.getCollection().remove({_id: self.oid}, {w : 1}, this);
     })
     .done(callback)
   }

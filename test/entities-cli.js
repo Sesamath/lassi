@@ -22,7 +22,7 @@ function assertEntity (i, entity) {
 }
 
 /**
- * Ajout des données aux entités
+ * Ajoute 3 entités softDeleted
  *
  * @param {Callback} next
  */
@@ -39,10 +39,7 @@ function addData (next) {
       if (error) return nextSeq(error)
       nextSeq()
     });
-  })
-  .seq(function() {
-    next()
-  }).catch(next);
+  }).done(next);
 }
 
 describe('Test $entities-cli', function () {
@@ -51,7 +48,7 @@ describe('Test $entities-cli', function () {
       setup(this)
     }).seq(function (Entity) {
       TestEntity = Entity
-      this()
+      addData(this)
     }).done(done)
   })
 
