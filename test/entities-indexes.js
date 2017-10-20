@@ -6,7 +6,7 @@ const flow = require('an-flow')
 const moment = require('moment')
 const Entities = require('../source/entities')
 const EntitiesCli = require('../source/services/entities-cli')()
-const init = require('./init')
+const {checkEntity, getTestEntity, setup} = require('./init')
 const _ = require('lodash')
 
 let entities
@@ -34,8 +34,8 @@ describe('Test entities-indexes', function () {
 
   before('Connexion à Mongo et initialisation des entités', function (done) {
     flow().seq(function () {
-      init(this)
-    }).seq(function (dbSettings) {
+      setup(this)
+    }).seq(function (Entity, dbSettings) {
       initEntities(dbSettings, this)
     }).done(done)
   })
