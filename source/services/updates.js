@@ -7,96 +7,101 @@ const fs = require('fs')
 const log = require('an-log')('$updates')
 
 module.exports = function(LassiUpdate, $maintenance, $settings) {
-  const updates = $settings.get('application.updates')
-  if (!updates) throw new Error(`updatesFolder manquant dans les settings d'application`)
-
-  const folder = updates.folder
-  if (!folder) throw new Error(`folder manquant dans les settings d'application.updates`)
-  const lock = updates.lockFile
-  if (!lock) throw new Error(`lockFile manquant dans les settings d'application.updates`)
-
-
-  function getUpdateFilename(num) {
-    return path.join(folder, num + '.js')
-  }
-
-  function getLatestAppliedUpdate(cb) {
-    LassiUpdate.match('num').sort('num', 'desc').grabOne(function(err, update) {
-      if (err) return cb(err)
-      cb(null, update ? update.num : 0)
-    })
-  }
-
-  function updateExist(num, cb) {
-    fs.access(getUpdateFilename(num), fs.R_OK, function (err) {
-      cb(null, err ? false : true)
-    })
-  }
-
-  function runUpdate(num, cb) {
-    const update = require(getUpdateFilename(num))
-
-    flow()
-    .seq(function() {
-      log(`lancement update n° ${num} : ${update.name}`)
-      update.run(this)
-    })
-    .seq(function() {
-      log(`fin update n° ${num}`)
-      LassiUpdate.create({
-        name: update.name,
-        description: update.description,
-        num
-      }).store(this)
-    })
-    .seq(function() {
-      log(`update n° ${num} OK, base en version ${num}`)
-      cb()
-    })
-    .catch(function(err) {
-      err._errorNum = num
-      cb(err)
-    })
-  }
-
-  function runNextUpdates(dbVersion, cb) {
-    const nextUpdateNum = dbVersion + 1
-    flow()
-    .seq(function() {
-      updateExist(nextUpdateNum, this)
-    })
-    .seq(function(exist) {
-      if (exist) {
-        runUpdate(nextUpdateNum, this)
-      } else {
-        // Find de la boucle récursive, on renvoie le dernier dbVersion à jour
-        cb(null, dbVersion)
-      }
-    })
-    .seq(function() {
-      runNextUpdates(nextUpdateNum, this)
-    })
-    .done(cb)
-  }
-
-  function isUpdateLocked() {
-    try {
-      fs.accessSync(lock, fs.R_OK)
-      return true
-    } catch (error) {
-      // lock n’existe pas,
-      return false
-    }
-  }
-  function lockUpdates() { fs.writeFileSync(lock, null) }
-  function unlockUpdates() { fs.unlinkSync(lock) }
-
   function runPendingUpdates(cb) {
     function done(err) {
       // runPendingUpdates peut être appelé sans callback quand on n'a pas besoin d'attendre
       // la fin des updates
       if (cb) cb(err);
     }
+
+    const updates = $settings.get('application.updates')
+
+    if (!updates) {
+      log.error(`"updates" manquant dans les settings d'application, on ne lance pas la mise à jour`)
+      return done();
+    }
+
+    const folder = updates.folder
+    if (!folder) throw new Error(`folder manquant dans les settings d'application.updates`)
+    const lock = updates.lockFile
+    if (!lock) throw new Error(`lockFile manquant dans les settings d'application.updates`)
+
+
+    function getUpdateFilename(num) {
+      return path.join(folder, num + '.js')
+    }
+
+    function getLatestAppliedUpdate(cb) {
+      LassiUpdate.match('num').sort('num', 'desc').grabOne(function(err, update) {
+        if (err) return cb(err)
+        cb(null, update ? update.num : 0)
+      })
+    }
+
+    function updateExist(num, cb) {
+      fs.access(getUpdateFilename(num), fs.R_OK, function (err) {
+        cb(null, err ? false : true)
+      })
+    }
+
+    function runUpdate(num, cb) {
+      const update = require(getUpdateFilename(num))
+
+      flow()
+      .seq(function() {
+        log(`lancement update n° ${num} : ${update.name}`)
+        update.run(this)
+      })
+      .seq(function() {
+        log(`fin update n° ${num}`)
+        LassiUpdate.create({
+          name: update.name,
+          description: update.description,
+          num
+        }).store(this)
+      })
+      .seq(function() {
+        log(`update n° ${num} OK, base en version ${num}`)
+        cb()
+      })
+      .catch(function(err) {
+        err._errorNum = num
+        cb(err)
+      })
+    }
+
+    function runNextUpdates(dbVersion, cb) {
+      const nextUpdateNum = dbVersion + 1
+      flow()
+      .seq(function() {
+        updateExist(nextUpdateNum, this)
+      })
+      .seq(function(exist) {
+        if (exist) {
+          runUpdate(nextUpdateNum, this)
+        } else {
+          // Find de la boucle récursive, on renvoie le dernier dbVersion à jour
+          cb(null, dbVersion)
+        }
+      })
+      .seq(function() {
+        runNextUpdates(nextUpdateNum, this)
+      })
+      .done(cb)
+    }
+
+    function isUpdateLocked() {
+      try {
+        fs.accessSync(lock, fs.R_OK)
+        return true
+      } catch (error) {
+        // lock n’existe pas,
+        return false
+      }
+    }
+    function lockUpdates() { fs.writeFileSync(lock, null) }
+    function unlockUpdates() { fs.unlinkSync(lock) }
+
 
     let maintenanceReason
 

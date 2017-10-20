@@ -127,7 +127,6 @@ class Entity {
       if (isNew) entity.getCollection().insertOne(document, {w: 1}, this);
       else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this);
     }).seq(function (result) {
-      if (document.__deletedAt) self.__deletedAt = document.__deletedAt
       if (entity._afterStore) {
         // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
         // mais on l'a pas sous la main, et self devrait être en tout point identique,
