@@ -85,16 +85,6 @@ class Entity {
   }
 
   /**
-   * Supprime les champs préfixés $ ou _ et les méthodes
-   */
-  removeTemporaryFields () {
-    _.forEach(_.keys(this), (key) => {
-      if (key[0] === '$' || key[0] === '_' || typeof this[key] === 'function') {
-        delete this[key]
-      }
-    })
-  }
-  /**
    * Stockage d'une instance d'entité.
    * @param {Object=} options non utilisé
    */
@@ -125,10 +115,15 @@ class Entity {
         indexes.__deletedAt = self.__deletedAt;
       }
       indexes._id = self.oid;
-      // on vire les _, $ et méthodes
-      self.removeTemporaryFields();
-      // serialize et sauvegarde
-      indexes._data = JSON.stringify(self);
+      // on vire les _, $ et méthodes, puis serialize et sauvegarde
+      // mais on les conserve sur l'entité elle-même car ça peut être utiles
+      // pour le afterStore
+      indexes._data = JSON.stringify(self, function(k,v) {
+        if (_.isFunction(v)) return;
+        if (k[0] === '_') return;
+        if (k[0] === '$') return;
+        return v;
+      });
       // @todo save est deprecated, utiliser insertMany ou updateMany
       entity.getCollection().save(indexes, { w: 1 }, this);
     }).seq(function (result) {
