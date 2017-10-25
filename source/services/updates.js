@@ -134,6 +134,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @private
    */
   function lockUpdates() {
+    lockFileSet = true
     fs.writeFileSync(lockFile, null)
   }
   /**
@@ -275,6 +276,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
       log('instance n° ' + process.env.NODE_APP_INSTANCE + ', abandon pour laisser l’instance 0 faire le job')
       return cb()
     }
+    lassi.on('shutdown', () => lockFileSet && unlockUpdates())
     // on est en postSetup, donc tous les services dont on peut avoir besoin (LassiUpdate) sont dispos,
     // mais l'appli n'a pas terminé le boot, on vérifie s'il faut poser un lock maintenance
     // avant d'appeler la callback ($server.start aura lieu juste après la fin de tous les postSetup)
@@ -293,6 +295,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
   let dbVersion, hasUpdatesToRun, lockFile
   // affecté par lockMaintenance
   let maintenanceReason
+  let lockFileSet = false
 
   return {
     postSetup,
