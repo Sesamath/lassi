@@ -14,6 +14,9 @@ const express = require('express')
    * @return {function(req, res, next)} Middleware express
    */
 module.exports = (maintenanceConfig) => {
+  // on utilise une nouvelle instance de Router (plutôt que le $rail général de l'appli)
+  // pour que les use définis ici ne soient utilisés qu'en mode maintenance.
+  // on est appelé par $maintenance.middleware qui lui est toujours sur le rail principal
   const maintenanceMiddleware = express.Router()
   const message = maintenanceConfig.message || 'Site en maintenance, veuillez réessayer dans quelques instants'
 
@@ -27,7 +30,7 @@ module.exports = (maintenanceConfig) => {
     maintenanceMiddleware.use(require('serve-static')(maintenanceConfig.staticDir))
   }
 
-  maintenanceMiddleware.use(function(req, res, next) {
+  maintenanceMiddleware.use(function (req, res) {
     // @see http://expressjs.com/en/4x/api.html#res.format
     res.format({
       json: () => {
@@ -43,6 +46,8 @@ module.exports = (maintenanceConfig) => {
         res.status(503).send(message)
       },
     })
+    // on appelle pas next (passé en 3e param de ce middleware)
+    // car justement on veut couper court à toute la suite
   })
 
   return maintenanceMiddleware

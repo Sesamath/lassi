@@ -7,15 +7,19 @@ const anLog = require('an-log')('lassi')
  * @param {string       } mode String pour activer ou non le mode maintenance
  * @param {errorCallback} done
  */
-function setMaintenance (mode, done) {
+function setMaintenance (mode, message, done) {
   if (arguments.length === 1) throw new Error(`Vous devez passer un argument à cette commande`)
-
-  lassi.service('$maintenance').setMaintenance(mode, 'manuel', done)
+  if (typeof message === 'function') {
+    done = message
+    message = ''
+  }
+  lassi.service('$maintenance').setMaintenance(mode, {reason: 'manuel', message}, done)
 }
 setMaintenance.help = function setMaintenanceHelp () {
-  log = (...args) => anLog('maintenance-cli setMaintenance', 'usage', ...args)
-  log(`La commande setMaintenance demande un seul argument : on ou off pour savoir
-s'il faut activer le mode maintenance ou non`)
+  const log = (...args) => anLog('maintenance-cli setMaintenance', 'usage', ...args)
+  log(`La commande setMaintenance demande un ou deux argument(s)
+arg1 : on|off pour activer/désactiver le mode maintenance
+arg2 : Un message à afficher`)
 }
 
 /**
