@@ -66,6 +66,7 @@ class Lassi extends EventEmitter {
     this.components = {};
     this.services = new Services();
     lassi.options = options;
+    // cette commande nous ajoute lassi en component
     const lassiComponent = lassi.component('lassi');
     lassiComponent.service('$settings', require('./services/settings'))
     lassiComponent.service('$cache', require('./services/cache'))
@@ -89,10 +90,15 @@ class Lassi extends EventEmitter {
     lassi.settings.root = options.root;
     // On ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
     if (!lassi.settings.basePath) lassi.settings.basePath = '/'
+    // et les composants par défaut qui seront mis en premier (seulement lassi lui-même
+    // mis par le lassi.component ci-dessus, mais on laisse ça au cas où qqun ajouterait
+    // des components dans ce constructeur)
+    this.defaultDependencies = _.keys(lassi.components);
   }
 
   startup (component, cb) {
     var self = this;
+    component.dependencies = this.defaultDependencies.concat(component.dependencies);
     flow()
     // Configuration des composants
     .seq(function () {
@@ -162,7 +168,7 @@ class Lassi extends EventEmitter {
   /**
    * Enregistre un {@link Component} dans le système.
    * @param {String} name           Le nom du component
-   * @param {array}  [dependencies] Une liste de composant en dépendance
+   * @param {string[]}  [dependencies] Une liste de noms de composants en dépendance
    */
   component (name, dependencies) {
     var component = this.components[name] = new Component(name, dependencies);
