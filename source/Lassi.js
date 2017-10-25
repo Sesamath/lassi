@@ -89,13 +89,10 @@ class Lassi extends EventEmitter {
     lassi.settings.root = options.root;
     // On ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
     if (!lassi.settings.basePath) lassi.settings.basePath = '/'
-    // et les composants par défaut en premier
-    this.defaultDependencies = _.keys(lassi.components);
   }
 
   startup (component, cb) {
     var self = this;
-    component.dependencies = this.defaultDependencies.concat(component.dependencies);
     flow()
     // Configuration des composants
     .seq(function () {
@@ -105,8 +102,9 @@ class Lassi extends EventEmitter {
     // Configuration des services
     .seq(function () {
       var setupables = [];
-      // postSetup est utilisé pour les comportement qui ont besoin que tous les services soient setup
-      // (ex: que la BDD soit initialisée)
+      // postSetup est utilisé pour les services qui ont des actions à faire quand tous les services
+      // sont dispo (setup terminé, par ex pour que la BDD soit initialisée)
+      // mais avant $server.start()
       const postSetupable = [];
       _.each(self.services.services(), (service, name) => {
         service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
