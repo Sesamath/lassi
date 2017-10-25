@@ -56,6 +56,9 @@ module.exports = function ($settings, $maintenance) {
   function setup (next) {
     const railConfig = $settings.get('$rail');
 
+    // maintenance (qui coupera tout le reste si elle est active)
+    railUse('maintenance', {}, () => $maintenance.middleware());
+
     // compression
     railUse('compression', railConfig.compression, require('compression'));
 
@@ -81,7 +84,6 @@ module.exports = function ($settings, $maintenance) {
       return session(settings);
     });
 
-    railUse('maintenance', {}, () => $maintenance.middleware());
 
     const Controllers = require('../controllers');
     const controllers = new Controllers(this);
