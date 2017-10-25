@@ -514,7 +514,7 @@ class EntityQuery {
   createEntitiesFromRows (rows) {
     // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
     const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
+    const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
 
     return rows.map((row) => {
       let data
@@ -522,7 +522,7 @@ class EntityQuery {
         try {
           data = JSON.parse(row._data, jsonReviver)
         } catch (error) {
-          console.error(error, 'avec les _data', row._data)
+          console.error(error, `avec les _data :\n${row._data}`)
           // on renvoie un message plus compréhensible
           throw new Error(`Données corrompues pour ${this.entity.name}/${row._id}`)
         }
