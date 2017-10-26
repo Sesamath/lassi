@@ -78,9 +78,6 @@ class Context {
 
     /** La session */
     this.session      = this.request.session || {};
-    // @todo virer ça car personne ne l'utilise
-    /** Le user courant */
-    this.user         = this.request.user;
     /**
      * Évènement généré de la création d'un nouveau contexte.
      * @param {Context} context le context fraîchement créé.

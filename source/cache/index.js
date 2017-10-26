@@ -1,6 +1,6 @@
 'use strict';
 /*
-* @preserve This file is part of "lassi-example".
+* @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
 *    Author : Yoran Brault
 *    eMail  : yoran.brault@arnumeral.fr
@@ -17,13 +17,13 @@
 * General Public License for more details.
 *
 * You should have received a copy of the GNU General Public
-* License along with "lassi-example"; if not, write to the Free
+* License along with "lassi"; if not, write to the Free
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var MemoryEngine = require('./MemoryEngine');
-var MAX_TTL = 24*3600;
+const MemoryEngine = require('./MemoryEngine');
+const MAX_TTL = 24*3600;
 
 // une seule instance de client par type d'engine, même pour plusieurs CacheManager
 let redisEngine
@@ -37,10 +37,15 @@ function CacheManager() {
 }
 
 /**
- * Ajoute un nouvel engine sur un keyPrefix
- * @param {String} keyPrefix le préfixe de clé pris en charge par cet engine
- * @param {String} driver le pilote à utiliser (memory, memcache)
- * @param {Object} settings les réglages à envoyer au pilote (ou le client directement dans options.client dans le cas redis
+ * Valeur max du ttl (24h, en s)
+ * @type {number}
+ */
+CacheManager.MAX_TTL = MAX_TTL
+
+/**
+ * Affecte un nouvel engine
+ * @param {String} driver le pilote à utiliser (memcache|redis|memory)
+ * @param {Object} settings les réglages à envoyer au pilote (ou le client directement dans options.client dans le cas redis)
  */
 CacheManager.prototype.addEngine = function (keyPrefix, driver, settings) {
   if (typeof keyPrefix !== 'string') throw new Error('keyPrefix must be a string (could be empty)')
@@ -60,8 +65,8 @@ CacheManager.prototype.addEngine = function (keyPrefix, driver, settings) {
       break;
     case 'memcache':
       if (!memcacheEngine) {
-        var MemcacheEngine = require('./MemcacheEngine');
-        var url = settings.host + ':' + settings.port;
+        const MemcacheEngine = require('./MemcacheEngine');
+        const url = settings.host + ':' + settings.port;
         memcacheEngine = new MemcacheEngine(url);
       }
       engine = memcacheEngine
@@ -80,7 +85,7 @@ CacheManager.prototype.addEngine = function (keyPrefix, driver, settings) {
 }
 
 CacheManager.prototype.generateKey = function (engine, key) {
-  key = key.replace(/\x00-\x20\x7F-\xA0]/, '');
+  key = key.replace(/[\x00-\x20\x7F-\xA0]/g, '');
   if (!engine.prefix) return key;
   return engine.prefix+'::'+key;
 }
@@ -94,10 +99,12 @@ CacheManager.prototype.getMemcacheClient = function () {
 
 /**
  * Assigne une valeur dans le cache
- * @param key
- * @param value
- * @param ttl
- * @param callback appelée avec (error)
+ * @typedef cacheEngineSet
+ * @type function
+ * @param {string} key
+ * @param {*} value
+ * @param {number} [ttl=MAX_TTL] ttl en s
+ * @param {errorCallback} callback
  */
 CacheManager.prototype.set = function (key, value, ttl, callback) {
   if (!this.engines.length) return callback(new Error('You should add a cache engine before using it'))
@@ -106,7 +113,8 @@ CacheManager.prototype.set = function (key, value, ttl, callback) {
     ttl = MAX_TTL;
   }
   ttl = ttl || MAX_TTL;
-  if (ttl > MAX_TTL) {
+  if (ttl > MAX_TTL || ttl < 1) {
+    console.error(`Invalid ttl ${ttl}, fixed to ${MAX_TTL}`)
     ttl = MAX_TTL;
   }
   for(var i in this.engines) {
@@ -149,3 +157,36 @@ CacheManager.prototype.delete = function(key, callback) {
 }
 
 module.exports = CacheManager;
+
+/**
+ * @typedef CacheEngine
+ * @type Object
+ * @property {string} keyPrefix
+ * @property {cacheEngineGet} get
+ * @property {cacheEngineSet} set
+ * @property {cacheEngineDelete} delete
+ */
+/**
+ * @typedef cacheEngineGet
+ * @type function
+ * @param {string} key
+ * @param {cacheEngineGetCallback} cb
+ */
+/**
+ * @callback cacheEngineGetCallback
+ * @param {Error|undefined} error
+ * @param {*} value
+ */
+/**
+ * @typedef cacheEngineSet
+ * @type function
+ * @param {string} key
+ * @param {*} value
+ * @param {number} [ttl=MAX_TTL] ttl en secondes
+ * @param {errorCallback} cb
+ */
+/**
+ * Appelée avec une erreur ou rien à la fin d'une opération qcq
+ * @callback errorCallback
+ * @param {Error|undefined} error
+ */

@@ -42,7 +42,6 @@ function RedisEngine (settings) {
 RedisEngine.prototype.get = function (key, callback) {
   this.client.get(key, function (error, data) {
     if (error) return callback(error)
-    if (data) return callback(null, data) // on transmet les falsy comme ils sont
     callback(null, JSON.parse(data))
   })
 }
@@ -55,7 +54,7 @@ RedisEngine.prototype.get = function (key, callback) {
  * @param callback
  */
 RedisEngine.prototype.set = function (key, value, ttl, callback) {
-  // attention, memcache ne fait rien si on lui donne pas de callback
+  // Si on ne passe pas de callback on met au moins les erreurs en console
   if (!callback) callback = (error) => error && console.error(error)
   this.client.set(key, JSON.stringify(value), 'EX', ttl, callback)
 }
