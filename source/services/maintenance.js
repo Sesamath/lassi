@@ -6,24 +6,22 @@ const log = require('an-log')('$maintenance')
 module.exports = function ($settings) {
   const maintenanceConfig = $settings.get('application.maintenance', {})
   const lockFile = $settings.get('application.maintenance.lockFile', 'maintenance.lock')
-  const defaultMessage = $settings.get('application.maintenance.message', 'Application en maintenance, merci d’essayer de nouveau dans quelques minutes')
 
   const maintenanceMiddleware = require('../maintenance/middleware')(maintenanceConfig);
 
   const DELAY_BETWEEN_LOCK_FILE_CHECKS = 5000
-  let lastLockFileCheck
-  let lastLockResult = {
+  const defaultResult = {
     mode: 'off',
-    reason: '',
-    message: ''
+    reason: ''
   }
+  let lastLockFileCheck
+  let lastLockResult = defaultResult
   // ce truc n'est plus très utile si on peut fixer la maintenance via le fichier de lock ou cli
   // mais ça prend pas de place…
   if (maintenanceConfig.active) {
     lastLockResult = {
       mode: 'on',
-      reason: 'settings',
-      message: defaultMessage
+      reason: 'settings'
     }
   }
 
@@ -43,17 +41,14 @@ module.exports = function ($settings) {
       return cb(null, lastLockResult) // On utilise la dernière valeur connue
     }
     lastLockFileCheck = Date.now()
-    fs.readFile(lockFile, 'utf8', function (err, message) {
+    fs.readFile(lockFile, 'utf8', function (err, reason) {
       if (err) {
         // Une erreur veut dire que le fichier n'est pas accessible
-        lastLockResult = {
-          mode: 'off',
-          message: ''
-        }
+        lastLockResult = defaultResult
       } else {
         lastLockResult = {
           mode: 'on',
-          message: message || defaultMessage
+          reason
         }
       }
       cb(null, lastLockResult)
@@ -63,21 +58,21 @@ module.exports = function ($settings) {
   /**
    * Active/désactive le mode maintenance
    * @param {string} mode 'on' ou 'off', String pour activer ou non le mode maintenance
-   * @param {string|object} [options] Si c'est une string sera interprété comme options.reason
-   * @param {string} [options.reason] 'manual' si activé via cli ou 'update' si activé par une update
-   * @param {string} [options.message] Le message à afficher
-   * @param {errorCallback} done
+   * @param {string} reason 'manual' si activé via cli ou 'update' si activé par une update
+   * @param {errorCallback} cb
    */
-  function setMaintenance (mode, options, cb) {
+  function setMaintenance (mode, reason, cb) {
     mode = mode.toLowerCase()
     if (!['on', 'off'].includes(mode)) throw new Error('valeur invalide pour paramètre mode')
-    const reason = (typeof options === 'string') ? options : (options.reason || 'manual')
-    const message = options.message || defaultMessage
+    if (!reason || typeof reason !== 'string') throw new Error('reason invalide')
 
     const done = (error) => {
       if (error) return cb(error)
-      log(`Page de maintenance ${mode === 'on' ? 'activée' : 'désactivée'}.`)
-      // Pour cette instance au moins le changement sera instantané
+      let etat = mode === 'on' ? 'activée' : 'désactivée'
+      let sDelay = Math.round(DELAY_BETWEEN_LOCK_FILE_CHECKS / 1000)
+      log(`Page de maintenance ${etat} (effectif dans ${sDelay}s)`)
+      // Si cette instance déclenche elle même ce changement il sera instantané,
+      // mais si c'est via un cli faudra attendre le délai
       lastLockFileCheck = undefined
       cb()
     }
