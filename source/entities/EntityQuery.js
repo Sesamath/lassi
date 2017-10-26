@@ -29,7 +29,7 @@ const flow = require('an-flow');
 const {castToType} = require('./internals')
 
 // une limite hard pour grab
-const hardLimit = 1000
+const HARD_LIMIT_GRAB = 1000
 
 /**
  * Vérifie que value est un array
@@ -456,7 +456,7 @@ class EntityQuery {
   /**
    * @typedef EntityQuery~record
    * @property {EntityQuery~query} query
-   * @property {number} limit toujours fourni, hardLimit par défaut
+   * @property {number} limit toujours fourni, HARD_LIMIT_GRAB par défaut
    * @property {object} options sera passé tel quel à mongo
    * @property {number} options.skip Offset pour un find
    */
@@ -475,16 +475,16 @@ class EntityQuery {
     } else {
       options = {}
     }
-    const record = {query: {}, options: {}, limit: hardLimit};
+    const record = {query: {}, options: {}, limit: HARD_LIMIT_GRAB};
     // on accepte offset ou skip
     const skip = options.offset || options.skip
     if (skip > 0) record.options.skip = skip;
     // set limit
     if (options.limit) {
-      if (options.limit > 0 && options.limit <= hardLimit) {
+      if (options.limit > 0 && options.limit <= HARD_LIMIT_GRAB) {
         record.limit = options.limit;
       } else {
-        log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${hardLimit} (hardLimit)`)
+        log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)
       }
     }
 
@@ -589,7 +589,8 @@ class EntityQuery {
     query.limit(record.limit)
       .toArray((error, rows) => {
         if (error) return callback(error)
-        if (rows.length === hardLimit) log.error('hardLimit atteint avec', record)
+        // on râle si on atteint la limite, sauf si on avait demandé cette limite
+        if (rows.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
         try {
           callback(null, this.createEntitiesFromRows(rows));
         } catch (error) {
@@ -665,5 +666,13 @@ class EntityQuery {
     });
   }
 }
+
+// on exporte aussi notre constante, pour permettre aux applis de ne pas la dépasser
+/**
+ * Limite max qui sera imposée à grab
+ * @memberOf EntityQuery
+ * @type {number}
+ */
+EntityQuery.HARD_LIMIT_GRAB = HARD_LIMIT_GRAB
 
 module.exports = EntityQuery;
