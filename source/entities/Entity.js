@@ -27,6 +27,7 @@ const _    = require('lodash');
 const flow = require('an-flow');
 const ObjectID = require('mongodb').ObjectID;
 const log = require('an-log')('Entity');
+const {castToType} = require('./internals')
 
 /**
  * Construction d'une entité. Passez par la méthode {@link Component#entity} pour créer une entité.
@@ -54,28 +55,24 @@ class Entity {
     return !!this.__deletedAt;
   }
 
+  /**
+   * Construits les index d'après l'entity
+   * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
+   */
   buildIndexes () {
-    function cast (fieldType, value) {
-      switch (fieldType) {
-        case 'boolean': return !!value;
-        case 'string': return String(value);
-        case 'integer': return Math.round(Number(value));
-        // Si la date n'a pas de valeur (undefined ou null, on l'indexe comme null)
-        case 'date': return value ? new Date(value) : null;
-        default: throw new Error('type d’index ' + fieldType + 'non géré par Entity')
-      }
-    }
-    var entity = this.definition
-    var indexes = {};
-    for (var field in entity.indexes) {
-      var index = entity.indexes[field];
-      var values = index.callback.apply(this);
+    const entityDefinition = this.definition
+    const indexes = {};
+    let field, index, values
+    for (field in entityDefinition.indexes) {
+      index = entityDefinition.indexes[field];
+      // valeurs retournées par la fct d'indexation
+      values = index.callback.apply(this);
+      // affectation après cast dans le type indiqué
       if (Array.isArray(values)) {
-        values = values.map(x => cast(index.fieldType, x));
+        indexes[field] = values.map(x => castToType(x, index.fieldType))
       } else {
-        values = cast(index.fieldType, values);
+        indexes[field] = castToType(values, index.fieldType)
       }
-      indexes[field] = values;
     }
     return indexes;
   }
@@ -83,13 +80,24 @@ class Entity {
   db () {
     return this.definition.entities.db;
   }
+
+  /**
+   * Supprime les champs préfixés $ ou _ et les méthodes
+   */
+  removeTemporaryFields () {
+    _.forEach(_.keys(this), (key) => {
+      if (key[0] === '$' || key[0] === '_' || typeof this[key] === 'function') {
+        delete this[key]
+      }
+    })
+  }
   /**
    * Stockage d'une instance d'entité.
    * @param {Object=} options non utilisé
    */
   store (options, callback) {
-    var self = this;
-    var entity = this.definition;
+    const self = this;
+    const entity = this.definition;
 
     if (_.isFunction(options)) {
       callback = options;
@@ -98,32 +106,39 @@ class Entity {
     options = options || {object: true, index: true}
     callback = callback || function() {};
 
-    flow()
-
-    .seq(function () {
+    let document
+    flow().seq(function () {
       if (entity._beforeStore) {
         entity._beforeStore.call(self, this);
       } else {
         this();
       }
-    })
-
-    .seq(function () {
-      if (!self.oid) {
-        self.oid = ObjectID().toString();
+    }).seq(function () {
+      let isNew = !self.oid
+      // on génère un oid sur les créations
+      if (isNew) self.oid = ObjectID().toString();
+      // les index
+      document = self.buildIndexes();
+      if (self.__deletedAt) {
+        document.__deletedAt = self.__deletedAt;
       }
-      var indexes = self.buildIndexes();
-      indexes.__deletedAt = self.__deletedAt;
-      indexes._id = self.oid;
-      indexes._data = JSON.stringify(self, function(k,v) {
-        if (_.isFunction(v)) return;
-        if (k[0]=='_') return;
-        return v;
-      });
-      // @todo save est deprecated, utiliser insertMany ou updateMany
-      entity.getCollection().save(indexes, { w: 1 }, this);
+      document._id = self.oid;
+      // on vire les _, $ et méthodes
+      self.removeTemporaryFields();
+      // serialize et sauvegarde
+      document._data = JSON.stringify(self);
+      // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
+      // soit rappelée une fois que l'écriture est effective sur le 1er master)
+      // @see https://docs.mongodb.com/manual/reference/write-concern/
+      if (isNew) entity.getCollection().insertOne(document, {w: 1}, this);
+      else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this);
     }).seq(function (result) {
+      if (document.__deletedAt) self.__deletedAt = document.__deletedAt
       if (entity._afterStore) {
+        // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
+        // mais on l'a pas sous la main, et self devrait être en tout point identique,
+        // au __deletedAt près qui est un index pas toujours présent ajouté par
+        // EntityQuery.createEntitiesFromRows au retour de mongo
         entity._afterStore.call(self, this)
       } else {
         this();
@@ -137,6 +152,8 @@ class Entity {
   }
 
   reindex (callback) {
+    // faut pouvoir réindexer d'éventuel doublons pour mieux les trouver ensuite
+    this.$byPassDuplicate = true
     this.store(callback);
   }
 
@@ -194,6 +211,8 @@ class Entity {
    */
   delete (callback) {
     var self = this;
+    // @todo activer ce throw ?
+    // if (!self.oid) throw new Error('Impossible d’effacer une entity sans oid')
     var entity = this.definition;
     flow()
     .seq(function () {
@@ -205,9 +224,7 @@ class Entity {
     })
     .seq(function() {
       if (!self.oid) return this();
-      entity.getCollection().remove({
-        _id: self.oid
-      },{w : 1}, this);
+      entity.getCollection().remove({_id: self.oid}, {w : 1}, this);
     })
     .done(callback)
   }

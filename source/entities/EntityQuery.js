@@ -26,50 +26,41 @@
 const log = require('an-log')('EntityQuery');
 const _    = require('lodash');
 const flow = require('an-flow');
+const {castToType} = require('./internals')
 
 // une limite hard pour grab
 const hardLimit = 1000
 
 /**
- * cast de value en type
- * @param {*} value
- * @param {string} type boolean|string|integer|date
- * @return {*} value mise dans le type voulu
- * @throws si le type n'est pas boolean|string|integer|date
- */
-function castToType (value, type) {
-  if (typeof value === type) return value
-  switch (type) {
-    case 'boolean': value = !!value; break;
-    case 'string': value = String(value);break;
-    case 'integer': value =  Math.round(Number(value));break;
-    case 'date':
-      if (!(value instanceof Date)) {
-        value = new Date(value);
-      }
-      break;
-    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
-  }
-  return value;
-}
-
-/**
- * Vérifie que value est un array non vide
+ * Vérifie que value est un array
+ * @private
  * @param value
  * @throws si value invalide
  */
-function checkArrayNotEmpty (value) {
-  if (!Array.isArray(value) || !value.length) throw new Error('paramètre de requête invalide')
+function checkIsArray (value) {
+  if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
 }
+
+/**
+ * Vérifie que value n'est pas falsy (sauf qui est 0 accepté)
+ * @private
+ * @param value
+ */
 function checkCompareValue (value) {
   // le seul falsy qui est valable pour une comparaison
   if (value === 0) return
   // Et en attendant plus précis, on refuse tous les autres falsy
   if (!value) throw new Error('paramètre de requête invalide')
 }
+
+/**
+ * Vérifie que value n'est pas falsy
+ * @private
+ * @param value
+ */
 function checkDate (value) {
   // on accepte tout sauf falsy
-  if (!value) throw new Error('paramètre de requête invalide')
+  if (!value) throw new Error('paramètre de requête invalide (date voulue)')
 }
 
 // @todo documenter proprement tous les arguments et les callbacks
@@ -305,7 +296,9 @@ class EntityQuery {
    * @return {EntityQuery} La requête (chaînable donc}
    */
   in (values) {
-    checkArrayNotEmpty(values)
+    checkIsArray(values)
+    // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
+    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), 'appelé avec :\n', this.clauses)
     return this.alterLastMatch({value: values,  operator: 'IN'});
   }
 
@@ -315,7 +308,7 @@ class EntityQuery {
    * @return {EntityQuery}
    */
   notIn (values) {
-    checkArrayNotEmpty(values)
+    checkIsArray(values)
     return this.alterLastMatch({value: values,  operator: 'NOT IN'});
   }
 
@@ -507,6 +500,7 @@ class EntityQuery {
    */
   sort (index, order) {
     order = order || 'asc';
+    if (index === 'oid') index = '_id';
     this.clauses.push({type: 'sort', index: index, order: order});
     return this;
   }
@@ -607,7 +601,7 @@ class EntityQuery {
   /**
    * @callback purgeCallback
    * @param {Error} error
-   * @param {Object} result avec propriété deletedCount ou result.ok = 1 (si rien effacé ?)
+   * @param {number} le nb d'objets effacés
    */
   /**
    * Efface toutes les entités de la collection (qui matchent la requête si y'en a une qui précède)
@@ -622,13 +616,9 @@ class EntityQuery {
         if (!result) {
           console.error('deleteMany ne remonte pas de result dans purge, avec', record.query)
         } else if (!result.hasOwnProperty('deletedCount')) {
-          if (result.ok === 1) {
-            console.error('deleteMany remonte un result avec ok=1 mais pas de deletedCount, avec la query', record.query)
-          } else {
-            console.error('deleteMany remonte un result sans deletedCount', result, 'avec la query', record.query)
-          }
+          console.error('deleteMany remonte un result sans propriété deletedCount', result, 'avec la query', record.query)
         }
-        const deletedCount = (result && result.deletedCount) || 0
+        const deletedCount = (result && result.deletedCount) || (result && result.result && result.result.n) || 0
         callback(null, deletedCount)
       });
   }

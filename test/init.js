@@ -2,6 +2,11 @@
 'use strict'
 
 const MongoClient = require('mongodb').MongoClient
+const anLog = require('an-log')
+const anLogLevels = require('an-log/source/lib/levels.js')
+const assert = require('assert')
+const flow = require('an-flow')
+const Entities = require('../source/entities')
 
 let dbSettings = {
   name: 'testLassi',
@@ -17,6 +22,8 @@ let dbSettings = {
 }
 let isInitDone = false
 let isVerbose = false
+
+let TestEntity
 
 /**
  * Override dbSettings with argv
@@ -58,12 +65,42 @@ function overrideSettings () {
 }
 
 /**
+ * Vérifie que l'entité est de la forme attendue
+ *
+ * @param {TestEntity}  entity Entité
+ * @param {object} values Pour chacune des propriétés fournies vérifie que la valeur est celle attendue
+ * @param {object} checkers Liste de fonctions, pour chacune des propriétés fournies, appelle la fonction avec la valeur (faut mettre assert ou expect dans cette fonction)
+ */
+function checkEntity (entity, values, checkers) {
+  // vérif des types
+  assert.equal(typeof entity.i, 'number')
+  assert.equal(entity.d.constructor.name, 'Date')
+  assert.equal(typeof entity.s, 'string')
+  assert(Array.isArray(entity.sArray))
+  assert(Array.isArray(entity.iArray))
+  assert(Array.isArray(entity.dArray))
+  // type du contenu des tableaux
+  entity.dArray.every(value => assert.equal(true, typeof value === 'object' && value.constructor.name === 'Date'))
+  entity.iArray.every(value => assert.equal(true, typeof value === 'number'))
+  entity.sArray.every(value => assert.equal(true, typeof value === 'string'))
+  // vérif des valeurs éventuelles
+  if (values) {
+    Object.keys(values).forEach(k => assert.equal(entity[k], values[k]))
+  }
+  // appels des checkers éventuels
+  if (checkers) {
+    Object.keys(checkers).forEach(k => checkers[k](entity[k]))
+  }
+  assert.equal(entity.created.constructor.name, 'Date')
+  if (entity.oid) assert.equal(entity.oid.length, 24)
+}
+
+/**
  * Connexion à Mongo (on gère pas certif ssl ni kerberos)
  *
  * @param {Callback} next
  */
 function connectToMongo (next) {
-  if (isInitDone) return next(null, dbSettings)
   const {name, host, port, authMechanism} = dbSettings
   let url = 'mongodb://'
   // ssl prioritaire sur user/pass
@@ -85,11 +122,76 @@ function connectToMongo (next) {
 }
 
 /**
- * Teste la connexion à Mongo et passe les settings à next
+ * Initialisation de l'entité de test
+ *
  * @param {Callback} next
  */
-module.exports = function init (next) {
+function initEntities(next) {
+  const entities = new Entities({database: dbSettings})
+  flow().seq(function() {
+    entities.initialize(this)
+  }).seq(function() {
+    TestEntity = entities.define('TestEntity')
+    TestEntity.flush(this)
+  }).seq(function () {
+    TestEntity.construct(function () {
+      this.created = new Date()
+      this.i = undefined
+      this.s = undefined
+      this.d = undefined
+    })
+    TestEntity.defineIndex('b', 'boolean')
+    TestEntity.defineIndex('d', 'date')
+    TestEntity.defineIndex('i', 'integer')
+    TestEntity.defineIndex('s', 'string')
+    TestEntity.defineIndex('iPair', 'integer', function () {
+      return this.i % 2
+    })
+    TestEntity.defineIndex('bArray', 'boolean')
+    TestEntity.defineIndex('dArray', 'date')
+    TestEntity.defineIndex('iArray', 'integer')
+    TestEntity.defineIndex('sArray', 'string')
+
+    entities.initializeEntity(TestEntity, this)
+  }).seq(function () {
+    next (null, TestEntity)
+  }).catch(next)
+};
+
+/**
+ * Teste la connexion à Mongo et passe les settings à next
+ * @param {setupCallback} next
+ */
+function setup (next) {
+  if (isInitDone) return next(null, TestEntity, dbSettings)
   overrideSettings()
   if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
-  connectToMongo(next)
+  // pour les tests on veut qu'ils se taisent
+  anLog.config({
+    EntityDefinition: {logLevel: anLogLevels.ERROR},
+    EntityQuery: {logLevel: anLogLevels.ERROR},
+    lassi: {logLevel: anLogLevels.ERROR}
+  })
+  connectToMongo(error => {
+    if (error) return next(error)
+    initEntities((error, Entity) => {
+      if (error) return next(error)
+      isInitDone = true
+      next(null, Entity, dbSettings)
+    })
+  })
 }
+
+module.exports = {
+  checkEntity,
+  getDbSettings: () => dbSettings,
+  getTestEntity: () => TestEntity,
+  setup
+}
+
+/**
+ * @callback setupCallback
+ * @param {Error} [error]
+ * @param {EntityDefinition} Entity L'entity de test (4 champs, 7 indexes, cf init pour le détail)
+ * @param {object} dbSettings Au cas où ça interesse pour attaquer mongo directement
+ */

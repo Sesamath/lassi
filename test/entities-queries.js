@@ -1,11 +1,16 @@
 /* eslint-env mocha */
 'use strict'
-
 const assert = require('assert')
 const flow = require('an-flow')
+const chai = require('chai')
+const {expect} = chai
+const sinon = require('sinon')
+const sinonChai = require('sinon-chai')
 
 const Entities = require('../source/entities')
-const init = require('./init')
+const {checkEntity, getTestEntity, setup} = require('./init')
+
+chai.use(sinonChai)
 
 const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
@@ -20,23 +25,16 @@ let TestEntity;
  * @param {Object}  entity Entité
  */
 function assertEntity (i, entity) {
-  assert.equal(typeof entity.i, 'number')
-  assert.equal(entity.d.constructor.name, 'Date')
-  assert.equal(typeof entity.s, 'string')
+  checkEntity(entity)
   assert.equal(entity.i, i)
   assert.equal(entity.s, STRING_PREFIX + i)
   assert.equal(entity.d.getTime(), bt + seconde * i)
-  assert(Array.isArray(entity.sArray))
-  assert(Array.isArray(entity.iArray))
-  assert(Array.isArray(entity.dArray))
   assert.equal(entity.sArray.length, 3)
   assert.equal(entity.iArray.length, 3)
   assert.equal(entity.dArray.length, 3)
-  assert.equal(typeof entity.iArray[0], 'number')
-  assert.equal(typeof entity.sArray[0], 'string')
-  assert.equal(entity.dArray[0].constructor.name, 'Date')
-  assert.equal(entity.created.constructor.name, 'Date')
-  if (entity.oid) assert.equal(entity.oid.length, 24)
+  // assert.equal(typeof entity.iArray[0], 'number')
+  // assert.equal(typeof entity.sArray[0], 'string')
+  // assert.equal(entity.dArray[0].constructor.name, 'Date')
 }
 
 /**
@@ -80,86 +78,23 @@ function addData (next) {
   }).done(next)
 }
 
-/**
- * Initialisation des entités
- *
- * @param {Callback} next
- */
-function initEntities(dbSettings, next) {
-  const entities = new Entities({database: dbSettings})
-  flow().seq(function() {
-    entities.initialize(this)
-  }).seq(function() {
-    TestEntity = entities.define('TestEntity')
-    TestEntity.flush(this)
-  }).seq(function () {
-    TestEntity.construct(function () {
-      this.created = new Date()
-      this.i = undefined
-      this.s = undefined
-      this.d = undefined
-    })
-    TestEntity.defineIndex('i', 'integer')
-    TestEntity.defineIndex('s', 'string')
-    TestEntity.defineIndex('d', 'date')
-    TestEntity.defineIndex('iPair', 'integer', function () {
-      return this.i % 2
-    })
-    TestEntity.defineIndex('iArray', 'integer')
-    TestEntity.defineIndex('sArray', 'string')
-    TestEntity.defineIndex('dArray', 'date')
-
-    entities.initializeEntity(TestEntity, this)
-  }).done(next)
-};
-
 describe('Test entities-queries', function () {
-  let dbSettings;
-
   before('Connexion à Mongo et initialisation des entités', function (done) {
+    // Evite les erreurs de timeout sur une machine lente
+    this.timeout(10000);
     flow().seq(function () {
-      init(this)
-    }).seq(function (dbSettings) {
-      initEntities(dbSettings, this)
-    }).seq( function () {
+      setup(this)
+    }).seq(function (Entity) {
+      TestEntity = Entity
       addData(this)
     }).done(done)
   })
 
-  // @todo: à enlever quand on sera confiant dans notre gestion des index (normalement bien couvert par entities-indexes)
-  it('A créé les index demandés', function (done) {
-    const db = TestEntity.getDb()
-    flow().seq(function () {
-      TestEntity.getCollection().listIndexes().toArray(this)
-    }).seq(function (indexes) {
-      // Pour visualiser les index rapidement
-      // console.log('indexes de la collection', indexes)
-      this();
-    }).done(done)
-  })
-
-  it('Indexe une date non définie comme null - verifie aussi le isNull', function (done) {
-    const createdEntities = []
-    flow().seq(function () {
-      TestEntity.create({d: null, s: 'date nulle 1'}).store(this)
-    }).seq(function (e) {
-      createdEntities.push(e)
-      TestEntity.create({d: undefined, s: 'date nulle 2'}).store(this)
-    }).seq(function (e) {
-      createdEntities.push(e)
-      TestEntity.create({d: new Date(), s: 'avec date'}).store(this)
-    }).seq(function (e) {
-      createdEntities.push(e)
-      TestEntity.match('d').isNull().sort('s', 'asc').grab(this)
-    }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'date nulle 1')
-      assert.equal(entities[1].s, 'date nulle 2')
-
-      this(null, createdEntities)
-    }).seqEach(function (entity) {
-      entity.delete(this)
-    }).done(done)
+  after('Efface tous les documents', function (done) {
+    // on pourrait passer un purge natif mongo du genre
+    // TestEntity.getCollection().deleteMany({}, done)
+    // mais c'est plus lisible, même si on devrait pas tester purge ici
+    TestEntity.match().purge(done)
   })
 
   describe('.beforeDelete()', function () {
@@ -185,7 +120,8 @@ describe('Test entities-queries', function () {
     it(`jette une exception si le champ n'est pas indexé`, function () {
       assert.throws(function() {
         TestEntity.match('nonIndexed').equals(1).grab(function (error, result) {
-          // devrait throw avant d'arriver là
+          // devrait throw avant d'arriver là, on le vérifie avec une assertion toujours fausse
+          assert.equal('On aurait pas dû arriver là', '')
         })
       })
     })
@@ -282,6 +218,18 @@ describe('Test entities-queries', function () {
       })
     })
 
+    it(`Recherche avec l'opérateur IN sur un tableau vide (râle en console et ne remonte rien)`, function (done) {
+      // attention, mocha utilise la console donc on le rend muet le temps de cet appel
+      sinon.stub(console, 'error')
+      TestEntity.match('s').in([]).grab(function (error, result) {
+        expect(console.error).to.have.been.calledOnce
+        console.error.restore()
+        if (error) return done(error)
+        assert.equal(result.length, 0)
+        done()
+      })
+    })
+
     it(`Recherche avec l'opérateur NOT IN pour une string`, function (done) {
       let notInArray = []
       for (let i = 0; i < nbEntities / 2; i++) {
@@ -373,24 +321,33 @@ describe('Test entities-queries', function () {
     })
 
     it(`Sélection d'entités avec hard limit`, function (done) {
+      function last (error) {
+        expect(console.error).to.have.been.calledThrice
+        console.error.restore()
+        done(error)
+      }
       this.timeout(10000)
+      sinon.stub(console, 'error')
       flow().seq(function () {
         TestEntity.match().grab(this)
       }).seq(function (entities) {
         assert.equal(entities.length, 1000)
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/hardLimit atteint/))
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
         })
         this()
       }).seq(function () {
         TestEntity.match().grab({limit: 1200}, this)
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/limit 1200 trop élevée/))
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/hardLimit atteint/))
       }).seq(function (entities) {
         assert.equal(entities.length, 1000)
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
         })
         this()
-      }).done(done)
+      }).done(last)
     })
 
     it('Recherche simple ne donnant rien', function (done) {
@@ -412,14 +369,15 @@ describe('Test entities-queries', function () {
 
   describe('.sort()', function () {
     it(`Tri d'entités`, function (done) {
+      // on ajoute une limite pour pas tomber sur le hardLimit
       flow().seq(function () {
-        TestEntity.match().sort('i', 'asc').grab(this)
+        TestEntity.match().sort('i', 'asc').grab({limit: 10}, this)
       }).seq(function (entities) {
         assert.equal(entities[0].i, 0)
         assert.equal(entities[1].i, 1)
         this()
       }).seq(function () {
-        TestEntity.match().sort('i', 'desc').grab(this)
+        TestEntity.match().sort('i', 'desc').grab({limit: 10}, this)
       }).seq(function (entities) {
         assert.equal(entities[0].i, nbEntities - 1)
         assert.equal(entities[1].i, nbEntities - 2)
@@ -729,8 +687,8 @@ describe('Test entities-queries', function () {
     })
 
     it('Insert, update et delete en parallèle', function (done) {
-      this.timeout(30 * 1000); // 30s
-      const count = 10000
+      this.timeout(10000); // 10s
+      const count = 1000
       const objs = []
       for (let i = 0; i < count; i++) {
         objs.push(TestEntity.create({
@@ -794,6 +752,44 @@ describe('Test entities-queries', function () {
         assert.equal(count, 0);
         this();
       }).done(done)
+    })
+  })
+
+  describe('sort', function () {
+    before(function (done) {
+      const entities = [
+        {oid: 'b', i: 2, s: 'deux', sArray: ['bb, ba, bc']},
+        {oid: 'c', i: 3, s: 'trois', sArray: ['ca', 'cc', 'cb']},
+        {oid: 'a', i: 1, s: 'un', sArray: ['ac', 'ab', 'aa']},
+      ]
+      flow(entities).seqEach(function (entity) {
+        TestEntity.create(entity).store(this)
+      }).done(done)
+    })
+    after(function (done) {
+      TestEntity.match().purge(done)
+    })
+
+    it('byOid', function (done) {
+      flow().seq(function () {
+        TestEntity.match().grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '2,3,1') // dans l'ordre d'insertion par défaut
+        TestEntity.match().sort('oid').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par oid
+        TestEntity.match().sort('i').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par i
+        TestEntity.match().sort('s').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '2,3,1') // par string
+        TestEntity.match().sort('sArray').grab(this)
+      }).seq(function (entities) {
+        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par sArray
+        this()
+      }).done(done)
+
     })
   })
 });
