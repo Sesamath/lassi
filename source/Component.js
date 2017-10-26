@@ -31,13 +31,14 @@ var log        = require('an-log')('lassi-components');
  * Ce constructeur n'est jamais appelé directement. Utilisez {@link Lassi#component}
  * @constructor
  * @param {string} name Le nom du composant.
- * @param {array} dependencies Dépendances
+ * @param {string[]} dependencies Noms des composants dont celui-ci dépend
  */
 class Component {
   constructor (name, dependencies) {
+    if (dependencies && !Array.isArray(dependencies)) throw new Error('Component dependencies should be an Array of components names')
     this.name         = name;
     this.controllers  = [];
-    this.dependencies = dependencies;
+    this.dependencies = dependencies || [];
     this.entities     = {};
     this.services     = {};
     this.path         = undefined;
@@ -63,13 +64,8 @@ class Component {
     if (this.configured) return;
 
     var self = this;
-    _.each(self.dependencies, function(dependency) {
-      var component = lassi.components[dependency];
-      component.configure();
-    });
-    _.each(self.services, function(service, name) {
-      lassi.services.register(name, service);
-    });
+    _.each(self.dependencies, dependency => lassi.components[dependency].configure());
+    _.each(self.services, (service, name) => lassi.services.register(name, service));
     _.each(self.entities, function (entity, name) {
       // on est dans un each, faut une iife pour préserver le (entity, name) courant
       const serviceConstructor = (function (name, entity) {

@@ -1,6 +1,4 @@
 'use strict';
-
-var _            = require('lodash');
 var log = require('an-log')('lassi-services');
 
 class Services {
@@ -19,12 +17,10 @@ class Services {
   parseInjections(fn, context) {
     context = context || {};
     var match = fn.toString().match(/function[\s\w]+\(\s*([^\)]*)\s*\)/);
-    var args = match[1].trim();
-    if (args==='') { args = []; } else { args = args.split(/\s*,\s*/); }
-    var self = this;
-    args = _.map(args, function(name) { return self.resolve(name); });
-
-    var service = fn.apply(context, args);
+    var strArgs = match[1].trim();
+    var args = strArgs ? strArgs.split(/\s*,\s*/) : []
+    var injections = args.map(name => this.resolve(name));
+    var service = fn.apply(context, injections);
     return service;
   }
 
