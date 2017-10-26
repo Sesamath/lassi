@@ -270,6 +270,11 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param {simpleCallback} cb rappelé avant la fin des updates
    */
   function postSetup (cb) {
+    // On applique automatiquement les mises à jour au démarrage 
+    // (hors cli, mais runPendingUpdates peut être appelé en cli quand même)
+    if (lassi.options.cli) {
+      return cb();
+    }
     // si on est en mode cluster avec pm2, on ne se lance que sur la 1re instance (0)
     // C'est une sécurité en plus du lockFile
     if (process.env.NODE_APP_INSTANCE && process.env.NODE_APP_INSTANCE > 0) {
