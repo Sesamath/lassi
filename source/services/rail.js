@@ -82,7 +82,7 @@ module.exports = function ($maintenance, $settings) {
     }
     railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
 
-    const secretSessionKey = $settings.get('lassi.settings.$rail.session.secret')
+    const secretSessionKey = $settings.get('$rail.session.secret')
     if (secretSessionKey) {
       log('adding session management on rail')
       // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
