@@ -18,7 +18,7 @@ module.exports = (maintenanceConfig) => {
   // pour que les use définis ici ne soient utilisés qu'en mode maintenance.
   // on est appelé par $maintenance.middleware qui lui est toujours sur le rail principal
   const maintenanceMiddleware = express.Router()
-  const message = maintenanceConfig.message || 'Site en maintenance, veuillez réessayer dans quelques instants'
+  const message = maintenanceConfig.message || 'Site en maintenance, merci de patienter quelques minutes'
 
   // read file appel synchrone, fait uniquement au bootstrap
   const htmlResponse = maintenanceConfig.htmlPage ?
