@@ -56,56 +56,60 @@ module.exports = function ($maintenance, $settings) {
    * @memberof $rail
    */
   function setup (next) {
-    const railConfig = $settings.get('$rail');
+    try {
+      const railConfig = $settings.get('$rail');
 
-    // maintenance (qui coupera tout le reste si elle est active)
-    railUse('maintenance', {}, () => $maintenance.middleware());
+      // maintenance (qui coupera tout le reste si elle est active)
+      railUse('maintenance', {}, () => $maintenance.middleware());
 
-    // compression
-    railUse('compression', railConfig.compression, require('compression'));
+      // compression
+      railUse('compression', railConfig.compression, require('compression'));
 
-    // cookie
-    const sessionKey = $settings.get('$rail.cookie.key')
-    if (sessionKey) {
-      log('adding cookie management on rail')
-      railUse('cookie', sessionKey, require('cookie-parser'));
-    } else {
-      log.error(new Error('config.$rail.cookie.key missing, => cookie-parser not used'))
-    }
-
-    // bodyParser
-    const bodyParser = require('body-parser');
-    const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    const bodyParserSettings = railConfig.bodyParser || {
-      limit: '100mb',
-      reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
-    }
-    railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
-
-    const secretSessionKey = $settings.get('$rail.session.secret')
-    if (secretSessionKey) {
-      log('adding session management on rail')
-      // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
-      const $cache = lassi.service('$cache')
-      const redisClient = $cache.getRedisClient()
-      log.debug('redisClient in session setup', redisClient)
-      const session = require('express-session');
-      const RedisStore = require('connect-redis')(session);
-      const sessionOptions = {
-        mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
-        store: new RedisStore({client: redisClient}),
-        secret: secretSessionKey
+      // cookie
+      const sessionKey = $settings.get('$rail.cookie.key')
+      if (sessionKey) {
+        log('adding cookie management on rail')
+        railUse('cookie', sessionKey, require('cookie-parser'));
+      } else {
+        log.error(new Error('config.$rail.cookie.key missing, => cookie-parser not used'))
       }
-      railUse('session', sessionOptions, session)
-    } else {
-      log.error('settings.$rail.session.secret not set => no session')
+
+      // bodyParser
+      const bodyParser = require('body-parser');
+      const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+      const bodyParserSettings = railConfig.bodyParser || {
+        limit: '100mb',
+        reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
+      }
+      railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
+
+      const secretSessionKey = $settings.get('$rail.session.secret')
+      if (secretSessionKey) {
+        log('adding session management on rail')
+        // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
+        const $cache = lassi.service('$cache')
+        const redisClient = $cache.getRedisClient()
+        log.debug('redisClient in session setup', redisClient)
+        const session = require('express-session');
+        const RedisStore = require('connect-redis')(session);
+        const sessionOptions = {
+          mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
+          store: new RedisStore({client: redisClient}),
+          secret: secretSessionKey
+        }
+        railUse('session', sessionOptions, session)
+      } else {
+        log.error('settings.$rail.session.secret not set => no session')
+      }
+
+      const Controllers = require('../controllers');
+      const controllers = new Controllers(this);
+      railUse('controllers', {}, () => controllers.middleware());
+
+      next();
+    } catch (error) {
+      next(error)
     }
-
-    const Controllers = require('../controllers');
-    const controllers = new Controllers(this);
-    railUse('controllers', {}, () => controllers.middleware());
-
-    next();
   }
 
   return {
@@ -116,9 +120,5 @@ module.exports = function ($maintenance, $settings) {
      * @memberof $rail
      */
     get : () => _rail,
-    /**
-     * Quick&Dirty récupération du client redis pour MemoryEngine
-     */
-    getRedisClient: () => _redisClient
   }
 }

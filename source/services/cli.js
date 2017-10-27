@@ -85,18 +85,17 @@ Options :
       const services = lassi.allServices();
 
       // Filtre sur *-cli
-      const cliServices = Object
-        .keys(services)
+      const cliServices = Object.keys(services)
         .filter(k => k.substr(-4) === '-cli')
         .map(k => lassi.service(k));
 
-      // Appelle pour chaque service *-cli sa méthode commands
+      // Appelle pour chaque service *-cli sa méthode commands ou lui-même
       cliServices.forEach((service) => {
-        const tmp = service.commands();
-        for (let name in tmp) {
-          commands[name] = tmp[name];
-          if (typeof tmp[name].help !== 'function') {
-            tmp[name].help = () => log(`La commande ${name} ne fournit pas d’aide sur son usage`);
+        const serviceCommands = service.commands ? service.commands() : service
+        for (let name in serviceCommands) {
+          commands[name] = serviceCommands[name];
+          if (typeof serviceCommands[name].help !== 'function') {
+            serviceCommands[name].help = () => log(`La commande ${name} ne fournit pas d’aide sur son usage`);
           }
         }
       });
