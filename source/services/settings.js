@@ -1,15 +1,14 @@
-"use strict";
-var _            = require('lodash');
-var should       = require('../tools/Asserts');
+'use strict'
+const _            = require('lodash');
+const should       = require('../tools/Asserts');
 
-var isInitialized = false
-
+let isInitialized = false
 /**
  * Service de gestion des réglages de lassi
  * @service $settings
  */
 module.exports = function () {
-  // initialise lassi.settings
+  // Init $settings avec des valeurs par défaut dès la 1re résolution de $settings
   if (isInitialized) {
     console.error(new Error('$settings already initialized'))
   } else {
@@ -40,9 +39,9 @@ module.exports = function () {
      */
     get: function get(path, def) {
       if (_.isString(path)) path = path.split(/\./);
-      var current = lassi.settings;
+      let current = lassi.settings;
       while(path.length) {
-        var part = path.shift();
+        const part = path.shift();
         if (current.hasOwnProperty(part)) {
           current = current[part];
         } else {

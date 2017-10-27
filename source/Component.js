@@ -35,6 +35,7 @@ var log        = require('an-log')('lassi-components');
  */
 class Component {
   constructor (name, dependencies) {
+    if (lassi.options.cli) log.setLogLevel('warning')
     if (dependencies && !Array.isArray(dependencies)) throw new Error('Component dependencies should be an Array of components names')
     this.name         = name;
     this.controllers  = [];
@@ -59,10 +60,10 @@ class Component {
    * Configuration du composant
    */
   configure () {
-
     // Si on est déjà configuré, on repart
     if (this.configured) return;
 
+    log('configure', this.name)
     var self = this;
     _.each(self.dependencies, dependency => lassi.components[dependency].configure());
     _.each(self.services, (service, name) => lassi.services.register(name, service));
@@ -89,9 +90,7 @@ class Component {
       lassi.services.parseInjections(userConfig, self);
     });
     this.configured = true;
-    if (!lassi.options.cli) {
-      log('initialized', this.name);
-    }
+    log('configured', this.name)
   }
 
   /**
@@ -136,8 +135,9 @@ class Component {
    * Démarre l'application.
    * @fires Lassi#bootstrap
    */
-  bootstrap () {
-    lassi.bootstrap(this);
+  bootstrap (cb) {
+    if (!cb) cb = (error) => error && console.error(error)
+    lassi.bootstrap(this, cb);
   }
 }
 

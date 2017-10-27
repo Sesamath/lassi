@@ -31,11 +31,10 @@ const Services     = require('./tools/Services');
 const EventEmitter = require('events').EventEmitter;
 const fs           = require('fs');
 const log          = require('an-log')('lassi');
-// ce module js n'a pas de dépendances sur les services lassi, ça tombe bien on en a besoin avant leur setup
-const CacheManager = require('./cache')
+// ajoute les propriétés de couleur sur les string ('toto'.blue pour l'afficher bleu si y'a un tty)
 require('colors');
 
-var shutdownRequested = false;
+let shutdownRequested = false;
 
 /**
  * Constructeur de l'application. Effectue les initialisations par défaut.
@@ -50,9 +49,9 @@ class Lassi extends EventEmitter {
     global.lassi = this;
 
     this.transports = {};
-    var HtmlTransport = require('./transport/html');
-    var JsonTransport = require('./transport/json');
-    var RawTransport = require('./transport/raw');
+    const HtmlTransport = require('./transport/html');
+    const JsonTransport = require('./transport/json');
+    const RawTransport = require('./transport/raw');
     /**
      * Liste de transports (html, json et raw au bootstrap,
      * avec les alias 'text/html', 'application/json' et 'text/plain')
@@ -82,23 +81,6 @@ class Lassi extends EventEmitter {
       lassiComponent.service('$maintenance-cli', require('./services/maintenance-cli'))
       lassiComponent.service('$updates-cli', require('./services/updates-cli'))
     } else {
-      // on écoute afterRailUse pour ajouter la session qui utilise le cache redis
-      lassi.on('afterRailUse', function (rail, name) {
-        if (name === 'body-parser') {
-          // la session lassi a besoin d'un client redis
-          const redisSettings = lassi.settings.redis || {}
-          const cacheManager = new CacheManager()
-          cacheManager.addEngine('', 'redis', redisSettings)
-          const redisClient = cacheManager.getRedisClient()
-          const session = require('express-session');
-          const RedisStore = require('connect-redis')(session);
-          const secretSessionKey = lassi.settings.$rail.session.secret
-          rail.use(session({
-            store: new RedisStore({client: redisClient}),
-            secret: secretSessionKey
-          }))
-        }
-      })
       lassiComponent.service('$rail', require('./services/rail'))
       lassiComponent.service('$server', require('./services/server'));
     }
@@ -116,7 +98,9 @@ class Lassi extends EventEmitter {
   }
 
   startup (component, cb) {
-    var self = this;
+    if (!cb) cb = (error) => error && console.error(error)
+    log('startup component', component.name)
+    const lassiInstance = this;
     component.dependencies = this.defaultDependencies.concat(component.dependencies);
     flow()
     // Configuration des composants
@@ -126,37 +110,46 @@ class Lassi extends EventEmitter {
     })
     // Configuration des services
     .seq(function () {
-      var setupables = [];
+      function addService (service, name) {
+        if (added.has(name)) return
+        added.add(name)
+        service = lassiInstance.services.resolve(name); // Permet de concrétiser les services non encore injectés
+        if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
+        if (service.setup) setupables.push(service)
+        if (service.postSetup) postSetupable.push(service);
+      }
+      // pour mémoriser les services déjà ajoutés
+      const added = new Set()
+      // liste des setup à lancer
+      const setupables = []
       // postSetup est utilisé pour les services qui ont des actions à faire quand tous les services
       // sont dispo (setup terminé, par ex pour que la BDD soit initialisée)
       // mais avant $server.start()
       const postSetupable = [];
-      _.each(self.services.services(), (service, name) => {
-        service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
-        if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
-        if (service.setup) {
-          if (!self.options.cli) log('setting up', name.blue);
-          setupables.push(service);
-        }
-        if (service.postSetup) {
-          postSetupable.push(service);
-        }
-      });
+      const services = lassiInstance.services.services()
+      // on veut $settings puis $cache puis $entities dispos dans cet ordre,
+      // pour que les autres setup puissent les utiliser
+      ;['$settings', '$cache', '$entities'].forEach(name => addService(services[name], name))
+      _.each(services, addService);
+      // fin init
+      log('starting setup chain', Array.from(added).join(', '))
       flow(setupables)
       .seqEach(function (service) {
         service.setup(this);
       })
       .seq(function() {
+        log('starting postSetup chain')
         this(null, postSetupable);
       })
       .seqEach(function (service) {
+        log('postSetup', service.serviceName);
         service.postSetup(this);
       })
       .done(this);
     })
-    .empty()
     .seq(function () {
-      self.emit('startup');
+      log('startup event')
+      lassiInstance.emit('startup');
       cb();
     })
     .catch(cb);
@@ -168,14 +161,14 @@ class Lassi extends EventEmitter {
    * @private
    */
   bootstrap (component, cb) {
-    var self = this;
+    const lassiInstance = this;
     flow()
     .seq(function () {
-      self.startup(component, this);
+      lassiInstance.startup(component, this);
     })
     .seq(function () {
-      if (self.options.cli) return this();
-      var $server = self.service('$server');
+      if (lassiInstance.options.cli) return this();
+      const $server = lassiInstance.service('$server');
       $server.start(this);
     })
     .done(function (error) {
@@ -190,8 +183,7 @@ class Lassi extends EventEmitter {
    * @param {string[]}  [dependencies] Une liste de noms de composants en dépendance
    */
   component (name, dependencies) {
-    var component = this.components[name] = new Component(name, dependencies);
-    return component;
+    return this.components[name] = new Component(name, dependencies);
   }
 
   /**
@@ -237,18 +229,13 @@ class Lassi extends EventEmitter {
          */
         this.emit('shutdown');
 
-        // Si on ferme la connexion à la base ici, les transactions en cours ne peuvent pas se terminer
-        // même sur un reload pm2, on laisse la connexion expirer…
-        // var $entities = this.service && this.service('$entities')
-        // if ($entities) {
-        //   $entities.database.end(function (error) {
-        //     if (error) console.error(error)
-        //     else console.log('Entities DB pool is closed')
-        //   })
-        // }
+        // Avec un sgbd, il fallait pas fermer la connexion ici
+        // sinon les transactions en cours ne pouvaient pas se terminer
+        // on laisse aussi à connexion à mongo expirer…
+        // => pas de $entities.database.end()
 
         // Dans certains cas, this.service n'existe déjà plus !
-        var $server = this.service && this.service('$server');
+        const $server = this.service && this.service('$server');
         if ($server) {
           $server.stop(thisIsTheEnd);
         } else {
@@ -262,13 +249,6 @@ class Lassi extends EventEmitter {
     }
   }
 }
-
-
-/**
- * Logger
- * @private
- */
-Lassi.prototype.log = require('an-log')('lassi.log est DEPRECATED, fait ton propre `var log=require("an-log")("MonModule")` :-)');
 
 module.exports = function (options) {
   if (typeof options=='string') {
@@ -308,7 +288,7 @@ module.exports = function (options) {
   // Le message 'shutdown' est envoyé par pm2 sur les gracefulReload
   process.on('message', (message) => {
     // On récupère bien la string 'shutdown' qui est affichée ici
-    log('message #' +message +'# of pid ' +process.pid);
+    log(`message "${message}" of pid ${process.pid}`);
     if (message === 'shutdown') {
       // Mais on n'arrive jamais là, le process meurt visiblement avant
       log('launching shutdown');

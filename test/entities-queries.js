@@ -332,7 +332,7 @@ describe('Test entities-queries', function () {
         TestEntity.match().grab(this)
       }).seq(function (entities) {
         assert.equal(entities.length, 1000)
-        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/hardLimit atteint/))
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/HARD_LIMIT_GRAB atteint/))
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
         })
@@ -340,7 +340,7 @@ describe('Test entities-queries', function () {
       }).seq(function () {
         TestEntity.match().grab({limit: 1200}, this)
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/limit 1200 trop élevée/))
-        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/hardLimit atteint/))
+        expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/HARD_LIMIT_GRAB atteint/))
       }).seq(function (entities) {
         assert.equal(entities.length, 1000)
         entities.forEach(function (entity, i) {

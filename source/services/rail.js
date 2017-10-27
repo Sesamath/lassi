@@ -8,7 +8,7 @@ const log = require('an-log')('$rail');
  * Service de gestion des middlewares
  * @namespace $rail
  */
-module.exports = function ($cache, $maintenance, $settings) {
+module.exports = function ($maintenance, $settings) {
   const express = require('express');
   const _rail = express();
   let _redisClient
@@ -66,8 +66,12 @@ module.exports = function ($cache, $maintenance, $settings) {
 
     // cookie
     const sessionKey = $settings.get('$rail.cookie.key')
-    if (!sessionKey) throw new Error('config.$rail.cookie.key manquant')
-    railUse('cookie', sessionKey, require('cookie-parser'));
+    if (sessionKey) {
+      log('adding cookie management on rail')
+      railUse('cookie', sessionKey, require('cookie-parser'));
+    } else {
+      log.error(new Error('config.$rail.cookie.key missing, => cookie-parser not used'))
+    }
 
     // bodyParser
     const bodyParser = require('body-parser');
@@ -78,14 +82,24 @@ module.exports = function ($cache, $maintenance, $settings) {
     }
     railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
 
-    // session mise dans Lassi car elle a besoin de redis
-    /* railUse('session', railConfig.session, (settings) => {
+    const secretSessionKey = $settings.get('lassi.settings.$rail.session.secret')
+    if (secretSessionKey) {
+      log('adding session management on rail')
+      // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
+      const $cache = lassi.service('$cache')
+      const redisClient = $cache.getRedisClient()
+      log.debug('redisClient in session setup', redisClient)
       const session = require('express-session');
-      const SessionStore = require('../SessionStore');
-      settings.store = new SessionStore();
-      return session(settings);
-    }); */
-
+      const RedisStore = require('connect-redis')(session);
+      const sessionOptions = {
+        mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
+        store: new RedisStore({client: redisClient}),
+        secret: secretSessionKey
+      }
+      railUse('session', sessionOptions, session)
+    } else {
+      log.error('settings.$rail.session.secret not set => no session')
+    }
 
     const Controllers = require('../controllers');
     const controllers = new Controllers(this);
