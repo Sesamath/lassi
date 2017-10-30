@@ -16,7 +16,6 @@ module.exports = function () {
     this.date = new Date()
   })
 
-  // on laisse tomber beforeStore et afterStore ici car ils dépendent de cette entity, c'est le repository qui gère
   this
     .defineIndex('num', 'integer')
     .defineIndex('date', 'date')

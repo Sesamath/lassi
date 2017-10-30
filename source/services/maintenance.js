@@ -9,7 +9,9 @@ module.exports = function ($settings) {
 
   const maintenanceMiddleware = require('../maintenance/middleware')(maintenanceConfig);
 
-  const DELAY_BETWEEN_LOCK_FILE_CHECKS = 5000
+  // 10s entre le set en cli et son entrée en matière effective sur l'appli
+  // (ou un set par l'appli et son application par les autres childs du cluster node)
+  const DELAY_BETWEEN_LOCK_FILE_CHECKS = 10000
   const defaultResult = {
     mode: 'off',
     reason: ''
@@ -17,7 +19,8 @@ module.exports = function ($settings) {
   let lastLockFileCheck
   let lastLockResult = defaultResult
   // ce truc n'est plus très utile si on peut fixer la maintenance via le fichier de lock ou cli
-  // mais ça prend pas de place…
+  // mais ça prend pas de place… (et ça permet d'être sûr de démarrer tous les childs en mode maintenance,
+  // mais faudra le désactiver et faire un reload manuel pour repasser en mode normal)
   if (maintenanceConfig.active) {
     lastLockResult = {
       mode: 'on',
