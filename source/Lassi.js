@@ -33,6 +33,7 @@ const fs           = require('fs');
 const log          = require('an-log')('lassi');
 // ajoute les propriétés de couleur sur les string ('toto'.blue pour l'afficher bleu si y'a un tty)
 require('colors');
+const requireContext = this
 
 let shutdownRequested = false;
 
@@ -46,6 +47,8 @@ let shutdownRequested = false;
 class Lassi extends EventEmitter {
   constructor (options) {
     super();
+    // pas mal de taf pour pouvoir s'en passer…
+    // if (!options.noGlobalLassi)
     global.lassi = this;
 
     this.transports = {};
@@ -250,22 +253,32 @@ class Lassi extends EventEmitter {
   }
 }
 
-module.exports = function (options) {
+/**
+ * Démarre lassi avec les options fournies
+ * @param {string|object} options Si string interprété comme options.root
+ * @param {boolean} [options.cli=false] Passer true pour activer les services *-cli (et ne pas lancer le serveur http)
+ * @param {boolean} [options.noGlobalLassi=false] @todo Passer true pour que lassi ne soit pas mis en global
+ * @param {string} options.root la racine de l'appli
+ * @param {object} [options.settings] Passer un objet de settings complet (sinon ira chercher ${root}/config.js)
+ * @return {Lassi}
+ */
+function startLassi (options) {
+  // on accepte root tout seul à la place de l'objet options
   if (typeof options=='string') {
     options = {
       root: options
     }
   }
   options.cli = !!options.cli;
+  // on ne tolère qu'un seul lassi en global, mais on pourrait en avoir plusieurs
+  // en passant du options.noGlobalLassi = true (quand lassi lui-même pourra se passer d'être global)
   if (_.has(global, 'lassi')) {
     log('ERROR'.red, ' : lassi already exists')
     return lassi;
   }
-  new Lassi(options);
+  const lassi = new Lassi(options);
   lassi.Context = require('./Context');
-  lassi.require = function () {
-    return require.apply(this, arguments);
-  }
+  lassi.require = () => require.apply(requireContext, arguments);
 
   // Un écouteur pour tout ce qui pourrait passer au travers de la raquette
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
@@ -276,7 +289,7 @@ module.exports = function (options) {
 
   // On ajoute nos écouteurs pour le shutdown car visiblement beforeExit n'arrive jamais, et exit ne sert
   // que sur les sorties "internes" via un process.exit() car sinon on reçoit normalement un SIG* avant
-  if (!lassi.options.cli) {
+  if (!options.cli) {
     _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], (signal) => {
       process.on(signal, () => {
         log('pid ' + process.pid + ' received signal ' + signal);
@@ -295,4 +308,8 @@ module.exports = function (options) {
       lassi.shutdown();
     }
   });
+
+  return lassi
 }
+
+module.exports = startLassi
