@@ -207,9 +207,12 @@ module.exports = function ($settings) {
     client.on('connect', () => {
       redisClient = client
       log('connect OK, redis client is ready')
-      if (!isCbCalled) cb()
-      isCbCalled = true
-      client.on('error', log.error)
+      // il faut faire ça qu'une fois (on est rappelé à chaque reconnexion du client)
+      if (!isCbCalled) {
+        client.on('error', log.error)
+        isCbCalled = true
+        cb()
+      }
     })
     setTimeout(
       () => {
