@@ -113,10 +113,15 @@ class Lassi extends EventEmitter {
     })
     // Configuration des services
     .seq(function () {
-      function addService (service, name) {
+      /**
+       * résoud un service à l'ajoute à setupables et postSetupable si besoin
+       * @private
+       * @param {string} name
+       */
+      function addService (name) {
         if (added.has(name)) return
         added.add(name)
-        service = lassiInstance.services.resolve(name); // Permet de concrétiser les services non encore injectés
+        const service = lassiInstance.services.resolve(name); // Permet de concrétiser les services non encore injectés
         if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
         if (service.setup) setupables.push(service)
         if (service.postSetup) postSetupable.push(service);
@@ -132,8 +137,8 @@ class Lassi extends EventEmitter {
       const services = lassiInstance.services.services()
       // on veut $settings puis $cache puis $entities dispos dans cet ordre,
       // pour que les autres setup puissent les utiliser
-      ;['$settings', '$cache', '$entities'].forEach(name => addService(services[name], name))
-      _.each(services, addService);
+      ;['$settings', '$cache', '$entities'].forEach(name => addService)
+      Object.keys(services).forEach(addService)
       // fin init
       log('starting setup chain', Array.from(added).join(', '))
       flow(setupables)
