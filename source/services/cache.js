@@ -61,37 +61,31 @@ module.exports = function ($settings) {
    * Efface une valeur du cache
    * @param {string} key
    * @param {cacheDeleteCallback} [cb]
-   * @return {Promise|undefined} Promise si cb n'est pas fourni
+   * @return {Promise} qui wrap cb si fourni
    */
   function del (key, cb) {
     if (!redisClient) return notSet(cb)
-    return redisClient.del(key, cb)
+    if (cb) return del(key).then((data) => cb(null, data), cb)
+    return redisClient.del(key)
   }
 
   /**
    * Récupère une valeur du cache (absent, undefined, null et NaN renvoient tous null)
    * @param {string} key
    * @param {cacheGetCallback} [cb]
-   * @return {Promise|undefined} Promise si cb n'est pas fourni
+   * @return {Promise} qui wrap cb si fourni
    */
   function get (key, cb) {
     if (!redisClient) return notSet(cb)
     // faut distinguer ici car on doit parser le retour async du get natif
-    if (cb) {
+    if (cb) return get(key).then((data) => cb(null, data), cb)
+    return new Promise((resolve, reject) => {
       redisClient.get(key, (error, value) => {
-        if (error) return cb(error)
-        else if (value === null) return cb(null, null)
-        cb(null, parse(value))
+        if (error) reject(error)
+        else if (value === null) resolve(null)
+        else resolve(parse(value))
       })
-    } else {
-      return new Promise((resolve, reject) => {
-        redisClient.get(key, (error, value) => {
-          if (error) reject(error)
-          else if (value === null) resolve(null)
-          else resolve(parse(value))
-        })
-      })
-    }
+    })
   }
 
   /**
@@ -107,48 +101,33 @@ module.exports = function ($settings) {
    * Retourne toutes les clés
    * @param pattern
    * @param {keysRedisCallback} cb
-   * @return {Promise|undefined} Promise si cb n'est pas fourni
+   * @return {Promise} qui wrap cb si fourni
    */
   function keys (pattern, cb) {
     if (!redisClient) return notSet(cb)
     if (typeof pattern !== 'string') return done(new Error('keys needs a pattern as first parameter'), null, cb)
-    if (cb) {
+    if (cb) return keys(pattern).then((data) => cb(null, data), cb)
+    // faut recréer une promesse pour virer les préfixes
+    return new Promise((resolve, reject) => {
       redisClient.keys(redisPrefix + pattern, (error, keys) => {
-        if (error) return cb(error)
-        cb(null, keys.map(k => k.substr(redisPrefix.length)))
+        if (error) reject(error)
+        else resolve(keys.map(k => k.substr(redisPrefix.length)))
       })
-    } else {
-      return new Promise((resolve, reject) => {
-        redisClient.keys(redisPrefix + pattern, (error, keys) => {
-          if (error) reject(error)
-          else resolve(keys.map(k => k.substr(redisPrefix.length)))
-        })
-      })
-    }
+    })
   }
 
   /**
    * Efface toutes les clés (renvoie le nb de clés effacées)
    * @param [cb]
-   * @return {Promise|undefined} Promise si cb n'est pas fourni
+   * @return {Promise} qui wrap cb si fourni
    */
   function purge (cb) {
     if (!redisClient) return notSet(cb)
+    if (cb) return purge().then((data) => cb(null, data), cb)
     const getPromises = (keys) => keys.map(k => redisClient.del(k))
-    if (cb) {
-      keys('*', function (error, keys) {
-        if (error) return cb(error)
-        if (!keys || !keys.length) return cb(null, 0)
-        // @todo split en paquets de 100, car si y'a qq millions de clés ça peut être un peu violent
-        Promise.all(getPromises(keys))
-          .then(data => cb(null, data.filter(k => k).length))
-          .catch(cb)
-      })
-    } else {
-      return keys('*')
-        .then(keys => Promise.all(getPromises(keys)))
-        .then(data => Promise.resolve(data.filter(k => k).length))
-    }
+    return keys('*')
+      .then(keys => Promise.all(getPromises(keys)))
+      .then(data => Promise.resolve(data.filter(k => k).length))
   }
 
   /**
@@ -157,7 +136,7 @@ module.exports = function ($settings) {
    * @param {*} value
    * @param {number} [ttl=600] ttl en s, doit être entre 1 et 24×3600 (1j)
    * @param {redisClientSetCallback} [cb]
-   * @return {Promise|undefined} Promise si cb n'est pas fourni
+   * @return {Promise} qui wrap cb si fourni
    */
   function set (key, value, ttl, cb) {
     if (!redisClient) return notSet(cb)
