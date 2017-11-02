@@ -96,12 +96,12 @@ describe('$cache', () => {
       $settings.get = lazyGet
     })
 
-    it('getRedisClient throw dans ce cas', () => {
+    it('getRedisClient throw si le setup n’est pas appelé avant', () => {
       $cache = $cacheFactory($settings)
       expect($cache.getRedisClient).to.throw(Error)
     })
 
-    it('râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
+    it('setup râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
       $cache = $cacheFactory($settings)
       $cache.setup((error) => {
         if (error) return done.error

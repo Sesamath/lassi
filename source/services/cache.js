@@ -206,7 +206,7 @@ module.exports = function ($settings) {
     if (!client || !client.get) throw new Error('$cache.configure has failed')
     client.on('connect', () => {
       redisClient = client
-      log('redis client is ready')
+      log('connect OK, redis client is ready')
       if (!isCbCalled) cb()
       isCbCalled = true
       client.on('error', log.error)
