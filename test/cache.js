@@ -5,6 +5,7 @@ const assert = require('assert')
 const chai = require('chai')
 const {expect} = chai
 const flow = require('an-flow')
+const redis = require('redis')
 const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 const log = require('an-log')('$cache')
@@ -15,7 +16,30 @@ chai.use(sinonChai)
 const $settings = {
   get: (path, defaultValue) => defaultValue
 }
-const $cache = require('../source/services/cache')($settings)
+const $cacheFactory = require('../source/services/cache')
+
+/**
+ * Réinitialise la var globale $cache, à mettre en before
+ * @return {Promise}
+ */
+const refreshCacheService = () => {
+  return new Promise((resolve, reject) => {
+    $cache = $cacheFactory($settings)
+    const hasStub = !!console.error.restore
+    if (!hasStub) sinon.stub(console, 'error')
+    $cache.setup((error) => {
+      // faut toujours restaurer (sinon va y avoir 3 appels en trop, ceux de ce setup)
+      console.error.restore()
+      // mais on remet si besoin
+      if (hasStub) sinon.stub(console, 'error')
+      if (error) reject(error)
+      else resolve()
+    })
+  })
+}
+
+// on l'utile comme valeur pour nos tests
+let $cache = $cacheFactory($settings)
 
 const allValues = new Map()
 const falsyValues = {
@@ -54,6 +78,7 @@ const expectedServiceCache = {
 }
 
 describe('$cache', () => {
+
   describe('setup', () => {
     before(() => {
       sinon.stub(console, 'error')
@@ -66,15 +91,18 @@ describe('$cache', () => {
     it('plante avec des settings foireux', () => {
       const lazyGet = $settings.get
       $settings.get = () => 'ooops'
+      $cache = $cacheFactory($settings)
       expect($cache.setup).to.throw(Error)
       $settings.get = lazyGet
     })
 
     it('getRedisClient throw dans ce cas', () => {
+      $cache = $cacheFactory($settings)
       expect($cache.getRedisClient).to.throw(Error)
     })
 
     it('râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
+      $cache = $cacheFactory($settings)
       $cache.setup((error) => {
         if (error) return done.error
         // anLog utilise console.error pour warning
@@ -88,6 +116,8 @@ describe('$cache', () => {
   })
 
   describe('getClient', function () {
+    before(refreshCacheService)
+
     it('retourne qqchose qui ressemble à vrai client redis', (done) => {
       const client = $cache.getRedisClient()
       expect(!client).to.be.false
@@ -115,18 +145,22 @@ describe('$cache', () => {
     })
   })
 
-  describe('set', () => {
-    // on purge silencieusement
-    before((done) => $cache.purge(done))
+  describe('set, get & keys', () => {
+    // pour être vraiment indépendant, il faudrait avoir un client redis séparé
+    // utilisant directement le module redis, mais on peut pas utiliser flushdb ou flushall
+    // car on veut pas purger tout redis, seulement nos préfixes, faudrait alors
+    // recoder ici l'équivalent de $cache.purge…
+    before(() => refreshCacheService().then($cache.purge))
 
-    beforeEach(() => {
+    beforeEach((done) => {
       sinon.stub(console, 'error')
+      refreshCacheService().then(done, done)
     })
     afterEach(() => {
       console.error.restore()
     })
 
-    it('affecte des valeur avec callback', (done) => {
+    it('set affecte des valeur avec callback', (done) => {
       let i = 0
       const ttl = 10
       const ttlLow = 0.2
@@ -150,16 +184,14 @@ describe('$cache', () => {
       }).catch(done)
     })
 
-    it('affecte des valeurs avec promise', (done) => {
+    it('set affecte des valeurs avec promise', (done) => {
       let i = 0
       const ttl = 2
       const promises = Object.keys(values2).map(p => (i++ % 2) ? $cache.set(p, values2[p]) : $cache.set(p, values2[p], ttl))
       Promise.all(promises).then(data => done()).catch(done)
     })
-  })
 
-  describe('get', () => {
-    it('retourne null pour une clé absente, avec cb', (done) => {
+    it('get retourne null pour une clé absente, avec cb', (done) => {
       $cache.get('notSet', function (error, value) {
         if (error) return done(error)
         expect(value).to.equals(null, 'Pb avec key not set')
@@ -167,14 +199,14 @@ describe('$cache', () => {
       })
     })
 
-    it('retourne null pour une clé absente, avec promise', (done) => {
+    it('get retourne null pour une clé absente, avec promise', (done) => {
       $cache.get('notSet').then(value => {
         expect(value).to.equals(null, 'Pb avec key not set')
         done()
       }).catch(done)
     })
 
-    it('retourne les valeurs précédentes avec cb (avec null pour undefined et NaN)', (done) => {
+    it('get retourne les valeurs précédentes avec cb (avec null pour undefined et NaN)', (done) => {
       // on parse les clés de values2
       flow(Object.keys(values2)).seqEach(function (key) {
         const nextGet = this
@@ -189,7 +221,7 @@ describe('$cache', () => {
       }).empty().done(done)
     })
 
-    it('retourne les valeurs précédentes avec promise (avec null pour undefined et NaN)', (done) => {
+    it('get retourne les valeurs précédentes avec promise (avec null pour undefined et NaN)', (done) => {
       // on parse les clés de values1
       flow(Object.keys(values1)).seqEach(function (key) {
         const nextGet = this
@@ -205,20 +237,19 @@ describe('$cache', () => {
           .catch(done)
       }).done(done)
     })
-  })
 
-  describe('keys', () => {
+    // keys
     const expected = Array.from(allValues.keys())
       .filter(k => !['null', 'null2', 'undef', 'undef2', 'nan', 'nan2'].includes(k))
       .sort()
-    it('retourne toutes les clés avec cb (sauf celles contenant null, undefined et NaN)', (done) => {
+    it('keys retourne toutes les clés avec cb (sauf celles contenant null, undefined et NaN)', (done) => {
       $cache.keys('*', function (error, keys) {
         if (error) return done(error)
         expect(keys.sort()).to.deep.equals(expected)
         done()
       })
     })
-    it('retourne toutes les clés avec promise (sauf celles contenant null, undefined et NaN)', (done) => {
+    it('keys retourne toutes les clés avec promise (sauf celles contenant null, undefined et NaN)', (done) => {
       $cache.keys('*').then(keys => {
         expect(keys.sort()).to.deep.equals(expected)
         done()
