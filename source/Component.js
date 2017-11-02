@@ -136,7 +136,6 @@ class Component {
    * @fires Lassi#bootstrap
    */
   bootstrap (cb) {
-    if (!cb) cb = (error) => error && console.error(error)
     lassi.bootstrap(this, cb);
   }
 }
