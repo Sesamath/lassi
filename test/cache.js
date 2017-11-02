@@ -96,12 +96,7 @@ describe('$cache', () => {
       $settings.get = lazyGet
     })
 
-    it('getRedisClient throw si le setup n’est pas appelé avant', () => {
-      $cache = $cacheFactory($settings)
-      expect($cache.getRedisClient).to.throw(Error)
-    })
-
-    it('setup râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
+    it('râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
       $cache = $cacheFactory($settings)
       $cache.setup((error) => {
         if (error) return done.error
@@ -110,36 +105,45 @@ describe('$cache', () => {
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/host not defined in settings/))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/port not defined in settings/))
         expect(console.error).to.have.been.calledThrice
+        expect($cache.getRedisClient).not.to.throw(Error)
         done()
       })
     })
   })
 
-  describe('getClient', function () {
-    before(refreshGlobalCache)
-
-    it('retourne qqchose qui ressemble à vrai client redis', (done) => {
-      const client = $cache.getRedisClient()
-      expect(!client).to.be.false
-      expect(client).to.respondTo('get')
-      expect(client).to.respondTo('set')
-      expect(client).to.respondTo('flushdb')
-      expect(client).to.respondTo('keys')
-      expect(client).to.respondTo('del')
-      /* pourquoi client.set() ne renvoie pas une Promise ???
-      console.log('set', client.set.toString())
-      return client.set('foo', 'bar', 'EX', 1)
-        .then(() => client.get('foo'))
-        .then((value) => {
-          expect(value).to.equals('bar')
-        })
-        */
-      client.set('foo', 'bar', 'EX', 1, (error) => {
-        if (error) return done(error)
-        client.get('foo', (error, value) => {
+  describe('getRedisClient', () => {
+    it('throw si le setup n’est pas appelé avant', () => {
+      $cache = $cacheFactory($settings)
+      expect($cache.getRedisClient).to.throw(Error)
+    })
+    it('retourne qqchose qui ressemble à vrai client redis après setup', (done) => {
+      $cache = $cacheFactory($settings)
+      sinon.stub(console, 'error')
+      $cache.setup((error) => {
+        console.error.restore()
+        if (error) return done.error
+        const client = $cache.getRedisClient()
+        expect(!client).to.be.false
+        expect(client).to.respondTo('get')
+        expect(client).to.respondTo('set')
+        expect(client).to.respondTo('flushdb')
+        expect(client).to.respondTo('keys')
+        expect(client).to.respondTo('del')
+        /* pourquoi client.set() ne renvoie pas une Promise ???
+        console.log('set', client.set.toString())
+        return client.set('foo', 'bar', 'EX', 1)
+          .then(() => client.get('foo'))
+          .then((value) => {
+            expect(value).to.equals('bar')
+          })
+          */
+        client.set('foo', 'bar', 'EX', 1, (error) => {
           if (error) return done(error)
-          expect(value).to.equals('bar')
-          done()
+          client.get('foo', (error, value) => {
+            if (error) return done(error)
+            expect(value).to.equals('bar')
+            done()
+          })
         })
       })
     })
