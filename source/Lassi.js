@@ -66,14 +66,19 @@ class Lassi extends EventEmitter {
     this.components = {};
     this.services = new Services();
     lassi.options = options;
+    // cette commande nous ajoute lassi en component
     const lassiComponent = lassi.component('lassi');
     lassiComponent.service('$settings', require('./services/settings'))
     lassiComponent.service('$cache', require('./services/cache'))
     lassiComponent.service('$entities', require('./services/entities'))
+    lassiComponent.entity('LassiUpdate', require('./updates/LassiUpdate'))
+    lassiComponent.service('$updates', require('./services/updates'));
+    lassiComponent.service('$maintenance', require('./services/maintenance'));
     if (lassi.options.cli) {
       lassiComponent.service('$cli', require('./services/cli'))
       lassiComponent.service('$entities-cli', require('./services/entities-cli'))
       lassiComponent.service('$maintenance-cli', require('./services/maintenance-cli'))
+      lassiComponent.service('$updates-cli', require('./services/updates-cli'))
     } else {
       lassiComponent.service('$rail', require('./services/rail'))
       lassiComponent.service('$server', require('./services/server'));
@@ -85,7 +90,9 @@ class Lassi extends EventEmitter {
     lassi.settings.root = options.root;
     // On ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
     if (!lassi.settings.basePath) lassi.settings.basePath = '/'
-    // et les composants par défaut en premier
+    // et les composants par défaut qui seront mis en premier (seulement lassi lui-même
+    // mis par le lassi.component ci-dessus, mais on laisse ça au cas où qqun ajouterait
+    // des components dans ce constructeur)
     this.defaultDependencies = _.keys(lassi.components);
   }
 
@@ -101,6 +108,10 @@ class Lassi extends EventEmitter {
     // Configuration des services
     .seq(function () {
       var setupables = [];
+      // postSetup est utilisé pour les services qui ont des actions à faire quand tous les services
+      // sont dispo (setup terminé, par ex pour que la BDD soit initialisée)
+      // mais avant $server.start()
+      const postSetupable = [];
       _.each(self.services.services(), (service, name) => {
         service = self.services.resolve(name); // Permet de concrétiser les services non encore injectés
         if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
@@ -108,10 +119,19 @@ class Lassi extends EventEmitter {
           if (!self.options.cli) log('setting up', name.blue);
           setupables.push(service);
         }
+        if (service.postSetup) {
+          postSetupable.push(service);
+        }
       });
       flow(setupables)
       .seqEach(function (service) {
         service.setup(this);
+      })
+      .seq(function() {
+        this(null, postSetupable);
+      })
+      .seqEach(function (service) {
+        service.postSetup(this);
       })
       .done(this);
     })
@@ -148,7 +168,7 @@ class Lassi extends EventEmitter {
   /**
    * Enregistre un {@link Component} dans le système.
    * @param {String} name           Le nom du component
-   * @param {array}  [dependencies] Une liste de composant en dépendance
+   * @param {string[]}  [dependencies] Une liste de noms de composants en dépendance
    */
   component (name, dependencies) {
     var component = this.components[name] = new Component(name, dependencies);

@@ -82,16 +82,6 @@ class Entity {
   }
 
   /**
-   * Supprime les champs préfixés $ ou _ et les méthodes
-   */
-  removeTemporaryFields () {
-    _.forEach(_.keys(this), (key) => {
-      if (key[0] === '$' || key[0] === '_' || typeof this[key] === 'function') {
-        delete this[key]
-      }
-    })
-  }
-  /**
    * Stockage d'une instance d'entité.
    * @param {Object=} options non utilisé
    */
@@ -123,17 +113,20 @@ class Entity {
         document.__deletedAt = self.__deletedAt;
       }
       document._id = self.oid;
-      // on vire les _, $ et méthodes
-      self.removeTemporaryFields();
-      // serialize et sauvegarde
-      document._data = JSON.stringify(self);
+      // on vire les _, $ et méthodes, puis serialize et sauvegarde
+      // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
+      document._data = JSON.stringify(self, function(k,v) {
+        if (_.isFunction(v)) return;
+        if (k[0] === '_') return;
+        if (k[0] === '$') return;
+        return v;
+      });
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/
       if (isNew) entity.getCollection().insertOne(document, {w: 1}, this);
       else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this);
     }).seq(function (result) {
-      if (document.__deletedAt) self.__deletedAt = document.__deletedAt
       if (entity._afterStore) {
         // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
         // mais on l'a pas sous la main, et self devrait être en tout point identique,
