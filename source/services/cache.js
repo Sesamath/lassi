@@ -16,11 +16,25 @@ const TTL_DEFAULT = 600 // 10 min
  */
 const TTL_MAX = 24 * 3600 // 24H
 
+const CONNECT_TIMEOUT_DEFAULT = 3000 // 3s c'est déjà bcp
+
 module.exports = function ($settings) {
+  /**
+   * Retourne le connect_timeout calculé par un éventuel $cache.redis.retry_strategy, ou $cache.redis.connect_timeout ou CONNECT_TIMEOUT_DEFAULT
+   * @private
+   * @return {Number} timeout en ms
+   */
+  function getFirstConnectTimeout () {
+    const retry_strategy = $settings.get('$cache.redis.retry_strategy')
+    if (typeof retry_strategy === 'function') return retry_strategy({attempt: 1})
+    return $settings.get('$cache.redis.connect_timeout', CONNECT_TIMEOUT_DEFAULT)
+  }
+
   // une seule instance d'un seul client
   let redisClient
   let redisPrefix
   const notSetError = new Error('$cache.setup has failed (or wasn’t called)')
+
   /**
    * Appelle cb ou retourne une promesse
    * @private
@@ -185,6 +199,9 @@ module.exports = function ($settings) {
   function setup (cb) {
     if (redisClient) throw new Error('$cache.setup already called')
     const options = $settings.get('$cache.redis', {})
+    const firstConnectTimeout = getFirstConnectTimeout()
+    let isCbCalled = false
+
     if (typeof options !== 'object') throw new Error('settings.$cache.redis must be an object')
     // @see https://github.com/NodeRedis/node_redis#rediscreateclient
     if (!options.path && !options.url) {
@@ -208,10 +225,19 @@ module.exports = function ($settings) {
     redisPrefix = options.prefix
     const client = redis.createClient(options)
     if (!client || !client.get) throw new Error('$cache.configure has failed')
-    client.on('error', log.error)
-    redisClient = client
-    log('redis client is ready')
-    cb()
+    client.on('connect', () => {
+      redisClient = client
+      log('redis client is ready')
+      if (!isCbCalled) cb()
+      isCbCalled = true
+      client.on('error', log.error)
+    })
+    setTimeout(
+      () => {
+        if (!isCbCalled) cb(new Error(`Impossible de se connecter à redis après ${firstConnectTimeout}ms`))
+      },
+      firstConnectTimeout
+    )
   }
 
   /**
