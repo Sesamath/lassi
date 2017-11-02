@@ -22,13 +22,13 @@ const $cacheFactory = require('../source/services/cache')
  * Réinitialise la var globale $cache, à mettre en before
  * @return {Promise}
  */
-const refreshCacheService = () => {
+const refreshGlobalCache = () => {
   return new Promise((resolve, reject) => {
     $cache = $cacheFactory($settings)
     const hasStub = !!console.error.restore
     if (!hasStub) sinon.stub(console, 'error')
     $cache.setup((error) => {
-      // faut toujours restaurer (sinon va y avoir 3 appels en trop, ceux de ce setup)
+      // faut toujours restaurer (sinon va y avoir les 3 appels de ce setup en trop, pour ceux qui les comptent)
       console.error.restore()
       // mais on remet si besoin
       if (hasStub) sinon.stub(console, 'error')
@@ -116,7 +116,7 @@ describe('$cache', () => {
   })
 
   describe('getClient', function () {
-    before(refreshCacheService)
+    before(refreshGlobalCache)
 
     it('retourne qqchose qui ressemble à vrai client redis', (done) => {
       const client = $cache.getRedisClient()
@@ -150,11 +150,11 @@ describe('$cache', () => {
     // utilisant directement le module redis, mais on peut pas utiliser flushdb ou flushall
     // car on veut pas purger tout redis, seulement nos préfixes, faudrait alors
     // recoder ici l'équivalent de $cache.purge…
-    before(() => refreshCacheService().then($cache.purge))
+    before(() => refreshGlobalCache().then($cache.purge))
 
     beforeEach((done) => {
       sinon.stub(console, 'error')
-      refreshCacheService().then(done, done)
+      refreshGlobalCache().then(done, done)
     })
     afterEach(() => {
       console.error.restore()
