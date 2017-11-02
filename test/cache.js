@@ -129,14 +129,6 @@ describe('$cache', () => {
         expect(client).to.respondTo('flushdb')
         expect(client).to.respondTo('keys')
         expect(client).to.respondTo('del')
-        /* pourquoi client.set() ne renvoie pas une Promise ???
-        console.log('set', client.set.toString())
-        return client.set('foo', 'bar', 'EX', 1)
-          .then(() => client.get('foo'))
-          .then((value) => {
-            expect(value).to.equals('bar')
-          })
-          */
         client.set('foo', 'bar', 'EX', 1, (error) => {
           if (error) return done(error)
           client.get('foo', (error, value) => {
