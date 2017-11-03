@@ -89,7 +89,6 @@ module.exports = function ($maintenance, $settings) {
         // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
         const $cache = lassi.service('$cache')
         const redisClient = $cache.getRedisClient()
-        log.debug('redisClient in session setup', redisClient)
         const session = require('express-session');
         const RedisStore = require('connect-redis')(session);
         const sessionOptions = {
