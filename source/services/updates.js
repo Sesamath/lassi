@@ -270,7 +270,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param {simpleCallback} cb rappelé avant la fin des updates
    */
   function postSetup (cb) {
-    // On applique automatiquement les mises à jour au démarrage 
+    // On applique automatiquement les mises à jour au démarrage
     // (hors cli, mais runPendingUpdates peut être appelé en cli quand même)
     if (lassi.options.cli) {
       return cb();

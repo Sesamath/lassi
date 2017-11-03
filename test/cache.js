@@ -257,7 +257,7 @@ describe('$cache', () => {
         $cache.set('baz', 44, 3)
       ]))
 
-      it.skip('vire les clés après les ttl fixés (1, 2 et 3s)', () => {
+      it('vire les clés après les ttl fixés (1, 2 et 3s)', () => {
         /**
          * Retourne une promesse résolue après delay ms
          * @private
