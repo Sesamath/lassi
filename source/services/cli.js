@@ -11,6 +11,8 @@ const log = {
   info: (...args) => anLog.info('cli', ...args),
   warn: (...args) => anLog.warn('cli', ...args)
 }
+// on utilisera directement console.log ou console.error pour la sortie de commande
+// que l'on veut toujours afficher (même en --quiet)
 
 /**
  * Service de gestion des commandes CLI
@@ -52,23 +54,8 @@ Options :
    * Affiche la liste des commandes cli de l'appli (avec celles fournies par lassi)
    */
   function printAllCommands () {
-    // ici on passe directement par console pour être sûr de l'afficher, même en --quiet
     console.log('Liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '));
   }
-
-  const cliRunner = process.argv[1]
-  const args = minimist(process.argv.slice(2), {boolean: ['debug', 'h', 'help', 'l', 'list', 'q', 'quiet', 'v', 'verbose']})
-  const commandName = args._[0]
-  const commandArgs = commandName && args._.slice(1) || []
-  const helpAsked = args.h || args.help
-  const listAsked = args.l || args.list
-  const debug = args.debug
-  const quiet = args.q || args.quiet
-  const verbose = debug || args.v || args.verbose
-  const commands = {}
-  if (verbose) anLog.setLogLevel(anLogLevels.DEBUG)
-  else if (quiet) anLog.setLogLevel(anLogLevels.WARNING)
-  else anLog.setLogLevel(anLogLevels.INFO)
 
   /**
    * Lance la commande et sort
@@ -161,6 +148,20 @@ Options :
       process.exit(3);
     }
   }
+
+  const cliRunner = process.argv[1]
+  const args = minimist(process.argv.slice(2), {boolean: ['debug', 'h', 'help', 'l', 'list', 'q', 'quiet', 'v', 'verbose']})
+  const commandName = args._[0]
+  const commandArgs = commandName && args._.slice(1) || []
+  const helpAsked = args.h || args.help
+  const listAsked = args.l || args.list
+  const debug = args.debug
+  const quiet = args.q || args.quiet
+  const verbose = debug || args.v || args.verbose
+  const commands = {}
+  if (verbose) anLog.setLogLevel(anLogLevels.DEBUG)
+  else if (quiet) anLog.setLogLevel(anLogLevels.WARNING)
+  else anLog.setLogLevel(anLogLevels.INFO)
 
   return {
     printDebug: log.debug,
