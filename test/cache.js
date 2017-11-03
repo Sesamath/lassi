@@ -53,12 +53,23 @@ const nbRealValues = Array.from(allValues.values()).filter(value => ![null, NaN,
 
 describe('$cache', () => {
   let $cache
+  const initCache = () => {
+    $cache = $cacheFactory($settings)
+  }
+  const refreshCache = (done) => {
+    initCache()
+    $cache.setup(done)
+  }
+  const resetCache = (done) => {
+    initCache()
+    $cache.setup((error) => (error ? done(error) : $cache.purge(done)))
+  }
 
   before(() => sinon.stub(console, 'error'))
   after(() => console.error.restore())
 
   describe('setup', () => {
-    beforeEach(() => $cache = $cacheFactory($settings))
+    beforeEach(initCache)
 
     it('plante avec des settings foireux', () => {
       const lazyGet = $settings.get
@@ -84,7 +95,7 @@ describe('$cache', () => {
   })
 
   describe('getRedisClient', () => {
-    beforeEach(() => $cache = $cacheFactory($settings))
+    beforeEach(initCache)
 
     it('throw si le setup n’est pas appelé avant', () => {
       expect($cache.getRedisClient).to.throw(Error)
@@ -116,12 +127,11 @@ describe('$cache', () => {
     // utilisant directement le module redis, mais on peut pas utiliser flushdb ou flushall
     // car on veut pas purger tout redis, seulement nos préfixes, faudrait alors
     // recoder ici l'équivalent de $cache.purge…
-    before((done) => {
-      $cache = $cacheFactory($settings)
-      $cache.setup((error) => (error ? done(error) : $cache.purge(done)))
-    })
+    before(resetCache)
 
     describe('set, get & keys', () => {
+      beforeEach(refreshCache)
+
       it('set affecte des valeur avec callback', (done) => {
         let i = 0
         const ttl = 10
@@ -224,6 +234,8 @@ describe('$cache', () => {
     })
 
     describe('purge', () => {
+      beforeEach(refreshCache)
+
       it('vire tout (cb)', (done) => {
         $cache.purge(function (error, nb) {
           if (error) return done(error)
@@ -248,7 +260,10 @@ describe('$cache', () => {
           }).then(keys => expect(keys).to.deep.equals([]))
       })
     })
+
     describe('ttl', function () {
+      before(resetCache)
+
       this.timeout(3500)
       // set 3 valeurs avec 1, 2s et 3s
       before(() => Promise.all([
