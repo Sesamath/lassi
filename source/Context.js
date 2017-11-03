@@ -77,9 +77,7 @@ class Context {
     this.post         = this.request.body;
 
     /** La session */
-    this.session      = this.request.session;
-    /** Le user courant */
-    this.user         = this.request.user;
+    this.session      = this.request.session || {};
     /**
      * Évènement généré de la création d'un nouveau contexte.
      * @param {Context} context le context fraîchement créé.
