@@ -3,7 +3,7 @@
 const _ = require('lodash');
 const flow = require('an-flow');
 const moment = require('moment');
-const anLog = require('an-log')('lassi');
+const anLog = require('an-log')('lassi-cli');
 // sera redéfini par chaque commande pour avoir le bon préfixe
 let log = (...args) => anLog('entities-cli', ...args);
 const defaultLimit = 100;

@@ -1,6 +1,6 @@
 'use strict'
 
-const anLog = require('an-log')('lassi')
+const anLog = require('an-log')('lassi-cli')
 
 /**
  * Active/désactive le mode maintenance

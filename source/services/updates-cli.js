@@ -1,4 +1,5 @@
 'use strict'
+const log = require('an-log')('lassi-cli');
 
 /**
  * Applique les mises à jour en attente
@@ -9,7 +10,7 @@ function runPendingUpdates (done) {
 }
 
 runPendingUpdates.help = function () {
-  console.log('La commande runPendingUpdates ne prend pas d’arguments, elle applique les mise à jour en attente')
+  log('La commande runPendingUpdates ne prend pas d’arguments, elle applique les mise à jour en attente')
 }
 
 /**
