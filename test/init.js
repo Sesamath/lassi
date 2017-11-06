@@ -167,11 +167,7 @@ function setup (next) {
   overrideSettings()
   if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
   // pour les tests on veut qu'ils se taisent
-  anLog.config({
-    EntityDefinition: {logLevel: anLogLevels.ERROR},
-    EntityQuery: {logLevel: anLogLevels.ERROR},
-    lassi: {logLevel: anLogLevels.ERROR}
-  })
+  anLog('EntityDefinition').setLogLevel('error')
   connectToMongo(error => {
     if (error) return next(error)
     initEntities((error, Entity) => {

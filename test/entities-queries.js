@@ -504,6 +504,7 @@ describe('Test entities-queries', function () {
           TestEntity.match().deletedAfter(started).grabOne(this)
         })
         .seq(function(entity) {
+          // @todo voir pourquoi deletedEntity est parfois (mais rarement) undefined
           assert.equal(entity.oid, deletedEntity.oid);
           TestEntity.match().deletedAfter(Date.now()).grabOne(this)
         })
