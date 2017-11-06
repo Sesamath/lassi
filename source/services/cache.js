@@ -2,6 +2,7 @@
 // Pour la version avec cacheManager, voir la version 2.1.23 (ou antérieure)
 // RedisEngine a été ajouté par le commit 67be1f2 puis fusionné ici
 const log = require('an-log')('$cache')
+// @see http://redis.js.org/
 const redis = require('redis')
 const {parse, stringify} = require('sesajstools')
 
