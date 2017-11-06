@@ -18,6 +18,23 @@ const TTL_MAX = 24 * 3600 // 24H
 
 const CONNECT_TIMEOUT_DEFAULT = 3000 // 3s c'est déjà bcp
 
+/**
+ * Transforme un appel sans callback en promise
+ * @private
+ * @param {function} fn sera appelée avec (...args, cb) et cb attendra (error, data) pour rejeter ou résoudre la promesse
+ * @param {*} ...args Les arguments à passer à fn, on ajoutera cb en dernier
+ * @return {Promise}
+ */
+function promisify (fn, ...args) {
+  return new Promise((resolve, reject) => {
+    args.push((error, result) => {
+      if (error) reject(error)
+      else resolve(result)
+    })
+    fn(...args)
+  })
+}
+
 module.exports = function ($settings) {
   /**
    * Retourne le connect_timeout calculé par un éventuel $cache.redis.retry_strategy, ou $cache.redis.connect_timeout ou CONNECT_TIMEOUT_DEFAULT
@@ -36,20 +53,6 @@ module.exports = function ($settings) {
   const notSetError = new Error('$cache.setup has failed (or wasn’t called)')
 
   /**
-   * Appelle cb ou retourne une promesse
-   * @private
-   * @param {Error|undefined} error
-   * @param {*} data
-   * @param {function} cb
-   * @return {undefined|Promise} Sans cb retourne une promesse rejetée (si error) ou résolue
-   */
-  const done = (error, data, cb) => {
-    if (cb) return cb(error, data)
-    if (error) return Promise.reject(error)
-    return Promise.resolve(data)
-  }
-
-  /**
    * Retourne une erreur (pas de client)
    * @private
    * @param {function} [cb]
@@ -65,8 +68,8 @@ module.exports = function ($settings) {
    */
   function del (key, cb) {
     if (!redisClient) return notSet(cb)
-    if (cb) return del(key).then((data) => cb(null, data), cb)
-    return redisClient.del(key)
+    if (!cb) return promisify(del, key)
+    redisClient.del(key, cb)
   }
 
   /**
@@ -78,13 +81,11 @@ module.exports = function ($settings) {
   function get (key, cb) {
     if (!redisClient) return notSet(cb)
     // faut distinguer ici car on doit parser le retour async du get natif
-    if (cb) return get(key).then((data) => cb(null, data), cb)
-    return new Promise((resolve, reject) => {
-      redisClient.get(key, (error, value) => {
-        if (error) reject(error)
-        else if (value === null) resolve(null)
-        else resolve(parse(value))
-      })
+    if (!cb) return promisify(get, key)
+    redisClient.get(key, (error, value) => {
+      if (error) cb(error)
+      else if (value) cb(null, parse(value))
+      else cb(null, value)
     })
   }
 
@@ -101,18 +102,16 @@ module.exports = function ($settings) {
    * Retourne toutes les clés
    * @param pattern
    * @param {keysRedisCallback} cb
-   * @return {Promise} qui wrap cb si fourni
+   * @return {undefined|Promise} qui wrap cb si fourni
    */
   function keys (pattern, cb) {
     if (!redisClient) return notSet(cb)
-    if (typeof pattern !== 'string') return done(new Error('keys needs a pattern as first parameter'), null, cb)
-    if (cb) return keys(pattern).then((data) => cb(null, data), cb)
-    // faut recréer une promesse pour virer les préfixes
-    return new Promise((resolve, reject) => {
-      redisClient.keys(redisPrefix + pattern, (error, keys) => {
-        if (error) reject(error)
-        else resolve(keys.map(k => k.substr(redisPrefix.length)))
-      })
+    if (!cb) return promisify(keys, pattern)
+    if (typeof pattern !== 'string') return cb(new Error('keys needs a pattern as first parameter'))
+    // faut virer les préfixes
+    redisClient.keys(redisPrefix + pattern, (error, keys) => {
+      if (error) cb(error)
+      else cb(null, keys.map(k => k.substr(redisPrefix.length)))
     })
   }
 
@@ -124,6 +123,7 @@ module.exports = function ($settings) {
   function purge (cb) {
     if (!redisClient) return notSet(cb)
     if (cb) return purge().then((data) => cb(null, data), cb)
+    // plus simple à écrire avec un tableau de promesses (sinon faudrait un flow.seqEach)
     const getPromises = (keys) => keys.map(k => redisClient.del(k))
     return keys('*')
       .then(keys => Promise.all(getPromises(keys)))
@@ -145,11 +145,12 @@ module.exports = function ($settings) {
       cb = ttl
       ttl = TTL_DEFAULT
     }
+    if (!cb) return promisify(set, key, value, ttl)
 
     // check value
     if (value === undefined || value === null || Number.isNaN(value)) {
       // log.warn('$cache.set doesn’t manage undefined or null values, null will be returned with $cache.get like if key doesn’t exists')
-      return done(null, 'OK', cb)
+      return cb(null, 'OK')
     }
     value = stringify(value)
 
@@ -167,8 +168,7 @@ module.exports = function ($settings) {
       log.error(`ttl ${ttl} too low, set to 1s`)
       ttl = 1
     }
-    if (cb) redisClient.set(key, value, 'EX', ttl, cb)
-    else return redisClient.set(key, value, 'EX', ttl) // Promise
+    redisClient.set(key, value, 'EX', ttl, cb)
   }
 
   /**
