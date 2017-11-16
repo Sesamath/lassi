@@ -293,6 +293,8 @@ class EntityDefinition {
   /**
    * Retourne une instance {@link Entity} à partir de la définition
    * (appelera defaults s'il existe, puis construct s'il existe et _.extend sinon)
+   * Attention, si la fonction passée à construct n'attend pas d'argument,
+   * toutes les propriétés de values seront affectée à l'entité !
    * @param {Object=} values Des valeurs à injecter dans l'objet.
    * @return {Entity} Une instance d'entité
    */
@@ -304,8 +306,9 @@ class EntityDefinition {
     }
     if (this._construct) {
       this._construct.call(instance, values);
-      // c'est quoi ce code ??? Si y'a un constructeur, par définition c'est toujours à lui 
-      // de choisir ce qu'il prend ou pas dans les valeurs qu'on lui passe
+      // Si la fonction passée en constructeur ne prend aucun argument,
+      // on ajoute d'office les values passées au create dans l'entity
+      // (si le constructeur ne les a pas créées)
       if (values && this._construct.length === 0) {
         _.extend(instance, values);
       }
