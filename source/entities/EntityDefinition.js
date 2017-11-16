@@ -304,6 +304,11 @@ class EntityDefinition {
     }
     if (this._construct) {
       this._construct.call(instance, values);
+      // c'est quoi ce code ??? Si y'a un constructeur, par définition c'est toujours à lui 
+      // de choisir ce qu'il prend ou pas dans les valeurs qu'on lui passe
+      if (values && this._construct.length === 0) {
+        _.extend(instance, values);
+      }
     } else {
       if (values) _.extend(instance, values);
     }
