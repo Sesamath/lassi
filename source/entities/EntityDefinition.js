@@ -295,6 +295,7 @@ class EntityDefinition {
    * (appelera defaults s'il existe, puis construct s'il existe et _.extend sinon)
    * Attention, si la fonction passée à construct n'attend pas d'argument,
    * toutes les propriétés de values seront affectée à l'entité !
+   * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
    * @param {Object=} values Des valeurs à injecter dans l'objet.
    * @return {Entity} Une instance d'entité
    */
