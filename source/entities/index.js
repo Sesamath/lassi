@@ -60,10 +60,6 @@ class Entities extends EventEmitter {
     return def
   }
 
-  /**
-   * Retourne un objet contenant toutes les EntityDefinition créées
-   * (la clé étant le nom de l'entity et la valeur étant son EntityDefinition)
-   */
   definitions () {
     return this.entities;
   }
