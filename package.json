@@ -27,7 +27,7 @@
     "mongodb": "^2.2.33",
     "redis": "^2.8.0",
     "serve-static": "^1.13.1",
-    "sesajstools": "git://src.sesamath.net/sesajstools#1.0.15",
+    "sesajstools": "git://src.sesamath.net/sesajstools#1.0.16",
     "static-favicon": "^2.0.0-alpha",
     "validator": "^4.9.0"
   },
