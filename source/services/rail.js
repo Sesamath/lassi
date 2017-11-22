@@ -85,6 +85,7 @@ module.exports = function ($maintenance, $settings) {
         const jsonMiddleware = bodyParser.json(settings)
         const urlencodedMiddleware = bodyParser.urlencoded(settings)
         return function bodyParserMiddleware (req, res, next) {
+          let isJson
           // on ajoute un try car jsonMiddleware throw si c'est pas du json valide
           try {
             // c'est un peu idiot d'empiler les 2 middleware pour toutes les requêtes,
@@ -94,7 +95,8 @@ module.exports = function ($maintenance, $settings) {
             // (l'appli devra le gérér le reste comme avant)
             const contentType = req.headers['content-type']
             // test plus primaire que le mimeMatch fait par body-parser, mais ça devrait couvrir tous nos besoins
-            if (contentType && /json/.test(contentType.toLowerCase())) {
+            isJson = contentType && /json/.test(contentType.toLowerCase())
+            if (isJson) {
               jsonMiddleware(req, res, next)
             } else if (req.headers['transfer-encoding'] !== undefined || !isNaN(req.headers['content-length'])) {
               // cf function hasBody de node_modules/type-is/index.js
@@ -103,7 +105,12 @@ module.exports = function ($maintenance, $settings) {
               next()
             }
           } catch (error) {
-            next(error)
+            // on pourrait ici plutôt mettre l'erreur en req.bodyParserError
+            // et appeler next() pour laisser le contrôleur décider du message à afficher
+            console.error(`erreur au parsing ${isJson ? 'json' : 'urlencoded'} du body (on laisse le contrôleur gérer)`, error)
+            req.bodyParserError = error
+            req.body = {}
+            next()
           }
         }
       });
