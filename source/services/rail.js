@@ -81,7 +81,20 @@ module.exports = function ($maintenance, $settings) {
         limit: '100mb',
         reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
       }
-      railUse('body-parser', bodyParserSettings, (settings) => bodyParser(settings));
+      railUse('body-parser', bodyParserSettings, (settings) => {
+        const jsonMiddleware = bodyParser.json(settings)
+        const urlencodedMiddleware = bodyParser.urlencoded(settings)
+        return function bodyParserMiddleware (req, res, next) {
+          try {
+            jsonMiddleware(req, res, (error) => {
+              if (error) return next(error)
+              urlencodedMiddleware(req, res, next)
+            })
+          } catch (error) {
+            next(error)
+          }
+        }
+      });
 
       const secretSessionKey = $settings.get('$rail.session.secret')
       if (secretSessionKey) {
