@@ -3,7 +3,7 @@
 const express = require('express');
 const fs = require('fs');
 const log = require('an-log')('$rail');
-const sjt = require('sesajstools')
+const {stringify} = require('sesajstools')
 
 /**
  * Service de gestion des middlewares
@@ -170,7 +170,7 @@ module.exports = function ($maintenance, $settings) {
         morganOptions.stream = writeStream
         // en dev on ajoute les var postées
         if (/^dev/.test(process.env.NODE_ENV)) {
-          morgan.token('post', (req) => req.body ? '' : sjt.stringify(req.body))
+          morgan.token('post', (req) => req.body ? '' : stringify(req.body))
           format += ' :post'
         }
         railUse('accessLog', true, () => morgan(format, morganOptions))
