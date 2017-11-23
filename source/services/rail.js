@@ -62,7 +62,8 @@ module.exports = function ($maintenance, $settings) {
       // maintenance (qui coupera tout le reste si elle est active)
       railUse('maintenance', {}, () => $maintenance.middleware());
 
-      // compression
+      // compression (de la réponse si y'a du `Accept-Encoding: gzip` dans la requête,
+      // il ajoutera aussi le `Vary: Accept-Encoding` dans toutes les réponses)
       railUse('compression', railConfig.compression, require('compression'));
 
       // cookie
@@ -74,17 +75,20 @@ module.exports = function ($maintenance, $settings) {
         log.error(new Error('config.$rail.cookie.key missing, => cookie-parser not used'))
       }
 
-      // bodyParser facultatif
+      // bodyParser sauf si on demande de pas le faire
       if (!railConfig.noBodyParser) {
-        const bodyParser = require('body-parser')
         const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
         const bodyParserSettings = railConfig.bodyParser || {
-          limit: '100mb',
           reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
         }
+        // on met quand même une limite très haute (sinon c'est 100kb par défaut)
+        // l'application devrait mettre une limite plus basse en fonction de ce qu'elle attend
+        if (!bodyParserSettings.limit) {
+          bodyParserSettings.limit = '100mb'
+        }
         railUse('body-parser', bodyParserSettings, (settings) => {
-          const jsonMiddleware = bodyParser.json(settings)
-          const urlencodedMiddleware = bodyParser.urlencoded(settings)
+          const jsonMiddleware = express.json(settings)
+          const urlencodedMiddleware = express.urlencoded(settings)
           // on wrap bodyParser pour récupérer les erreurs et logguer les url concernées
           return function bodyParserMiddleware (req, res, next) {
             // on pourrait mettre l'erreur en req.bodyParserError, avec un req.body = {} puis appeler next()
@@ -116,24 +120,28 @@ module.exports = function ($maintenance, $settings) {
         })
       }
 
-      const secretSessionKey = $settings.get('$rail.session.secret')
-      if (secretSessionKey) {
-        log('adding session management on rail')
-        // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
-        const $cache = lassi.service('$cache')
-        const redisClient = $cache.getRedisClient()
-        const session = require('express-session');
-        const RedisStore = require('connect-redis')(session);
-        const sessionOptions = {
-          mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
-          store: new RedisStore({client: redisClient}),
-          secret: secretSessionKey
+      // session sauf si on demande de pas le faire
+      if (!railConfig.noSession) {
+        const secretSessionKey = $settings.get('$rail.session.secret')
+        if (secretSessionKey) {
+          log('adding session management on rail')
+          // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
+          const $cache = lassi.service('$cache')
+          const redisClient = $cache.getRedisClient()
+          const session = require('express-session');
+          const RedisStore = require('connect-redis')(session);
+          const sessionOptions = {
+            mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
+            store: new RedisStore({client: redisClient}),
+            secret: secretSessionKey
+          }
+          railUse('session', sessionOptions, session)
+        } else {
+          log.error('settings.$rail.session.secret not set => no session')
         }
-        railUse('session', sessionOptions, session)
-      } else {
-        log.error('settings.$rail.session.secret not set => no session')
       }
 
+      // les controleurs
       const Controllers = require('../controllers');
       const controllers = new Controllers(this);
       railUse('controllers', {}, () => controllers.middleware());
@@ -147,17 +155,18 @@ module.exports = function ($maintenance, $settings) {
         // la réponse avec res.format(html, json, default)
         // façon https://github.com/expressjs/express/blob/4.x/examples/error-pages/index.js#L64
         // répond en html si y'a pas de header accept, on gère manuellement pour envoyer du text/plain dans ce cas
-        if (req.accepts('json')) {
-          res.json({ success: false, error: errorMessage })
-        } else if (req.accepts('html')) {
+        if (req.accepts('html')) {
           res.type('html').send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Error</title></head>
 <body><pre>${errorMessage}</pre><p><a href="/">Home</a></p></body></html>`)
+        } else if (req.accepts('json')) {
+          res.json({ success: false, error: errorMessage })
         } else {
           res.type('txt').send(errorMessage)
         }
       })
 
+      // fin de l'ajout des middleware
       next();
     } catch (error) {
       next(error)
