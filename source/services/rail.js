@@ -94,9 +94,13 @@ module.exports = function ($maintenance, $settings) {
             // (et l'erreur de body-parser avec le body reçu, perdu si on passe ça à next)
             function errorCatcher (error) {
               if (error) {
+                const myError = new Error('Invalid content')
+                if (error.status) myError.status = error.status
                 console.error(`Invalid content received on ${req.method} ${req.originalUrl}`, error)
-                // express affiche la stacktrace en html, on veut un message plus intelligible mais sans stacktrace pour l'utilisateur
-                return next('Invalid content')
+                // body-parser renvoie "Unexpected token # in JSON at position 0"
+                // (un bug car c'est lui qui a mis le #),
+                // on veut un message plus intelligible et sans stacktrace pour l'utilisateur
+                return next(myError)
               }
               next()
             }
@@ -133,6 +137,26 @@ module.exports = function ($maintenance, $settings) {
       const Controllers = require('../controllers');
       const controllers = new Controllers(this);
       railUse('controllers', {}, () => controllers.middleware());
+
+      // et notre errorHandler par défaut. Il ne servira pas si c'est un contrôleur qui fait du next(error),
+      // car dans ce cas ça suit la chaîne jusqu'au transport (cf source/controllers/index.js)
+      // cf http://expressjs.com/en/guide/error-handling.html
+      _rail.use(function railErrorHandler (error, req, res, next) {
+        res.status(error.status || 500)
+        const errorMessage = error.toString()
+        // la réponse avec res.format(html, json, default)
+        // façon https://github.com/expressjs/express/blob/4.x/examples/error-pages/index.js#L64
+        // répond en html si y'a pas de header accept, on gère manuellement pour envoyer du text/plain dans ce cas
+        if (req.accepts('json')) {
+          res.json({ success: false, error: errorMessage })
+        } else if (req.accepts('html')) {
+          res.type('html').send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Error</title></head>
+<body><pre>${errorMessage}</pre><p><a href="/">Home</a></p></body></html>`)
+        } else {
+          res.type('txt').send(errorMessage)
+        }
+      })
 
       next();
     } catch (error) {
