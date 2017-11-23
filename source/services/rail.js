@@ -3,7 +3,7 @@
 const express = require('express');
 const fs = require('fs');
 const log = require('an-log')('$rail');
-const _ = require('lodash')
+const sjt = require('sesajstools')
 
 /**
  * Service de gestion des middlewares
@@ -145,7 +145,7 @@ module.exports = function ($maintenance, $settings) {
       // accessLog si demandé
       if (railConfig.accessLog) {
         const conf = railConfig.accessLog
-        if (!conf.logFile) return console.error('settings $rail.accessLog.logFile is mandatory for logging')
+        if (!conf.logFile) return log.error('settings $rail.accessLog.logFile is mandatory for logging')
         const writeStream = fs.createWriteStream(conf.logFile, {'flags': 'a'})
         if (!writeStream) return log.error(`Error opening ${conf.logFile} (with write access)`)
         // on a notre fichier, on met un listener pour le fermer
