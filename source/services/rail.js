@@ -74,43 +74,40 @@ module.exports = function ($maintenance, $settings) {
         log.error(new Error('config.$rail.cookie.key missing, => cookie-parser not used'))
       }
 
-      // bodyParser
-      const bodyParser = require('body-parser');
-      const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-      const bodyParserSettings = railConfig.bodyParser || {
-        limit: '100mb',
-        reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
-      }
+      // bodyParser facultatif
       if (!railConfig.noBodyParser) {
+        const bodyParser = require('body-parser')
+        const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+        const bodyParserSettings = railConfig.bodyParser || {
+          limit: '100mb',
+          reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
+        }
         railUse('body-parser', bodyParserSettings, (settings) => {
           const jsonMiddleware = bodyParser.json(settings)
           const urlencodedMiddleware = bodyParser.urlencoded(settings)
+          // on wrap bodyParser pour récupérer les erreurs et logguer les url concernées
           return function bodyParserMiddleware (req, res, next) {
-            let isJson
-            // on ajoute un try car jsonMiddleware throw si c'est pas du json valide
-            try {
-              // c'est un peu idiot d'empiler les 2 middleware pour toutes les requêtes,
-              // mais c'est ce que faisait l'ancien body-parser générique
-              // en attendant que les applis lassi décident sur chaque route quel parser elles veulent,
-              // on regarde ici si c'est utile de parser json ou urlencoded
-              // (l'appli devra le gérér le reste comme avant)
-              const contentType = req.headers['content-type']
-              // test plus primaire que le mimeMatch fait par body-parser, mais ça devrait couvrir tous nos besoins
-              isJson = contentType && /json/.test(contentType.toLowerCase())
-              if (isJson) {
-                jsonMiddleware(req, res, next)
-              } else if (req.headers['transfer-encoding'] !== undefined || !isNaN(req.headers['content-length'])) {
-                // cf function hasBody de node_modules/type-is/index.js
-                urlencodedMiddleware(req, res, next)
-              } else {
-                next()
+            // on pourrait mettre l'erreur en req.bodyParserError, avec un req.body = {} puis appeler next()
+            // pour laisser le contrôleur décider du message à afficher (cf commit aeb1364)
+            // mais on laisse express envoyer une erreur 400 tout de suite (finalement plus logique)
+            // on ajoutant quand même dans le log d'erreur le contenu et l'url qui a provoqué ça
+            // (et l'erreur de body-parser avec le body reçu, perdu si on passe ça à next)
+            function errorCatcher (error) {
+              if (error) {
+                console.error(`Invalid content received on ${req.method} ${req.originalUrl}`, error)
+                // express affiche la stacktrace en html, on veut un message plus intelligible mais sans stacktrace pour l'utilisateur
+                return next('Invalid content')
               }
-            } catch (error) {
-              // on pourrait mettre l'erreur en req.bodyParserError, avec un req.body = {} puis appeler next()
-              // pour laisser le contrôleur décider du message à afficher (cf commit aeb1364)
-              // mais on laisse lassi envoyer une erreur 500 tout de suite (finalement plus logique)
-              next(error)
+              next()
             }
+            // c'est un peu idiot d'empiler les 2 middlewares sur pour toutes les requêtes,
+            // mais c'est ce que faisait l'ancien body-parser générique
+            // en attendant que les applis lassi décident sur chaque route quel parser elles veulent,
+            // on continue avec ce comportement (le 2e parser rend la main aussitôt si le premier a fait qqchose)
+            jsonMiddleware(req, res, (error) => {
+              if (error) return errorCatcher(error)
+              urlencodedMiddleware(req, res, errorCatcher)
+            })
           }
         })
       }
