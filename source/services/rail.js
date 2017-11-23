@@ -3,6 +3,7 @@
 const express = require('express');
 const fs = require('fs');
 const log = require('an-log')('$rail');
+const _ = require('lodash')
 
 /**
  * Service de gestion des middlewares
@@ -139,6 +140,40 @@ module.exports = function ($maintenance, $settings) {
         } else {
           log.error('settings.$rail.session.secret not set => no session')
         }
+      }
+
+      // accessLog si demandé
+      if (railConfig.accessLog) {
+        const conf = railConfig.accessLog
+        if (!conf.logFile) return console.error('settings $rail.accessLog.logFile is mandatory for logging')
+        const writeStream = fs.createWriteStream(conf.logFile, {'flags': 'a'})
+        if (!writeStream) return log.error(`Error opening ${conf.logFile} (with write access)`)
+        // on a notre fichier, on met un listener pour le fermer
+        lassi.on('shutdown', writeStream.end)
+        // cf https://www.npmjs.com/package/morgan
+        const morgan = require('morgan')
+        // on met pas la forme réduite "combined", car si on ajoute le :post plus loin ça marche plus
+        // et de toute façon on ajoute :response-time (en ms, un seul chiffre après la virgule)
+        let format = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time[1] :start'
+        // on réécrit le token remote-addr pour prendre x-real-ip en premier s'il existe
+        morgan.token('remote-addr', (req) => {
+          if (req.headers && req.headers['x-real-ip']) return req.headers['x-real-ip']
+          // le reste est la fct originale, cf node_modules/morgan/index.js
+          if (req.ip) return req.ip
+          if (req._remoteAddress) return req._remoteAddress
+          if (req.connection) return req.connection.remoteAddress
+          return undefined
+        })
+        morgan.token('start', (req) => req.start)
+        /** Les options morgan */
+        const morganOptions = conf.morgan || {}
+        morganOptions.stream = writeStream
+        // en dev on ajoute les var postées
+        if (/^dev/.test(process.env.NODE_ENV)) {
+          morgan.token('post', (req) => req.body ? '' : sjt.stringify(req.body))
+          format += ' :post'
+        }
+        railUse('accessLog', true, () => morgan(format, morganOptions))
       }
 
       // les controleurs
