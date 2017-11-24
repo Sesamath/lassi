@@ -88,6 +88,9 @@ module.exports = function ($maintenance, $settings) {
           bodyParserSettings.limit = '100mb'
         }
         railUse('body-parser', bodyParserSettings, (settings) => {
+          // ne rien préciser est deprecated, on passe l'ancienne valeur par défaut
+          // cf http://expressjs.com/en/resources/middleware/body-parser.html
+          if (!settings.extended) settings.extended = true
           const jsonMiddleware = express.json(settings)
           const urlencodedMiddleware = express.urlencoded(settings)
           // on wrap bodyParser pour récupérer les erreurs et logguer les url concernées
@@ -123,8 +126,9 @@ module.exports = function ($maintenance, $settings) {
 
       // session sauf si on demande de pas le faire
       if (!railConfig.noSession) {
-        const secretSessionKey = $settings.get('$rail.session.secret')
-        if (secretSessionKey) {
+        const sessionSettings = $settings.get('$rail.session', {})
+        const {secret} = sessionSettings
+        if (secret) {
           log('adding session management on rail')
           // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
           const $cache = lassi.service('$cache')
@@ -133,8 +137,10 @@ module.exports = function ($maintenance, $settings) {
           const RedisStore = require('connect-redis')(session);
           const sessionOptions = {
             mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
+            resave: false,
+            saveUninitialized: sessionSettings.saveUninitialized || false,
+            secret,
             store: new RedisStore({client: redisClient}),
-            secret: secretSessionKey
           }
           railUse('session', sessionOptions, session)
         } else {
