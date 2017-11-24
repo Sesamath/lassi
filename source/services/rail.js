@@ -146,8 +146,12 @@ module.exports = function ($maintenance, $settings) {
       if (railConfig.accessLog) {
         const conf = railConfig.accessLog
         if (!conf.logFile) return log.error('settings $rail.accessLog.logFile is mandatory for logging')
-        const writeStream = fs.createWriteStream(conf.logFile, {'flags': 'a'})
-        if (!writeStream) return log.error(`Error opening ${conf.logFile} (with write access)`)
+        let writeStream
+        try {
+          writeStream = fs.createWriteStream(conf.logFile, {'flags': 'a'})
+        } catch (error) {
+          return log.error(`Error opening ${conf.logFile} (with write access)`)
+        }
         // on a notre fichier, on met un listener pour le fermer
         lassi.on('shutdown', writeStream.end)
         // cf https://www.npmjs.com/package/morgan
