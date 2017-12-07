@@ -105,6 +105,9 @@ class Action {
       if (lassi.settings && lassi.settings.pathProperties && lassi.settings.pathProperties[this.path]) {
         _.extend(options, lassi.settings.pathProperties[this.path]);
       }
+      // par défaut, express met un max-age à 0 (cf http://expressjs.com/en/4x/api.html#express.static)
+      // si l'appli ne précise rien on le met à 1d sur le statique
+      if (!options.hasOwnProperty('maxAge')) options.maxAge = '1d'
       var serveStatic = express.static(this.fsPath, options);
       this.middleware = (function(base) {
         return function(request, response, next) {
