@@ -1,9 +1,11 @@
 /* eslint-env mocha */
 'use strict'
 
+const _ = require('lodash')
 const expect = require('chai').expect
 const flow = require('an-flow')
 const Entities = require('../source/entities')
+const Entity = require('../source/entities/Entity')
 const {quit, setup} = require('./init')
 
 let entities
@@ -28,7 +30,6 @@ describe('Entity', () => {
     entities.close()
     quit()
   })
-
   describe('.onLoad', function () {
     let count
     beforeEach(function (done) {
@@ -135,6 +136,69 @@ describe('Entity', () => {
         })
         TestEntity.create({}).store()
       })
+    })
+  })
+
+  describe('.defineMethod', () => {
+    beforeEach(function (done) {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.defineMethod('who', function () {
+        return `My name is ${this.name}`
+      })
+      TestEntity.defineMethod('toJSON', function () {
+        return _.omit(this, ['password'])
+      })
+      TestEntity.flush(() => {
+        entities.initialize(done)
+      })
+    })
+    it('ajoute une méthode à chaque instance', (done) => {
+      const entity = TestEntity.create({name: 'John', password: 'secret'})
+      expect(entity.who()).to.equal('My name is John')
+      expect(entity.password).to.equal('secret')
+      // password masqué
+      expect(JSON.stringify(entity)).to.equal('{"name":"John"}')
+
+      flow()
+        .seq(function () { entity.store(this) })
+        .seq(function () { TestEntity.match().grabOne(this) })
+        .seq(function (dbEntity) {
+          expect(dbEntity.who()).to.equal('My name is John')
+          // password en bdd
+          expect(dbEntity.password).to.equal('secret')
+          // mais toujours masqué en json
+          expect(JSON.stringify(dbEntity)).to.equal(`{"name":"John","oid":"${dbEntity.oid}"}`)
+          done()
+        })
+        .catch(done)
+    })
+
+    it("n'affecte pas les autres types d'entité", () => {
+      const Before = entities.define('Before')
+      const MonEntity = entities.define('MonEntity')
+      MonEntity.defineMethod('hello', function () {
+        return 'hello'
+      })
+      const After = entities.define('After')
+
+      expect(MonEntity.create().hello()).to.equal('hello')
+      expect(Before.create().hello).to.be.undefined // eslint-disable-line no-unused-expressions
+      expect(After.create().hello).to.be.undefined // eslint-disable-line no-unused-expressions
+    })
+  })
+
+  describe('create', () => {
+    beforeEach(function () {
+      TestEntity = entities.define('TestEntity')
+    })
+    it('creates an instance of Entity', () => {
+      const entity = TestEntity.create({a: 1})
+      expect(entity instanceof Entity).to.be.true // eslint-disable-line no-unused-expressions
+      expect(entity.a).to.equal(1)
+    })
+    it('creates an instance of EntityDefinition.entityConstructor', () => {
+      const entity = TestEntity.create({a: 1})
+      expect(entity instanceof TestEntity.entityConstructor).to.be.true // eslint-disable-line no-unused-expressions
     })
   })
 })

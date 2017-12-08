@@ -143,6 +143,10 @@ class EntityDefinition {
     return this
   }
 
+  defineMethod (name, fn) {
+    this.entityConstructor.prototype[name] = fn
+  }
+
   initialize (cb) {
     log(this.name, 'initialize')
     this.initializeIndexes(error => {
@@ -317,7 +321,14 @@ class EntityDefinition {
   bless (entities) {
     if (this.configure) this.configure()
     this.entities = entities
-    this.entityClass = this.entityClass || function () {}
+    if (!this.entityConstructor) {
+      this.entityConstructor = function () {
+        // Théoriquement il aurait fallut appeler le constructeur d'Entity avec Entity.call(this, ...), mais
+        // 1. c'est impossible car Entity est une classe, qu'il faut instancier avec 'new'
+        // 2. Entity n'a pas de constructeur, donc ça ne change pas grand chose
+      }
+      this.entityConstructor.prototype = Object.create(Entity.prototype)
+    }
     return this
   }
 
@@ -331,7 +342,7 @@ class EntityDefinition {
    * @return {Entity} Une instance d'entité
    */
   create (values) {
-    var instance = new Entity()
+    var instance = new this.entityConstructor() // eslint-disable-line new-cap
     instance.setDefinition(this)
     if (this._defaults) {
       this._defaults.call(instance)

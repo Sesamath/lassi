@@ -35,6 +35,12 @@ const {castToType} = require('./internals')
  * @param {Object} settings
  */
 class Entity {
+  // eslint-disable-next-line no-useless-constructor
+  constructor () {
+    // Warning: ne rien implémenter ici, car ce constructeur n'est pas
+    // appelé dans EntityDefinition#create
+    throw new Error(`Une entité n'est jamais instanciée directement. Utiliser EntityDefinition#create`)
+  }
   setDefinition (entity) {
     Object.defineProperty(this, 'definition', {value: entity})
   }
@@ -114,12 +120,15 @@ class Entity {
       document._id = self.oid
       // on vire les _, $ et méthodes, puis serialize et sauvegarde
       // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
-      document._data = JSON.stringify(self, function (k, v) {
-        if (_.isFunction(v)) return
-        if (k[0] === '_') return
-        if (k[0] === '$') return
-        return v
-      })
+      //
+      // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
+      // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
+      document._data = JSON.stringify(_.pick(self, function (v, k) {
+        if (_.isFunction(v)) return false
+        if (k[0] === '_') return false
+        if (k[0] === '$') return false
+        return true
+      }))
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/
