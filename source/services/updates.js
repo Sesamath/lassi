@@ -24,8 +24,10 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     }).seq(function (pendingUpdates) {
       updatesToRun = pendingUpdates
       let msg = `Base en version ${dbVersion} : `
-
-      if (updatesToRun.length === 0) {
+      if (!updatesToRun) {
+        log(msg + 'updates non gérés')
+        return cb()
+      } else if (updatesToRun.length === 0) {
         log(msg + 'pas de mises à jour')
         return cb()
       }
@@ -55,19 +57,19 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param {getPendingUpdatesCallback} cb
    */
   function getPendingUpdates (cb) {
-    function done (errorMessage) {
+    function warn (errorMessage) {
       log.error(errorMessage)
-      cb(null, false)
+      cb()
     }
     // récup de la config, si on trouve pas on laisse tomber en le signalant mais sans planter
     const updates = $settings.get('application.updates')
-    if (!updates) return done('config.application.updates manquant, updates ignorés par lassi')
-    if (!updates.folder) return done('config.application.updates.folder manquant')
+    if (!updates) return warn('config.application.updates manquant, updates ignorés par lassi')
+    if (!updates.folder) return warn('config.application.updates.folder manquant')
     const lock = updates.lockFile
-    if (!lock) return done('config.application.updates.lockFile manquant')
+    if (!lock) return warn('config.application.updates.lockFile manquant')
     lockFile = lock
     // si y'a un lock on arrête là
-    if (isUpdateLocked()) return done(`${lockFile} présent, on ignore les updates automatiques`)
+    if (isUpdateLocked()) return warn(`${lockFile} présent, on ignore les updates automatiques`)
     // on regarde si y'a un n° de départ en conf (appli avec anciens updates virés du code)
     const defaultVersion = $settings.get('application.updates.defaultVersion', 0)
     flow().seq(function() {
@@ -311,7 +313,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
 
   /**
    * Applique les éventuelles mises à jour (au démarrage, appelé après setup et avant boot complet)
-   * @param {simpleCallback} cb rappelé avant la fin des updates
+   * @param {simpleCallback} cb rappelé avant de lancer les updates (mais après pose du lock si y'a besoin)
    */
   function postSetup (cb) {
     // On applique automatiquement les mises à jour au démarrage
@@ -332,7 +334,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     checkAndLock(function (error) {
       if (error) return cb(error)
       cb()
-      if (updatesToRun.length) runPendingUpdates()
+      if (updatesToRun && updatesToRun.length) runPendingUpdates()
     })
     $maintenance.getMaintenanceMode((error, {mode, reason}) => log(`Actuellement la maintenance est ${mode} (reason: ${reason})`))
   }
