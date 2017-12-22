@@ -1,5 +1,6 @@
 'use strict'
 
+const _ = require('lodash')
 const flow = require('an-flow')
 const path = require('path')
 const fs = require('fs')
@@ -11,31 +12,49 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param {Error|string} [error]
    */
   /**
-   * Init hasUpdatesToRun et passe en mode maintenance si besoin avant de rappeler cb
+   * - Init updatesToRun avec le tableau des updates en attente
+   * - Si il y a des updates à traiter: lock les updates
+   * - Si certaines sont bloquantes: passe en mode maintenance
+   * - appelle le cb
    * @param {errorCallback} cb
    */
   function checkAndLock (cb) {
     flow().seq(function () {
-      checkIfUpdates(this)
-    }).seq(function (hasUpdates) {
-      hasUpdatesToRun = hasUpdates
-      if (!hasUpdates) return cb()
-      // y'a tu taf, faut passer en maintenance avant d'appeler cb
-      lockMaintenance(this)
-    }).done(cb)
+      getPendingUpdates(this)
+    }).seq(function (pendingUpdates) {
+      updatesToRun = pendingUpdates
+      let msg = `Base en version ${dbVersion} : `
+
+      if (updatesToRun.length === 0) {
+        log(msg + 'pas de mises à jour')
+        return cb()
+      }
+
+      msg += `${updatesToRun.length} mises à jour à traiter`
+      lockUpdates()
+
+      // Si aucune MAJ bloquantes, pas besoin d'activer la maintenance
+      if (_.every(updatesToRun, (u) => u.isNotBlocking)) {
+        log(msg)
+        return cb();
+      }
+
+      log(msg + ' dont certaines bloquantes')
+      lockMaintenance(cb)
+    }).catch(cb)
   }
 
   /**
-   * @callback hasUpdatesCallback
+   * @callback getPendingUpdatesCallback
    * @param {Error} error
-   * @param {boolean} hasUpdates
+   * @param {array} updates tableau d'updates en attente
    */
   /**
    * Vérifie s'il y a des updates à lancer
    * @private
-   * @param {hasUpdatesCallback} cb
+   * @param {getPendingUpdatesCallback} cb
    */
-  function checkIfUpdates (cb) {
+  function getPendingUpdates (cb) {
     function done (errorMessage) {
       log.error(errorMessage)
       cb(null, false)
@@ -56,7 +75,6 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
       LassiUpdate.match('num').sort('num', 'desc').grabOne(this)
     }).seq(function(lastUpdate) {
       dbVersion = (lastUpdate && lastUpdate.num) || 0
-      log(`version ${dbVersion}`)
       if (dbVersion < defaultVersion) {
         // init avec la version de départ mise en config
         const firstUpdate = {
@@ -73,11 +91,8 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
         this()
       }
     }).seq(function() {
-      updateExist(dbVersion + 1, this)
-    }).seq(function(exist) {
-      if (!exist) log(`${lockFile} non présent, base à jour en version ${dbVersion}`)
-      cb(null, exist)
-    }).catch(cb)
+      getUpdatesAboveVersion(dbVersion, this)
+    }).done(cb)
   }
 
   /**
@@ -111,9 +126,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param cb
    */
   function lockMaintenance (cb) {
-    log(`${lockFile} non présent, base en version ${dbVersion} avec updates à appliquer`)
     flow().seq(function () {
-      lockUpdates()
       $maintenance.getMaintenanceMode(this)
     }).seq(function({mode, reason}) {
       // On active la maintenance si elle n'est pas déjà active
@@ -142,14 +155,19 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @private
    */
   function unlockUpdates() {
-    fs.unlinkSync(lockFile)
+    lockFileSet = false
+    try {
+      fs.unlinkSync(lockFile)
+    } catch(e) {
+      log.error(e)
+    }
   }
 
 
   /**
    * @callback updateExistCallback
    * @param error
-   * @param {number} updateNum (0 si pas d'update)
+   * @param {boolean} exist false si l'update numéro updateNum n'existe pas
    */
   /**
    * Vérifie s'il existe un update n° updateNum
@@ -162,6 +180,36 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     fs.access(fileToRequire, fs.R_OK, function (err) {
       cb(null, !err)
     })
+  }
+
+  /**
+   * @callback getUpdatesAboveVersionCallback
+   * @param error
+   * @param {array} updates tableau des updates dont le numéro est supérieur à dbVersion passé en paramètre
+   */
+  /**
+   * Récupère les updates supérieures à dbVersion
+   * @private
+   * @param {number|string} dbVersion
+   * @param {getUpdatesAboveVersionCallback} cb
+   */
+  function getUpdatesAboveVersion(dbVersion, cb) {
+    const pendingUpdates = []
+    const checkUpdate = (num) => {
+      updateExist(num, (err, exist) => {
+        if (err) return cb(err);
+        if (exist) {
+          const update = require(getUpdateFilename(num));
+          update.$num = num;
+          pendingUpdates.push(update)
+          checkUpdate(num + 1)
+        } else {
+          // On a atteint la dernière
+          cb(null, pendingUpdates)
+        }
+      })
+    }
+    checkUpdate(dbVersion + 1);
   }
 
   // méthodes exportées
@@ -182,10 +230,8 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
      * @param {number} num
      * @param cb
      */
-    function runUpdate (num, cb) {
-      const updateFile = getUpdateFilename(num)
-      const update = require(updateFile)
-      if (!update || !update.run) throw new Error(`${updateFile} n’est pas un fichier d’update valide`)
+    function runUpdate (update, cb) {
+      const num = update.$num
       flow()
       .seq(function() {
         log(`lancement update n° ${num} : ${update.name}`)
@@ -213,36 +259,34 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
      * @param version
      * @param cb rappelée avec (error, version)
      */
-    function runNextUpdates(version, cb) {
-      const nextUpdateNum = version + 1
-      flow()
-      .seq(function() {
-        updateExist(nextUpdateNum, this)
+    function runUpdates(updates, cb) {
+      const [update, ...nextUpdates] = updates
+      // On lance la première...
+      runUpdate(update, (err) => {
+        if (err) return cb(err);
+        if (nextUpdates.length) {
+          // ... puis les suivantes (récursivement)
+          process.nextTick(() => runUpdates(nextUpdates, cb))
+        } else {
+          // on a atteint la dernière
+          cb(null, update.$num)
+        }
       })
-      .seq(function(exist) {
-        if (exist) runUpdate(nextUpdateNum, this)
-        // Find de la boucle récursive, on renvoie le dernier dbVersion à jour
-        else cb(null, version)
-      })
-      .seq(function() {
-        runNextUpdates(nextUpdateNum, this)
-      })
-      .done(cb)
     }
 
     // MAIN
     // runPendingUpdates peut être appelé sans callback quand on n'a pas besoin d'attendre la fin des updates
     if (!cb) cb = () => undefined
-    if (hasUpdatesToRun === false) return cb()
+    if (updatesToRun && !updatesToRun.length) return cb()
 
     flow()
     .seq(function() {
       // on est pas sûr que postSetup ait déjà été appelé
-      if (hasUpdatesToRun === undefined) checkAndLock(this)
+      if (updatesToRun === undefined) checkAndLock(this)
       else this()
     })
     .seq(function() {
-      runNextUpdates(dbVersion, this)
+      runUpdates(updatesToRun, this)
     })
     .seq(function(updatedDbVersion) {
       log('plus d’update à faire, base en version', updatedDbVersion)
@@ -288,16 +332,16 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     checkAndLock(function (error) {
       if (error) return cb(error)
       cb()
-      if (hasUpdatesToRun) runPendingUpdates()
+      if (updatesToRun.length) runPendingUpdates()
     })
-    $maintenance.getMaintenanceMode((error, {mode, reason}) => log(`Actuellement la maintenance est ${mode} avec ${reason}`))
+    $maintenance.getMaintenanceMode((error, {mode, reason}) => log(`Actuellement la maintenance est ${mode} (reason: ${reason})`))
   }
 
   // runPendingUpdates pourrait être appelé avant postSetup (dans un autre postSetup qui passerait avant nous),
   // on utilise ces variables comme flag
 
   // affecté au postSetup par checkIfUpdates
-  let dbVersion, hasUpdatesToRun, lockFile
+  let dbVersion, updatesToRun, lockFile
   // affecté par lockMaintenance
   let maintenanceReason
   let lockFileSet = false
