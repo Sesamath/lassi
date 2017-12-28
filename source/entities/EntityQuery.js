@@ -672,6 +672,13 @@ class EntityQuery {
       ]
       self.entity.getCollection().aggregate(query, this)
     })
+    .seq(function(_groupes) {
+      const groupes = []
+      _.each(_groupes, (groupe) => {
+        groupes[groupe._id] = groupe.count
+      })
+      this(null, groupes)
+    })
     .done(callback)
   }
 

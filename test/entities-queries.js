@@ -431,16 +431,16 @@ describe('Test entities-queries', function () {
 
   describe('.countBy()', function () {
     it(`Compte d'entités groupés`, function (done) {
-      let entities
+      let groupedEntities
       flow()
       .seq(function () {
         getAllEntities(TestEntity.match(), {}, this)
       }).seq(function (_entities) {
-        entities = _.countBy(_entities, 't')
+        groupedEntities = _.countBy(_entities, 't')
         TestEntity.match().countBy('t', this)
       }).seq(function (data) {
-        _.each(data, (group) => {
-          assert.equal(group.count, entities[group._id])
+        _.each(groupedEntities, (value, key) => {
+          assert.equal(data[key], value)
         })
         this()
       }).done(done)
