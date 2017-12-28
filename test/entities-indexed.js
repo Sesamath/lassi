@@ -51,7 +51,7 @@ describe('Test entities-queries', function () {
     }).seq(function (indexes) {
       // Pour visualiser les index rapidement
       // console.log('index de la collection', indexes)
-      expect(indexes).to.have.lengthOf(10) // nos 9 indexes + _id_ toujours mis par mongo
+      expect(indexes).to.have.lengthOf(11) // nos 10 indexes + _id_ toujours mis par mongo
       this(null, indexes.filter(i => i.name !== '_id_'))
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
