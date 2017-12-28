@@ -677,9 +677,9 @@ class EntityQuery {
       _.each(_groupes, (groupe) => {
         groupes[groupe._id] = groupe.count
       })
-      this(null, groupes)
+      callback(null, groupes)
     })
-    .done(callback)
+    .catch(callback)
   }
 
   /**
