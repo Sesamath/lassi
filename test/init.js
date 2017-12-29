@@ -96,9 +96,31 @@ function checkEntity (entity, values, checkers) {
 }
 
 /**
- * Connexion à Mongo (on gère pas certif ssl ni kerberos)
- *
- * @param {Callback} next
+ * @callback checkMongoConnexionCallback
+ * @param {Error} error
+ * @param {object} dbSettings
+ */
+/**
+ * Teste la connexion à Mongo (on gère pas certif ssl ni kerberos)
+ * @private
+ * @param {checkMongoConnexionCallback} next
+ */
+function checkMongoConnexion (next) {
+  connectToMongo((error, db) => {
+    // en cas d'erreur, le process s'arrête avant d'exécuter ça…
+    if (error) {
+      console.error('La connexion mongoDb a échoué')
+      return next(error)
+    }
+    db.close()
+    next(null, dbSettings)
+  })
+}
+
+/**
+ * File une connexion à next
+ * @see http://mongodb.github.io/node-mongodb-native/2.0/api/Db.html
+ * @param {MongoClient~connectCallback} next
  */
 function connectToMongo (next) {
   const {name, host, port, authMechanism} = dbSettings
@@ -110,15 +132,7 @@ function connectToMongo (next) {
   url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
   if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
   const {options} = dbSettings
-  MongoClient.connect(url, options, (error, db) => {
-    // en cas d'erreur, le process s'arrête avant d'exécuter ça…
-    if (error) {
-      console.error('La connexion mongoDb a échoué')
-      return next(error)
-    }
-    db.close()
-    next(null, dbSettings)
-  })
+  MongoClient.connect(url, options, next)
 }
 
 /**
@@ -170,7 +184,7 @@ function setup (next) {
   if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
   // pour les tests on veut qu'ils se taisent
   anLog('EntityDefinition').setLogLevel('error')
-  connectToMongo(error => {
+  checkMongoConnexion(error => {
     if (error) return next(error)
     initEntities((error, Entity) => {
       if (error) return next(error)
@@ -182,6 +196,7 @@ function setup (next) {
 
 module.exports = {
   checkEntity,
+  connectToMongo,
   getDbSettings: () => dbSettings,
   getTestEntity: () => TestEntity,
   setup

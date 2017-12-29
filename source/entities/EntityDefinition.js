@@ -195,27 +195,29 @@ class EntityDefinition {
     // on parse l'existant
     }).seqEach(function (existingIndex) {
       const mongoIndexName = existingIndex.name;
-      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
-        if (def.indexesByMongoIndexName[mongoIndexName]) {
-          // la notion de type de valeur à indexer n'existe pas dans mongo.
-          // seulement des type d'index champ unique / composé / texte / etc.
-          // https://docs.mongodb.com/manual/indexes/#index-types
-          // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
-          // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
-          // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
-          existingIndexes[mongoIndexName] = existingIndex
-          log(def.name, `index ${mongoIndexName} ok`)
-          return this()
-        } else {
-          // on en veut plus
-          coll.dropIndex(mongoIndexName, this)
-          log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
-        }
-      } else {
-        if (mongoIndexName !== '_id_') log.error(def.name, `index ${mongoIndexName} existe dans mongo mais il n’a pas été défini par lassi`, existingIndex)
+      // _id_ est un index mis d'office par mongo
+      if (mongoIndexName === '_id_') return this()
+
+      if (def.indexesByMongoIndexName[mongoIndexName]) {
+        // la notion de type de valeur à indexer n'existe pas dans mongo.
+        // seulement des type d'index champ unique / composé / texte / etc.
+        // https://docs.mongodb.com/manual/indexes/#index-types
+        // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
+        // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
+        // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
+        existingIndexes[mongoIndexName] = existingIndex
+        log(def.name, `index ${mongoIndexName} ok`)
         return this()
       }
-
+      // si on est toujours là c'est un index qui n'est plus défini,
+      // on met un message différent suivant que c'est un index lassi ou pas
+      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
+        log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
+      } else {
+        log(def.name, `index ${mongoIndexName} existe dans mongo mais n’est pas un index lassi => DROP`, existingIndex)
+      }
+      // on le vire
+      coll.dropIndex(mongoIndexName, this)
     }).seq(function () {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
