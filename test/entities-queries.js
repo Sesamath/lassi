@@ -432,10 +432,12 @@ describe('Test entities-queries', function () {
   describe('.countBy()', function () {
     it(`Compte d'entités groupés`, function (done) {
       let groupedEntities
+      let nbEntities
       flow()
       .seq(function () {
         getAllEntities(TestEntity.match(), {}, this)
       }).seq(function (_entities) {
+        nbEntities = _entities.length
         // on vérifie que le countBy de Entities donne le même résultat que celui de lodash
         groupedEntities = _.countBy(_entities, 't')
         TestEntity.match().countBy('t', this)
@@ -443,7 +445,16 @@ describe('Test entities-queries', function () {
         _.each(groupedEntities, (value, key) => {
           assert.equal(data[key], value)
         })
-        done()
+        // on teste que ça remonte aussi le nb de non indexés (index undefined ou null)
+        TestEntity.match().countBy('bArray', this)
+      }).seq(function (data) {
+        assert.equal(data.null, nbEntities)
+        // on teste aussi que le groupBy sur un index qui n'existe pas remonte une erreur
+        TestEntity.match().countBy('y', (error, data) => {
+          expect(error).to.have.property('message')
+          expect(data).to.equals(undefined)
+          done()
+        })
       }).catch(done)
     })
   })

@@ -114,6 +114,28 @@ class EntityQuery {
   }
 
   /**
+   * Indique si index existe
+   * @param {string} index
+   * @return {boolean}
+   */
+  hasIndex (index) {
+    return !!this.entity.indexes[index]
+  }
+
+  /**
+   * Retourne le type de l'index demandé, throw si c'est pas un index connu
+   * @param {string} index
+   * @return {string} string|date|number
+   * @throws {Error} si index n'est pas un index
+   */
+  getType (index) {
+    if (index === '_id') return 'string';
+    if (index === '__deletedAt') return 'date';
+    if (!this.hasIndex(index)) throw new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`)
+    return this.entity.indexes[index].fieldType;
+  }
+
+  /**
    * Limite les enregistrements dont la valeur (de l'index imposé précédemment) ressemble à une
    * valeur donnée (Cf signification du _ et % avec like).
    * @see https://dev.mysql.com/doc/refman/5.5/en/pattern-matching.html
@@ -376,14 +398,8 @@ class EntityQuery {
       if (index === 'oid') {
         index = '_id';
         type = 'string';
-      } else if (index === '_id') {
-        type = 'string';
-      } else if (index === '__deletedAt') {
-        type = 'date';
-      } else if (this.entity.indexes[index]) {
-        type = this.entity.indexes[index].fieldType;
       } else {
-        throw new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`)
+        type = this.getType(index);
       }
 
       const cast = x => castToType(x, type)
@@ -649,17 +665,18 @@ class EntityQuery {
 
   /**
    * Callback d'exécution d'une requête.
-   * @callback EntityQuery~CountCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Integer} count le nb de résultat
+   * @callback EntityQuery~CountByCallback
+   * @param {Error} error Une erreur est survenue (l'index n'existait pas)
+   * @param {object} result le nb de résultats par valeur de l'index
    */
 
   /**
    * Compte le nombre d'objet correpondants et les regroupes par index.
-   * @param {String} index L'index sur lequel trier
-   * @param {EntityQuery~CountCallback} callback
+   * @param {String} index L'index dont on veut le nb d'entities pour chaque valeur qu'il prend
+   * @param {EntityQuery~CountByCallback} callback
    */
   countBy (index, callback) {
+    if (!this.hasIndex(index)) return callback(new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`))
     var self = this
     var record = {query: {}, options: {}}
 
