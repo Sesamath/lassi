@@ -41,7 +41,7 @@ function assertEntity (i, entity) {
 
 /**
  * Récupère l'ensemble des entités.
- * 
+ *
  * @param {*} query Requête à executer
  * @param {Object} options Tableau d'options pour filtrer les entités
  * @param {sequencesCallback} callback Callback
@@ -436,14 +436,15 @@ describe('Test entities-queries', function () {
       .seq(function () {
         getAllEntities(TestEntity.match(), {}, this)
       }).seq(function (_entities) {
+        // on vérifie que le countBy de Entities donne le même résultat que celui de lodash
         groupedEntities = _.countBy(_entities, 't')
         TestEntity.match().countBy('t', this)
       }).seq(function (data) {
         _.each(groupedEntities, (value, key) => {
           assert.equal(data[key], value)
         })
-        this()
-      }).done(done)
+        done()
+      }).catch(done)
     })
   })
 
