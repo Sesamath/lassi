@@ -2,6 +2,7 @@
 'use strict'
 
 const assert = require('assert')
+const {expect} = require('chai')
 const flow = require('an-flow')
 const moment = require('moment')
 const Entities = require('../source/entities')
@@ -42,7 +43,7 @@ describe('Test entities-indexes', function () {
 
   describe("l'initialisation d'une nouvelle collecion par une Entity - créée dans initEntities", function () {
     it('crée un index mongoDB', function (done) {
-      TestEntity.getMongoIndexes(function(err, indexes) {
+      TestEntity.getMongoIndexes(function (err, indexes) {
         const index = _.find(indexes, { name: TestEntity.getMongoIndexName('indexedAttribute')})
         assert.equal(index.key.indexedAttribute, 1)
         done()
@@ -60,7 +61,7 @@ describe('Test entities-indexes', function () {
       })
 
       it("supprime l'index existant", function (done) {
-        TestEntity.getMongoIndexes(function(err, indexes) {
+        TestEntity.getMongoIndexes(function (err, indexes) {
           const index = _.find(indexes, { name: TestEntity.getMongoIndexName('indexedAttribute')})
           assert.equal(index, undefined)
           done()
@@ -68,7 +69,7 @@ describe('Test entities-indexes', function () {
       })
     })
 
-    describe('on ajoute un autre attribu indexé', function() {
+    describe('on ajoute un autre attribu indexé', function () {
       before(function (done) {
         // Plus d'index
         TestEntity = entities.define('TestEntity')
@@ -78,8 +79,8 @@ describe('Test entities-indexes', function () {
         entities.initializeEntity(TestEntity, done)
       })
 
-      it('crée le nouvel index mongo', function(done) {
-        TestEntity.getMongoIndexes(function(err, indexes) {
+      it('crée le nouvel index mongo', function (done) {
+        TestEntity.getMongoIndexes(function (err, indexes) {
           const oldIndex = _.find(indexes, { name: TestEntity.getMongoIndexName('indexedAttribute')})
           const newIndex = _.find(indexes, { name: TestEntity.getMongoIndexName('anotherIndexedAttribute')})
           assert(!!oldIndex)
@@ -90,4 +91,9 @@ describe('Test entities-indexes', function () {
     })
   })
 
+  it('créer un index d’un type inconnu throw une erreur', (done) => {
+    const createInvalidIndex = () => TestEntity.defineIndex('foo', 'bar')
+    expect(createInvalidIndex).to.throw(Error)
+    done()
+  })
 })

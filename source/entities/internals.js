@@ -30,6 +30,8 @@
  */
 'use strict'
 
+const INDEX_TYPES = ['boolean', 'date', 'integer', 'string']
+
 /**
  * cast de value en type
  * @param {*} value
@@ -54,6 +56,16 @@ function castToType (value, type) {
   return value;
 }
 
+/**
+ * Retourne true si le type d'index est géré
+ * @param {string} type
+ * @return {boolean}
+ */
+function isAllowedIndexType (type) {
+  return INDEX_TYPES.includes(type)
+}
+
 module.exports = {
-  castToType
+  castToType,
+  isAllowedIndexType
 }

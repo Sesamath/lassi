@@ -26,6 +26,7 @@
 const _           = require('lodash');
 const Entity      = require('./Entity');
 const EntityQuery = require('./EntityQuery');
+const {isAllowedIndexType} = require('./internals')
 const flow        = require('an-flow');
 const log              = require('an-log')('EntityDefinition');
 
@@ -73,8 +74,35 @@ class EntityDefinition {
     return this.entities.db
   }
 
+  /**
+   * Retourne le type de l'index demandé, throw si c'est pas un index connu
+   * @param {string} indexName
+   * @return {string} boolean|date|integer|string
+   * @throws {Error} si index n'est pas un index défini
+   */
+  getIndexType (indexName) {
+    if (indexName === '_id') return 'string';
+    if (indexName === '__deletedAt') return 'date';
+    if (!this.hasIndex(index)) throw new Error(`L’entity ${this.name} n’a pas d’index ${index}`)
+    return this.indexes[index].fieldType;
+  }
+
+  /**
+   * Retourne le nom de l'index mongo associé à un champ
+   * @param fieldName
+   * @return {string}
+   */
   getMongoIndexName (fieldName) {
     return `${INDEX_PREFIX}${fieldName}`;
+  }
+
+  /**
+   * Pour savoir si un index est défini
+   * @param indexName
+   * @return {boolean}
+   */
+  hasIndex (indexName) {
+    return !!this.indexes[indexName]
   }
 
   /**
@@ -95,8 +123,8 @@ class EntityDefinition {
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (fieldName, fieldType, callback) {
+    if (!isAllowedIndexType(fieldType)) throw new Error(`Type d’index ${fieldType} non géré`)
     const mongoIndexName = this.getMongoIndexName(fieldName);
-
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)

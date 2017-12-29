@@ -68,7 +68,7 @@ function buildQuery (entityQuery, record) {
       index = '_id';
       type = 'string';
     } else {
-      type = getType(entityQuery, index);
+      type = entityQuery.entity.getIndexType(index);
     }
 
     const cast = x => castToType(x, type)
@@ -207,32 +207,6 @@ function createEntitiesFromRows (entityQuery, rows) {
 }
 
 /**
- * Retourne le type de l'index demandé, throw si c'est pas un index connu
- * @private
- * @param {EntityQuery} entityQuery
- * @param {string} index
- * @return {string} string|date|number
- * @throws {Error} si index n'est pas un index
- */
-function getType (entityQuery, index) {
-  if (index === '_id') return 'string';
-  if (index === '__deletedAt') return 'date';
-  if (!hasIndex(entityQuery, index)) throw new Error(`L’entity ${entityQuery.entity.name} n’a pas d’index ${index}`)
-  return entityQuery.entity.indexes[index].fieldType;
-}
-
-/**
- * Indique si index existe
- * @private
- * @param {EntityQuery} entityQuery
- * @param {string} index
- * @return {boolean}
- */
-function hasIndex (entityQuery, index) {
-  return !!entityQuery.entity.indexes[index]
-}
-
-/**
  * @typedef EntityQuery~record
  * @property {EntityQuery~query} query
  * @property {number} limit toujours fourni, HARD_LIMIT_GRAB par défaut
@@ -284,14 +258,14 @@ class EntityQuery {
    * Ce constructeur ne doit jamais être appelé directement,
    * utilisez {@link EntityDefinition#match}
    * @constructor
-   * @param {Entity} entity L'entité
+   * @param {EntityDefinition} entityDefinition La définition de l'entité
    */
-  constructor (entity) {
+  constructor (entityDefinition) {
     /**
      * La définition de l'entité
      * @type {EntityDefinition}
      */
-    this.entity = entity;
+    this.entity = entityDefinition;
     this.clauses = [];
     this.search = null;
     this._includeDeleted = false;
@@ -367,7 +341,7 @@ class EntityQuery {
    * @param {EntityQuery~CountByCallback} callback
    */
   countBy (index, callback) {
-    if (!hasIndex(this, index)) return callback(new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`))
+    if (!this.entity.hasIndex(index)) return callback(new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`))
     var self = this
     var record = {query: {}, options: {}}
 
