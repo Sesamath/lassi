@@ -83,8 +83,8 @@ class EntityDefinition {
   getIndexType (indexName) {
     if (indexName === '_id') return 'string';
     if (indexName === '__deletedAt') return 'date';
-    if (!this.hasIndex(index)) throw new Error(`L’entity ${this.name} n’a pas d’index ${index}`)
-    return this.indexes[index].fieldType;
+    if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
+    return this.indexes[indexName].fieldType;
   }
 
   /**
