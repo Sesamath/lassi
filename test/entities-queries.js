@@ -1,5 +1,6 @@
 /* eslint-env mocha */
 'use strict'
+const _ = require('lodash')
 const assert = require('assert')
 const flow = require('an-flow')
 const chai = require('chai')
@@ -16,6 +17,7 @@ const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
 const bt = 1041476706000
 const seconde = 1000
 const STRING_PREFIX = 'test-'
+const TYPES = ['type_a', 'type_b', 'type_c']
 
 let TestEntity;
 /**
@@ -38,6 +40,29 @@ function assertEntity (i, entity) {
 }
 
 /**
+ * Récupère l'ensemble des entités.
+ *
+ * @param {*} query Requête à executer
+ * @param {Object} options Tableau d'options pour filtrer les entités
+ * @param {sequencesCallback} callback Callback
+ */
+function getAllEntities (query, options, callback) {
+  function grab (skip) {
+    if (options.includeDeleted) query.includeDeleted()
+    query.grab({limit: maxResults, skip}, (error, entities) => {
+      if (error) return callback(error)
+      allEntities = allEntities.concat(entities)
+      if (entities.length === maxResults) grab(skip + maxResults)
+      else callback(null, allEntities)
+    })
+  }
+
+  const maxResults = 1000
+  let allEntities = []
+  grab(0)
+}
+
+/**
  * Ajout des données aux entités
  *
  * @param {Callback} next
@@ -48,6 +73,7 @@ function addData (next) {
     const dTimeStamp = bt + seconde * i
     entities.push(TestEntity.create({
       i: i,
+      t: TYPES[Math.floor(Math.random() * 3)],
       s: STRING_PREFIX + i,
       d: new Date(dTimeStamp),
       iArray: [
@@ -400,6 +426,25 @@ describe('Test entities-queries', function () {
         assert.equal(count, 10)
         this()
       }).done(done)
+    })
+  })
+
+  describe('.countBy()', function () {
+    it(`Compte d'entités groupés`, function (done) {
+      let groupedEntities
+      flow()
+      .seq(function () {
+        getAllEntities(TestEntity.match(), {}, this)
+      }).seq(function (_entities) {
+        // on vérifie que le countBy de Entities donne le même résultat que celui de lodash
+        groupedEntities = _.countBy(_entities, 't')
+        TestEntity.match().countBy('t', this)
+      }).seq(function (data) {
+        _.each(groupedEntities, (value, key) => {
+          assert.equal(data[key], value)
+        })
+        done()
+      }).catch(done)
     })
   })
 

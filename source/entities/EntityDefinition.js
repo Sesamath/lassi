@@ -420,7 +420,7 @@ class EntityDefinition {
 }
 
 for (var method in EntityQuery.prototype) {
-  if (['match', 'finalizeQuery', 'grab', 'count', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
+  if (['match', 'finalizeQuery', 'grab', 'count', 'countBy', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
     EntityDefinition.prototype[method] = (function (method) { return function () {
         var args = Array.prototype.slice.call(arguments);
         var field = args.shift();

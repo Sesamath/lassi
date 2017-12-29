@@ -139,11 +139,13 @@ function initEntities(next) {
       this.i = undefined
       this.s = undefined
       this.d = undefined
+      this.t = undefined
     })
     TestEntity.defineIndex('b', 'boolean')
     TestEntity.defineIndex('d', 'date')
     TestEntity.defineIndex('i', 'integer')
     TestEntity.defineIndex('s', 'string')
+    TestEntity.defineIndex('t', 'string')
     TestEntity.defineIndex('iPair', 'integer', function () {
       return this.i % 2
     })

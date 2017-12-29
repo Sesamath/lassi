@@ -648,6 +648,41 @@ class EntityQuery {
   }
 
   /**
+   * Callback d'exécution d'une requête.
+   * @callback EntityQuery~CountCallback
+   * @param {Error} error Une erreur est survenue.
+   * @param {Integer} count le nb de résultat
+   */
+
+  /**
+   * Compte le nombre d'objet correpondants et les regroupes par index.
+   * @param {String} index L'index sur lequel trier
+   * @param {EntityQuery~CountCallback} callback
+   */
+  countBy (index, callback) {
+    var self = this
+    var record = {query: {}, options: {}}
+
+    flow()
+    .seq(function () {
+      self.buildQuery(record)
+      const query = [
+        {$match: record.query},
+        {$group: {_id: `$${index}`, count: {$sum: 1}}}
+      ]
+      self.entity.getCollection().aggregate(query, this)
+    })
+    .seq(function(_groupes) {
+      const groupes = {}
+      _.each(_groupes, (groupe) => {
+        groupes[groupe._id] = groupe.count
+      })
+      callback(null, groupes)
+    })
+    .catch(callback)
+  }
+
+  /**
    * Callback d'exécution d'une requête grabOne
    * @callback EntityQuery~GrabOneCallback
    * @param {Error} error Une erreur est survenue.
