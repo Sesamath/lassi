@@ -43,8 +43,20 @@ class Entities extends EventEmitter {
    */
   constructor (settings) {
     super();
+    this.db = null
     this.entities = {}
     this.settings = settings;
+  }
+
+  /**
+   * Ferme la connexion ouverte dans initialize
+   * (reset this.db mais pas this.entities)
+   */
+  close () {
+    if (this.db) {
+      this.db.close()
+      this.db = null
+    }
   }
 
   /**
@@ -60,19 +72,12 @@ class Entities extends EventEmitter {
     return def
   }
 
+  /**
+   * Retourne la liste des EntityDefinitions existantes
+   * @return {object}
+   */
   definitions () {
     return this.entities;
-  }
-
-  /**
-   * Initialisation du stockage en base de données pour une entité.
-   *
-   * @param {EntityDefinition} entity L'entité
-   * @param {SimpleCallback} cb callback de retour
-   * @private
-   */
-  initializeEntity (entity, cb) {
-    entity.initialize(cb);
   }
 
   /**
@@ -104,15 +109,6 @@ class Entities extends EventEmitter {
         entityDefinition.initialize(this)
       }).done(cb)
     })
-  }
-
-  /**
-   * Vire les index
-   * @deprecated
-   */
-  dropIndexes (next) {
-    log.error('dropIndexes is deprecated');
-    next();
   }
 
   /**
