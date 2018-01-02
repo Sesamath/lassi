@@ -6,7 +6,7 @@ const expect = require('chai').expect
 const flow = require('an-flow')
 const moment = require('moment')
 const EntitiesCli = require('../source/services/entities-cli')()
-const {checkEntity, setup} = require('./init')
+const {checkEntity, quit, setup} = require('./init')
 
 let TestEntity
 
@@ -51,6 +51,8 @@ describe('Test $entities-cli', function () {
       addData(this)
     }).done(done)
   })
+
+  after('ferme la connexion', quit)
 
   describe('.purge()', function () {
     it('Vérification des erreurs', function () {

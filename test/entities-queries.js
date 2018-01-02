@@ -9,7 +9,7 @@ const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
 const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, setup} = require('./init')
+const {checkEntity, getTestEntity, quit, setup} = require('./init')
 
 chai.use(sinonChai)
 
@@ -121,6 +121,7 @@ describe('Test entities-queries', function () {
     // TestEntity.getCollection().deleteMany({}, done)
     // mais c'est plus lisible, même si on devrait pas tester purge ici
     TestEntity.match().purge(done)
+    quit()
   })
 
   describe('.beforeDelete()', function () {

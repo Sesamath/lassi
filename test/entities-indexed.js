@@ -8,7 +8,7 @@ const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
 const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, setup} = require('./init')
+const {checkEntity, getTestEntity, quit, setup} = require('./init')
 
 chai.use(sinonChai)
 
@@ -42,6 +42,8 @@ describe('Test entities-queries', function () {
       done()
     }).catch(done)
   })
+
+  after('ferme la connexion', quit)
 
   // Normalement déjà testé par entities-indexes, mais ça mange pas de pain de le vérifier de nouveau
   // dans cette entity plus complète

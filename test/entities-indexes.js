@@ -7,7 +7,7 @@ const flow = require('an-flow')
 const moment = require('moment')
 const Entities = require('../source/entities')
 const EntitiesCli = require('../source/services/entities-cli')()
-const {checkEntity, connectToMongo, getTestEntity, setup} = require('./init')
+const {checkEntity, connectToMongo, getTestEntity, quit, setup} = require('./init')
 const _ = require('lodash')
 
 let entities
@@ -28,7 +28,7 @@ function initEntities(dbSettings, next) {
   }).seq(function () {
     SimpleEntity.defineIndex('index1', 'integer')
     SimpleEntity.defineIndex('index2', 'string')
-    entities.initializeEntity(SimpleEntity, this)
+    SimpleEntity.initialize(this)
   }).done(next)
 }
 
@@ -55,7 +55,9 @@ describe('Test entities-indexes', function () {
   })
 
   after('ferme la connexion parallèle (pour check en direct sur mongo)', (done) => {
-    db.close(done)
+    db.close(done) // notre connexion ouverte dans before
+    entities.close() // la connexion ouverte par initEntities
+    quit() // la connexion ouverte par setup
   })
 
   describe("l'initialisation d'une nouvelle collecion par une Entity - créée dans initEntities", function () {
@@ -94,7 +96,7 @@ describe('Test entities-indexes', function () {
         // Plus d'index
         SimpleEntity = entities.define('SimpleEntity')
         // On ne flush() pas pour conserver la collection pre-existante
-        entities.initializeEntity(SimpleEntity, done)
+        SimpleEntity.initialize(done)
       })
 
       it("supprime l'index existant", function (done) {
@@ -113,7 +115,7 @@ describe('Test entities-indexes', function () {
         SimpleEntity.defineIndex('index1', 'integer')
         SimpleEntity.defineIndex('anotherIndexedAttribute', 'string')
         // On ne flush() pas pour conserver la collection pre-existante
-        entities.initializeEntity(SimpleEntity, done)
+        SimpleEntity.initialize(done)
       })
 
       it('crée le nouvel index mongo', function (done) {
@@ -128,9 +130,8 @@ describe('Test entities-indexes', function () {
     })
   })
 
-  it('créer un index d’un type inconnu throw une erreur', (done) => {
+  it('créer un index d’un type inconnu throw une erreur', () => {
     const createInvalidIndex = () => SimpleEntity.defineIndex('foo', 'bar')
     expect(createInvalidIndex).to.throw(Error)
-    done()
   })
 })

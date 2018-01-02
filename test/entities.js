@@ -6,7 +6,7 @@ const expect = require('chai').expect
 const flow = require('an-flow')
 const Entities = require('../source/entities')
 const _ = require('lodash')
-const {checkEntity, getTestEntity, setup} = require('./init')
+const {checkEntity, getTestEntity, quit, setup} = require('./init')
 
 let entities
 let TestEntity
@@ -26,6 +26,11 @@ describe('Entity', () => {
     .catch(done)
   })
 
+  after(() => {
+    entities.close()
+    quit()
+  })
+
   describe('.onLoad', function () {
     let count;
     beforeEach(function (done) {
@@ -35,7 +40,7 @@ describe('Entity', () => {
         this.$loaded = `load-${++count}`;
       })
       TestEntity.flush(() => {
-        entities.initializeEntity(TestEntity, done);
+        TestEntity.initialize(done)
       })
     })
 
@@ -100,7 +105,7 @@ describe('Entity', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(() => {
-        entities.initializeEntity(TestEntity, done);
+        TestEntity.initialize(done)
       })
     })
 

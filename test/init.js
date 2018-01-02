@@ -23,6 +23,7 @@ let dbSettings = {
 let isInitDone = false
 let isVerbose = false
 
+let entities
 let TestEntity
 
 /**
@@ -141,7 +142,7 @@ function connectToMongo (next) {
  * @param {Callback} next
  */
 function initEntities(next) {
-  const entities = new Entities({database: dbSettings})
+  entities = new Entities({database: dbSettings})
   flow().seq(function() {
     entities.initialize(this)
   }).seq(function() {
@@ -167,12 +168,21 @@ function initEntities(next) {
     TestEntity.defineIndex('dArray', 'date')
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
-
-    entities.initializeEntity(TestEntity, this)
+    TestEntity.initialize(this)
   }).seq(function () {
     next (null, TestEntity)
   }).catch(next)
-};
+}
+
+/**
+ * Ferme la connexion ouverte par Entities au setup
+ */
+function quit () {
+  if (entities) {
+    entities.close()
+    isInitDone = false
+  }
+}
 
 /**
  * Teste la connexion à Mongo et passe les settings à next
@@ -199,6 +209,7 @@ module.exports = {
   connectToMongo,
   getDbSettings: () => dbSettings,
   getTestEntity: () => TestEntity,
+  quit,
   setup
 }
 

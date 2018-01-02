@@ -5,12 +5,13 @@ const assert = require('assert')
 const flow = require('an-flow')
 
 const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, setup} = require('./init')
+const {checkEntity, getTestEntity, quit, setup} = require('./init')
 
+let entities
 let TestEntity;
 
 function initEntities(dbSettings, next) {
-  const entities = new Entities({database: dbSettings})
+  entities = new Entities({database: dbSettings})
   flow().seq(function() {
     entities.initialize(this)
   }).seq(function() {
@@ -22,8 +23,7 @@ function initEntities(dbSettings, next) {
     TestEntity.defineIndex('text1', 'string')
     TestEntity.defineIndex('text2', 'string')
     TestEntity.defineTextSearchFields(['text1', 'text2'])
-
-    entities.initializeEntity(TestEntity, this)
+    TestEntity.initialize(this)
   }).done(next)
 }
 
@@ -36,16 +36,21 @@ describe('Test entities-search', function() {
     }).done(done)
   })
 
+  after(() => {
+    entities.close()
+    quit()
+  })
+
   describe('.textSearch()', function () {
     let createdEntities;
     beforeEach(function (done) {
-      const entities = [
+      const testEntities = [
         { i: 42000, text1: 'foo', text2: 'bar', type: 'foo' },
         { i: 42001, text1: 'foo', text2: 'foo', type: 'bar' },
         { i: 42002, text1: 'bar', text2: 'bar', type: 'foo' },
         { i: 42003, text1: 'foo bar', text2: 'bar', type: 'bar' },
       ];
-      flow(entities)
+      flow(testEntities)
       .seqEach(function (entity) {
         TestEntity.create(entity).store(this);
       })
