@@ -117,6 +117,16 @@ module.exports = function ($settings) {
   }
 
   /**
+   * Ferme la connexion à redis
+   * @see http://redis.js.org/#api-clientquit
+   */
+  function quit () {
+    if (!redisClient) return
+    redisClient.quit()
+    redisClient = null
+  }
+
+  /**
    * Efface toutes les clés (renvoie le nb de clés effacées)
    * @param [cb]
    * @return {Promise} qui wrap cb si fourni
@@ -238,6 +248,7 @@ module.exports = function ($settings) {
     keys,
     get,
     getRedisClient,
+    quit,
     set,
     setup,
     TTL_DEFAULT,

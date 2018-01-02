@@ -56,6 +56,9 @@ describe('$cache', () => {
   const initCache = () => {
     $cache = $cacheFactory($settings)
   }
+  const quitCache = () => {
+    $cache.quit()
+  }
   const refreshCache = (done) => {
     initCache()
     $cache.setup(done)
@@ -69,8 +72,6 @@ describe('$cache', () => {
   after(() => console.error.restore())
 
   describe('setup', () => {
-    beforeEach(initCache)
-
     it('plante avec des settings foireux', () => {
       const lazyGet = $settings.get
       $settings.get = () => 'ooops'
@@ -81,6 +82,7 @@ describe('$cache', () => {
     })
 
     it('râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
+      initCache()
       $cache.setup((error) => {
         if (error) return done(error)
         // anLog utilise console.error pour warning
@@ -89,6 +91,7 @@ describe('$cache', () => {
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/port not defined in settings/))
         expect(console.error).to.have.been.calledThrice
         expect($cache.getRedisClient).not.to.throw(Error)
+        quitCache()
         done()
       })
     })
@@ -96,6 +99,7 @@ describe('$cache', () => {
 
   describe('getRedisClient', () => {
     beforeEach(initCache)
+    afterEach(quitCache)
 
     it('throw si le setup n’est pas appelé avant', () => {
       expect($cache.getRedisClient).to.throw(Error)
@@ -128,8 +132,15 @@ describe('$cache', () => {
     // utilisant directement le module redis, mais on peut pas utiliser flushdb ou flushall
     // car on veut pas purger tout redis, seulement nos préfixes, faudrait alors
     // recoder ici l'équivalent de $cache.purge…
-    before(resetCache)
+    before((done) => {
+      resetCache(error => {
+        if (error) return done(error)
+        quitCache()
+        done()
+      })
+    })
     beforeEach(refreshCache)
+    afterEach(quitCache)
 
     it('set affecte des valeur avec callback', (done) => {
       let i = 0
@@ -274,6 +285,7 @@ describe('$cache', () => {
 
   describe('del', () => {
     beforeEach(resetCache)
+    afterEach(quitCache)
     const key = 'testKey'
     const value = 42
 
@@ -316,12 +328,7 @@ describe('$cache', () => {
   describe('ttl', function () {
     this.timeout(3500)
     before(resetCache)
-    // set 3 valeurs avec 1, 2s et 3s
-    before(() => Promise.all([
-      $cache.set('foo', 42, 1),
-      $cache.set('bar', 43, 2),
-      $cache.set('baz', 44, 3)
-    ]))
+    after(quitCache)
 
     it('vire les clés après les ttl fixés (1, 2 et 3s)', () => {
       /**
@@ -337,8 +344,14 @@ describe('$cache', () => {
         $cache.get('bar'),
         $cache.get('baz'),
       ])
+      // set 3 valeurs avec 1, 2s et 3s
+      const setAll = () => Promise.all([
+        $cache.set('foo', 42, 1),
+        $cache.set('bar', 43, 2),
+        $cache.set('baz', 44, 3)
+      ])
       // go
-      return fetchAll()
+      return setAll().then(() => fetchAll()
         .then(values => {
           expect(values).to.deep.equals([42, 43, 44])
           return resolveAfter(1100).then(fetchAll)
@@ -355,6 +368,11 @@ describe('$cache', () => {
           expect(values).to.deep.equals([null, null, null])
           return Promise.resolve()
         })
+      )
     })
+  })
+
+  describe('ne fait rien', () => {
+    it('vraiment rien', () => undefined)
   })
 })
