@@ -220,41 +220,48 @@ class Lassi extends EventEmitter {
       process.exit();
     }
 
-    if (!shutdownRequested) {
-      shutdownRequested = true;
+    // normal d'être appelé 2× avec SIGINT puis exit
+    if (shutdownRequested) return
 
+    shutdownRequested = true
+    log('processing shutdown');
+    // Avant de lancer l'événement on met une limite pour les réponses à 2s
+    setTimeout(function () {
+      log('shutdown too slow, forced');
+      thisIsTheEnd();
+    }, 2000);
+
+    /**
+     * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
+     * @event Lassi#shutdown
+     */
+    this.emit('shutdown')
+
+    process.nextTick(() => {
       try {
-        log('processing shutdown');
-        // Avant de lancer l'événement on met une limite pour les réponses à 2s
-        setTimeout(function () {
-          log('shutdown too slow, forced');
-          thisIsTheEnd();
-        }, 2000);
-
-        /**
-         * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
-         * @event Lassi#shutdown
-         */
-        this.emit('shutdown');
-
-        // Avec un sgbd, il fallait pas fermer la connexion ici
-        // sinon les transactions en cours ne pouvaient pas se terminer
-        // on laisse aussi à connexion à mongo expirer…
-        // => pas de $entities.database.end()
-
         // Dans certains cas, this.service n'existe déjà plus !
-        const $server = this.service && this.service('$server');
-        if ($server) {
-          $server.stop(thisIsTheEnd);
+        if (this.service) {
+          // Avec un sgbd, il fallait pas fermer la connexion ici
+          // sinon les transactions en cours ne pouvaient pas se terminer
+          log('closing $entities')
+          this.service('$entities').close()
+
+          // on ferme aussi $cache (ça ferme le client redis de la session qui est le même)
+          log('closing redis connection')
+          this.service('$cache').quit()
+
+          // et pour finir $server
+          log('closing $server')
+          this.service('$server').stop(thisIsTheEnd)
         } else {
           log('server is already gone');
           thisIsTheEnd();
         }
       } catch (error) {
-        log('error on shutdown\n' + error.stack);
+        log.error('error on shutdown', error);
         process.exit();
       }
-    }
+    })
   }
 }
 
@@ -289,13 +296,18 @@ function startLassi (options) {
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
   process.on('uncaughtException', (error) => {
     // On envoie l'erreur en console
-    console.error('uncaughtException : ', error.stack);
+    console.error('uncaughtException : ', error);
   })
 
   // On ajoute nos écouteurs pour le shutdown car visiblement beforeExit n'arrive jamais, et exit ne sert
   // que sur les sorties "internes" via un process.exit() car sinon on reçoit normalement un SIG* avant
   if (!options.cli) {
-    _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], (signal) => {
+    // see https://en.wikipedia.org/wiki/Signal_(IPC)#POSIX_signals
+    // ctrl + c => SIGINT
+    // fermeture du term parent => SIGHUP
+    // kill -N pid, avec N :
+    // --------------- 1 ------ 2 ------- 15
+    ['beforeExit', 'SIGHUP', 'SIGINT', 'SIGTERM', 'exit'].forEach((signal) => {
       process.on(signal, () => {
         log('pid ' + process.pid + ' received signal ' + signal);
         lassi.shutdown();

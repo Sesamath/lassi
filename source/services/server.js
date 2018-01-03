@@ -41,8 +41,9 @@ module.exports = function($settings, $rail) {
         if (next) next(error)
       })
     } else {
-      log('already closed or never started')
-      if (next) next(new Error('Http server already closed or never started'))
+      const error = new Error('Http server already closed or never started')
+      if (next) next(error)
+      else console.error(error)
     }
   }
 
