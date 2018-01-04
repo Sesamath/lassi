@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -21,20 +21,20 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _            = require('lodash');
+var _ = require('lodash')
 
 // constructeur
-function JsonTransport() { }
+function JsonTransport () { }
 
-JsonTransport.prototype.process = function(data, next) {
-  var result = {};
-  _.each(data, function(v,k) {
-    if (k.charAt(0)!=='$') result[k] = v;
+JsonTransport.prototype.process = function (data, next) {
+  var result = {}
+  _.each(data, function (v, k) {
+    if (k.charAt(0) !== '$') result[k] = v
   })
   // si le controleur veut renvoyer un array et pas un objet, il peut mettre son array dans une propriété arrayOnly
   if (result.arrayOnly && result.arrayOnly instanceof Array) result = result.arrayOnly
 
-  next(null, result);
+  next(null, result)
 }
 
-module.exports = JsonTransport;
+module.exports = JsonTransport

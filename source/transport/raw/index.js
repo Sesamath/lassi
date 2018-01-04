@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -23,10 +23,10 @@
 */
 
 // constructeur
-function RawTransport() { }
+function RawTransport () { }
 
-RawTransport.prototype.process = function(data, next) {
-  next(null, data.content);
+RawTransport.prototype.process = function (data, next) {
+  next(null, data.content)
 }
 
-module.exports = RawTransport;
+module.exports = RawTransport

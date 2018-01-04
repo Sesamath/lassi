@@ -1,8 +1,8 @@
-'use strict';
+'use strict'
 
-const express = require('express');
-const fs = require('fs');
-const log = require('an-log')('$rail');
+const express = require('express')
+const fs = require('fs')
+const log = require('an-log')('$rail')
 const {stringify} = require('sesajstools')
 
 /**
@@ -10,8 +10,8 @@ const {stringify} = require('sesajstools')
  * @namespace $rail
  */
 module.exports = function ($maintenance, $settings) {
-  const express = require('express');
-  const _rail = express();
+  const express = require('express')
+  const _rail = express()
   let _redisClient
 
   /**
@@ -24,9 +24,9 @@ module.exports = function ($maintenance, $settings) {
    * @param {function} middlewareGenerator sera appelé avec settings et devra renvoyer le middleware à ajouter
    */
   function railUse (name, settings, middlewareGenerator) {
-    if (!settings) settings = {};
-    if (!middlewareGenerator) throw new Error(`middleware ${name} sans callback`);
-    const mountPoint = settings.mountPoint || '/';
+    if (!settings) settings = {}
+    if (!middlewareGenerator) throw new Error(`middleware ${name} sans callback`)
+    const mountPoint = settings.mountPoint || '/'
 
     /**
      * Évènement déclenché avant chargement d'un middleware.
@@ -35,11 +35,11 @@ module.exports = function ($maintenance, $settings) {
      * @param {String}  name Le nom du middleware.
      * @param {Object} settings Les réglages qui seront passés au créateur du middleware
      */
-    lassi.emit('beforeRailUse', _rail, name, settings);
+    lassi.emit('beforeRailUse', _rail, name, settings)
 
-    const middleware = middlewareGenerator(settings);
-    if (!middleware) return;
-    _rail.use(mountPoint, middleware);
+    const middleware = middlewareGenerator(settings)
+    if (!middleware) return
+    _rail.use(mountPoint, middleware)
 
     /**
      * Évènement déclenché après chargement d'un middleware.
@@ -48,7 +48,7 @@ module.exports = function ($maintenance, $settings) {
      * @param {String}  name Le nom du middleware.
      * @param {Object} settings Les réglages qui ont été passés au créateur du middleware
      */
-    lassi.emit('afterRailUse', _rail, name, settings, middleware);
+    lassi.emit('afterRailUse', _rail, name, settings, middleware)
   }
 
   /**
@@ -58,27 +58,27 @@ module.exports = function ($maintenance, $settings) {
    */
   function setup (next) {
     try {
-      const railConfig = $settings.get('$rail');
+      const railConfig = $settings.get('$rail')
 
       // maintenance (qui coupera tout le reste si elle est active)
-      railUse('maintenance', {}, () => $maintenance.middleware());
+      railUse('maintenance', {}, () => $maintenance.middleware())
 
       // compression (de la réponse si y'a du `Accept-Encoding: gzip` dans la requête,
       // il ajoutera aussi le `Vary: Accept-Encoding` dans toutes les réponses)
-      railUse('compression', railConfig.compression, require('compression'));
+      railUse('compression', railConfig.compression, require('compression'))
 
       // cookie
       const sessionKey = $settings.get('$rail.cookie.key')
       if (sessionKey) {
         log('adding cookie management on rail')
-        railUse('cookie', sessionKey, require('cookie-parser'));
+        railUse('cookie', sessionKey, require('cookie-parser'))
       } else {
         log.error(new Error('config.$rail.cookie.key missing, => cookie-parser not used'))
       }
 
       // bodyParser sauf si on demande de pas le faire
       if (!railConfig.noBodyParser) {
-        const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
+        const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
         const bodyParserSettings = railConfig.bodyParser || {
           reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
         }
@@ -133,14 +133,14 @@ module.exports = function ($maintenance, $settings) {
           // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
           const $cache = lassi.service('$cache')
           const redisClient = $cache.getRedisClient()
-          const session = require('express-session');
-          const RedisStore = require('connect-redis')(session);
+          const session = require('express-session')
+          const RedisStore = require('connect-redis')(session)
           const sessionOptions = {
             mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
             resave: false,
             saveUninitialized: sessionSettings.saveUninitialized || false,
             secret,
-            store: new RedisStore({client: redisClient}),
+            store: new RedisStore({client: redisClient})
           }
           railUse('session', sessionOptions, session)
         } else {
@@ -188,9 +188,9 @@ module.exports = function ($maintenance, $settings) {
       }
 
       // les controleurs
-      const Controllers = require('../controllers');
-      const controllers = new Controllers(this);
-      railUse('controllers', {}, () => controllers.middleware());
+      const Controllers = require('../controllers')
+      const controllers = new Controllers(this)
+      railUse('controllers', {}, () => controllers.middleware())
 
       // et notre errorHandler par défaut. Il ne servira pas si c'est un contrôleur qui fait du next(error),
       // car dans ce cas ça suit la chaîne jusqu'au transport (cf source/controllers/index.js)
@@ -213,7 +213,7 @@ module.exports = function ($maintenance, $settings) {
       })
 
       // fin de l'ajout des middleware
-      next();
+      next()
     } catch (error) {
       next(error)
     }
@@ -226,6 +226,6 @@ module.exports = function ($maintenance, $settings) {
      * @return {Express} express
      * @memberof $rail
      */
-    get : () => _rail,
+    get: () => _rail
   }
 }

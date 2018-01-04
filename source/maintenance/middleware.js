@@ -3,7 +3,7 @@
 const fs = require('fs')
 const express = require('express')
 
-  /**
+/**
    * Renvoie un middleware capable d'afficher une page de maintenance complète (assets statiqueset réponse http)
    * @param {Object} maintenanceConfig             Les réglages qui seront appliqués au middleware :
    * @param {boolean} maintenanceConfig.active     booléen indiquant s'il faut activer le mode maintenance (prioritaire sur le lockFile)
@@ -21,9 +21,9 @@ module.exports = (maintenanceConfig) => {
   const message = maintenanceConfig.message || 'Site en maintenance, merci de patienter quelques minutes'
 
   // read file appel synchrone, fait uniquement au bootstrap
-  const htmlResponse = maintenanceConfig.htmlPage ?
-    fs.readFileSync(maintenanceConfig.htmlPage) :
-    `<html><body><p>${message}</p></body></html>`
+  const htmlResponse = maintenanceConfig.htmlPage
+    ? fs.readFileSync(maintenanceConfig.htmlPage)
+    : `<html><body><p>${message}</p></body></html>`
 
   // Le middleware de maintenance sert les assets si on le demande via staticDir
   if (maintenanceConfig.staticDir) {
@@ -36,7 +36,7 @@ module.exports = (maintenanceConfig) => {
       json: () => {
         res.status(503).json({
           success: false,
-          error: message,
+          error: message
         })
       },
       html: () => {
@@ -44,7 +44,7 @@ module.exports = (maintenanceConfig) => {
       },
       default: () => {
         res.status(503).send(message)
-      },
+      }
     })
     // on appelle pas next (passé en 3e param de ce middleware)
     // car justement on veut couper court à toute la suite

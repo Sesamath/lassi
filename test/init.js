@@ -10,7 +10,7 @@ const Entities = require('../source/entities')
 
 let dbSettings = {
   name: 'testLassi',
-  host : 'localhost',
+  host: 'localhost',
   port: 27017,
   user: 'mocha',
   password: 'mocha',
@@ -141,11 +141,11 @@ function connectToMongo (next) {
  *
  * @param {Callback} next
  */
-function initEntities(next) {
+function initEntities (next) {
   entities = new Entities({database: dbSettings})
-  flow().seq(function() {
+  flow().seq(function () {
     entities.initialize(this)
-  }).seq(function() {
+  }).seq(function () {
     TestEntity = entities.define('TestEntity')
     TestEntity.flush(this)
   }).seq(function () {
@@ -170,7 +170,7 @@ function initEntities(next) {
     TestEntity.defineIndex('sArray', 'string')
     TestEntity.initialize(this)
   }).seq(function () {
-    next (null, TestEntity)
+    next(null, TestEntity)
   }).catch(next)
 }
 

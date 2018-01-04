@@ -33,11 +33,11 @@ const truthyValues = {
   foo: 42,
   bar: 'baz',
   baz: -1,
-  obj: {foo:'bar', zero: 0, num: 42, bool: true, func: function() { return 1 }, funcArrow: () => 1},
+  obj: {foo: 'bar', zero: 0, num: 42, bool: true, func: function () { return 1 }, funcArrow: () => 1},
   // JSON.stringify transforme les undefined en null dans un array, on le vérifie pas
   array: ['un', 2, null, 'kat', '', true, false, {a: 1}]
 }
-const expectedObjectValues = {foo:'bar', zero: 0, num: 42, bool: true} // on ne doit pas conserver la function
+const expectedObjectValues = {foo: 'bar', zero: 0, num: 42, bool: true} // on ne doit pas conserver la function
 
 const values1 = Object.assign({}, truthyValues, falsyValues)
 Object.keys(values1).forEach(key => allValues.set(key, values1[key]))
@@ -206,7 +206,7 @@ describe('$cache', () => {
             else if (typeof value === 'object') expect(value).to.deep.equals(values2[key], `Pb avec ${key}`)
             else expect(value).to.equals(values2[key], `Pb avec ${key}`)
           } catch (e) {
-            done(e);
+            done(e)
             throw e
           }
           nextGet()
@@ -342,7 +342,7 @@ describe('$cache', () => {
       const fetchAll = () => Promise.all([
         $cache.get('foo'),
         $cache.get('bar'),
-        $cache.get('baz'),
+        $cache.get('baz')
       ])
       // set 3 valeurs avec 1, 2s et 3s
       const setAll = () => Promise.all([

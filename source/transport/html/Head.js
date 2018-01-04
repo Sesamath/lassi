@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014,
@@ -21,54 +21,53 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _            = require('lodash');
+var _ = require('lodash')
 
-function Head() {
-  this.items = [];
-  this.addMeta({'http-equiv': 'X-UA-Compatible', content: 'IE=EDGE'});
-  this.items.push('<meta charset="utf-8" />');
+function Head () {
+  this.items = []
+  this.addMeta({'http-equiv': 'X-UA-Compatible', content: 'IE=EDGE'})
+  this.items.push('<meta charset="utf-8" />')
 }
 
-Head.prototype.renderAttributes = function(attributes) {
-  if (_.isUndefined(attributes) || _.isEmpty(attributes)) return '';
-  var output = [];
-  _.each(attributes, function(value, key) {
-    output.push(key+'="'+value+'"');
-  });
-  return ' '+output.join(' ');
+Head.prototype.renderAttributes = function (attributes) {
+  if (_.isUndefined(attributes) || _.isEmpty(attributes)) return ''
+  var output = []
+  _.each(attributes, function (value, key) {
+    output.push(key + '="' + value + '"')
+  })
+  return ' ' + output.join(' ')
 }
 
-Head.prototype.add = function(tag, attributes, content) {
-  var output = '<'+tag+this.renderAttributes(attributes);
+Head.prototype.add = function (tag, attributes, content) {
+  var output = '<' + tag + this.renderAttributes(attributes)
   if (typeof content === 'undefined') {
-    output+= '/>';
+    output += '/>'
   } else {
-    output+= '>'+content+'</'+tag+'>';
+    output += '>' + content + '</' + tag + '>'
   }
-  this.items.push(output);
+  this.items.push(output)
 }
 
-Head.prototype.addLink = function(rel, href, attributes) {
-  attributes = attributes || {};
-  _.extend(attributes, {rel: rel, href: href});
-  this.add('link', attributes);
+Head.prototype.addLink = function (rel, href, attributes) {
+  attributes = attributes || {}
+  _.extend(attributes, {rel: rel, href: href})
+  this.add('link', attributes)
 }
 
-
-Head.prototype.addMeta = function(attributes) {
-  this.add('meta', attributes);
+Head.prototype.addMeta = function (attributes) {
+  this.add('meta', attributes)
 }
 
-Head.prototype.addMetaProperty = function(property, content) {
-  this.addMeta({property: property, content: content});
+Head.prototype.addMetaProperty = function (property, content) {
+  this.addMeta({property: property, content: content})
 }
 
-Head.prototype.addMetaName = function(name, content) {
-  this.addMeta({name: name, content: content});
+Head.prototype.addMetaName = function (name, content) {
+  this.addMeta({name: name, content: content})
 }
 
-Head.prototype.render = function() {
-  return this.items.join('');
+Head.prototype.render = function () {
+  return this.items.join('')
 }
 
-module.exports = Head;
+module.exports = Head

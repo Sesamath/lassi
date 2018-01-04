@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
  * @preserve This file is part of "lassi-example".
  *    Copyright 2009-2014, arNuméral
@@ -22,9 +22,9 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-var Controller = require('./Controller');
-var _          = require('lodash');
-var log        = require('an-log')('lassi-components');
+var Controller = require('./Controller')
+var _ = require('lodash')
+var log = require('an-log')('lassi-components')
 
 /**
  * Construction d'un composant.
@@ -37,13 +37,13 @@ class Component {
   constructor (name, dependencies) {
     if (lassi.options.cli) log.setLogLevel('warning')
     if (dependencies && !Array.isArray(dependencies)) throw new Error('Component dependencies should be an Array of components names')
-    this.name         = name;
-    this.controllers  = [];
-    this.dependencies = dependencies || [];
-    this.entities     = {};
-    this.services     = {};
-    this.path         = undefined;
-    this.userConfig   = [];
+    this.name = name
+    this.controllers = []
+    this.dependencies = dependencies || []
+    this.entities = {}
+    this.services = {}
+    this.path = undefined
+    this.userConfig = []
   }
 
   /**
@@ -52,8 +52,8 @@ class Component {
    * @return {Component} chaînable
    */
   config (fn) {
-    this.userConfig.push(fn);
-    return this;
+    this.userConfig.push(fn)
+    return this
   }
 
   /**
@@ -61,35 +61,35 @@ class Component {
    */
   configure () {
     // Si on est déjà configuré, on repart
-    if (this.configured) return;
+    if (this.configured) return
 
     log('configure', this.name)
-    var self = this;
-    _.each(self.dependencies, dependency => lassi.components[dependency].configure());
-    _.each(self.services, (service, name) => lassi.services.register(name, service));
+    var self = this
+    _.each(self.dependencies, dependency => lassi.components[dependency].configure())
+    _.each(self.services, (service, name) => lassi.services.register(name, service))
     _.each(self.entities, function (entity, name) {
       // on est dans un each, faut une iife pour préserver le (entity, name) courant
       const serviceConstructor = (function (name, entity) {
         return function ($entities) {
-          var def = $entities.define(name);
-          lassi.services.parseInjections(entity, def);
-          return def;
+          var def = $entities.define(name)
+          lassi.services.parseInjections(entity, def)
+          return def
         }
-      })(name, entity);
-      lassi.services.register(name, serviceConstructor);
-    });
+      })(name, entity)
+      lassi.services.register(name, serviceConstructor)
+    })
     if (!lassi.options.cli) {
-      _.each(self.controllers, function(fn, name) {
-        var controller = new Controller(fn.$$path);
-        lassi.services.parseInjections(fn, controller);
-        self.controllers[name] = controller;
-      });
+      _.each(self.controllers, function (fn, name) {
+        var controller = new Controller(fn.$$path)
+        lassi.services.parseInjections(fn, controller)
+        self.controllers[name] = controller
+      })
     }
 
-    _.each(self.userConfig, function(userConfig) {
-      lassi.services.parseInjections(userConfig, self);
-    });
-    this.configured = true;
+    _.each(self.userConfig, function (userConfig) {
+      lassi.services.parseInjections(userConfig, self)
+    })
+    this.configured = true
     log('configured', this.name)
   }
 
@@ -101,12 +101,12 @@ class Component {
    */
   controller (path, fn) {
     if (typeof path === 'function') {
-      fn = path;
-      path = undefined;
+      fn = path
+      path = undefined
     }
-    fn.$$path = path;
-    this.controllers.push(fn);
-    return this;
+    fn.$$path = path
+    this.controllers.push(fn)
+    return this
   }
 
   /**
@@ -116,8 +116,8 @@ class Component {
    * @return {Component} chaînable
    */
   entity (name, fn) {
-    this.entities[name] = fn;
-    return this;
+    this.entities[name] = fn
+    return this
   }
 
   /**
@@ -127,8 +127,8 @@ class Component {
    * @return Lassi chaînable
    */
   service (name, fn) {
-    this.services[name] = fn;
-    return this;
+    this.services[name] = fn
+    return this
   }
 
   /**
@@ -136,8 +136,8 @@ class Component {
    * @fires Lassi#bootstrap
    */
   bootstrap (cb) {
-    lassi.bootstrap(this, cb);
+    lassi.bootstrap(this, cb)
   }
 }
 
-module.exports = Component;
+module.exports = Component

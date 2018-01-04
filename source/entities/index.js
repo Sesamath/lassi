@@ -21,14 +21,14 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-'use strict';
+'use strict'
 
-const _                = require('lodash');
-const flow             = require('an-flow');
-const EntityDefinition = require('./EntityDefinition');
-const EventEmitter     = require('events').EventEmitter
+const _ = require('lodash')
+const flow = require('an-flow')
+const EntityDefinition = require('./EntityDefinition')
+const EventEmitter = require('events').EventEmitter
 const MongoClient = require('mongodb').MongoClient
-const log              = require('an-log')('$entities');
+// const log              = require('an-log')('$entities');
 
 const defaultPoolSize = 10
 
@@ -42,10 +42,10 @@ class Entities extends EventEmitter {
    * @param {Object} settings
    */
   constructor (settings) {
-    super();
+    super()
     this.db = null
     this.entities = {}
-    this.settings = settings;
+    this.settings = settings
   }
 
   /**
@@ -66,9 +66,9 @@ class Entities extends EventEmitter {
    * @param {Entity} entity le module
    */
   define (name) {
-    const def = new EntityDefinition(name);
-    def.bless(this);
-    this.entities[name] = def;
+    const def = new EntityDefinition(name)
+    def.bless(this)
+    this.entities[name] = def
     return def
   }
 
@@ -77,7 +77,7 @@ class Entities extends EventEmitter {
    * @return {object}
    */
   definitions () {
-    return this.entities;
+    return this.entities
   }
 
   /**
@@ -85,8 +85,8 @@ class Entities extends EventEmitter {
    * @param {SimpleCallback} cb
    */
   initialize (cb) {
-    const settings = this.settings.database;
-    const self = this;
+    const settings = this.settings.database
+    const self = this
     const {name, host, port, user, password, authSource} = settings
     const authMechanism = settings.authMechanism || 'DEFAULT'
     // cf http://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect pour les options possibles
@@ -119,9 +119,9 @@ class Entities extends EventEmitter {
    */
   rebuildEntityIndexes (entity, next) {
     flow().seq(function () {
-      entity.match().grab(this);
+      entity.match().grab(this)
     }).seqEach(function (object) {
-      object.store(this);
+      object.store(this)
     }).done(next)
   }
 
@@ -138,4 +138,4 @@ class Entities extends EventEmitter {
   }
 }
 
-module.exports = Entities;
+module.exports = Entities

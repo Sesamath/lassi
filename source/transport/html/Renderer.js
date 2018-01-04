@@ -1,4 +1,4 @@
-"use strict";
+'use strict'
 /*
 * This file is part of "Lassi".
 *    Copyright 2009-2014, arNuméral
@@ -22,21 +22,21 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var pathlib = require('path');
-var fs = require('fs');
-var _ = require('lodash');
+var pathlib = require('path')
+var fs = require('fs')
+var _ = require('lodash')
 
 /**
  * Le moteur de rendu html, accessible via lassi.transports.html.engine
  * @param options
  * @constructor Renderer
  */
-function Renderer(options) {
+function Renderer (options) {
   this.cache = true
   this.cacheStore = {}
   this.keepWhiteSpace = false
-  for (var key in options) this[key] = options[key];
-  this.dust  = require('dustjs-helpers');
+  for (var key in options) this[key] = options[key]
+  this.dust = require('dustjs-helpers')
 }
 
 /**
@@ -45,11 +45,11 @@ function Renderer(options) {
  * @param {string} name
  * @param {function} callback La callback (cf doc pour les arguments)
  */
-Renderer.prototype.helper = function(name, callback) {
-  var self = this;
-  this.dust.helpers[name] = function() {
-    callback.apply(self.dust, Array.prototype.slice.call(arguments));
-  };
+Renderer.prototype.helper = function (name, callback) {
+  var self = this
+  this.dust.helpers[name] = function () {
+    callback.apply(self.dust, Array.prototype.slice.call(arguments))
+  }
 }
 
 /**
@@ -58,11 +58,11 @@ Renderer.prototype.helper = function(name, callback) {
  * @param {string} name le nom du filtre (à utiliser dans les templates avec |monFiltre)
  * @param {function} callback La callback qui reçoit la valeur et devra la retournée filtrée (contexte dust)
  */
-Renderer.prototype.addFilter = function(name, callback) {
-  var self = this;
-  this.dust.filters[name] = function(value) {
-    return callback.call(self.dust, value);
-  };
+Renderer.prototype.addFilter = function (name, callback) {
+  var self = this
+  this.dust.filters[name] = function (value) {
+    return callback.call(self.dust, value)
+  }
 }
 
 /**
@@ -74,21 +74,21 @@ Renderer.prototype.addFilter = function(name, callback) {
  */
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
   // Normalize
-  var path = unresolvedPath;
+  var path = unresolvedPath
   // ajout de l'extension si elle n'y est pas
-  if (pathlib.extname(path)==='') path+='.dust';
+  if (pathlib.extname(path) === '') path += '.dust'
 
   // on autorise les chemins absolus, sinon c'est relatif a viewsPath
   // @see https://nodejs.org/api/path.html#path_path_resolve_from_to
   if (path.charAt(0) !== '/') {
-    if (!_.isString(viewsPath)) throw new Error('Wrong views path', viewsPath);
-    path = pathlib.resolve(viewsPath, path);
+    if (!_.isString(viewsPath)) throw new Error('Wrong views path', viewsPath)
+    path = pathlib.resolve(viewsPath, path)
   }
 
   // Check if path exists
-  fs.lstat(path, function(err) {
-    callback(err, path);
-  });
+  fs.lstat(path, function (err) {
+    callback(err, path)
+  })
 }
 
 /**
@@ -99,18 +99,18 @@ Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals
  * @param callback
  */
 Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, callback) {
-  var self = this;
+  var self = this
   if (self.cache && self.cacheStore[unresolvedPath]) {
-    callback(null, self.cacheStore[unresolvedPath]);
+    callback(null, self.cacheStore[unresolvedPath])
   } else {
-    self.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
-      if (err) { callback(err); return; }
-      fs.readFile(path, 'utf8', function(err, res) {
-        if (err) { callback(err); return; }
-        if (self.cache) self.cacheStore[unresolvedPath] = res;
-        callback(null, res);
-      });
-    });
+    self.resolveTemplate(viewsPath, unresolvedPath, locals, function (err, path) {
+      if (err) { callback(err); return }
+      fs.readFile(path, 'utf8', function (err, res) {
+        if (err) { callback(err); return }
+        if (self.cache) self.cacheStore[unresolvedPath] = res
+        callback(null, res)
+      })
+    })
   }
 }
 
@@ -122,33 +122,33 @@ Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, c
  * @param callback
  */
 Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callback) {
-  var self = this;
-  var template = (this.cache && this.cacheStore[unresolvedPath]) || null;
+  var self = this
+  var template = (this.cache && this.cacheStore[unresolvedPath]) || null
   if (template) {
-    template(locals, callback);
+    template(locals, callback)
   } else {
     self.dust.onLoad = function (path, callback) {
       // lassi.settings.application.partialsPath peut être une chaîne vide
       var partialsPath
-      if (lassi.settings.application.hasOwnProperty('partialsPath')) partialsPath = lassi.settings.application.partialsPath;
-      else partialsPath = '/partials';
-      self.readTemplate(viewsPath + partialsPath, path, locals, callback);
-    };
+      if (lassi.settings.application.hasOwnProperty('partialsPath')) partialsPath = lassi.settings.application.partialsPath
+      else partialsPath = '/partials'
+      self.readTemplate(viewsPath + partialsPath, path, locals, callback)
+    }
     if (unresolvedPath) {
-      this.resolveTemplate(viewsPath, unresolvedPath, locals, function(err, path) {
+      this.resolveTemplate(viewsPath, unresolvedPath, locals, function (err, path) {
         if (err) { callback(err); return }
-        fs.readFile(path, 'utf8', function(err, str) {
+        fs.readFile(path, 'utf8', function (err, str) {
           if (err) {
             console.error(err)
             return callback(new Error(`La vue ${path} n’existe pas`))
           }
-          template = self.dust.compileFn(str);
-          if (self.cache) self.cacheStore[unresolvedPath] = template;
-          template(locals, callback);
-        });
-      });
+          template = self.dust.compileFn(str)
+          if (self.cache) self.cacheStore[unresolvedPath] = template
+          template(locals, callback)
+        })
+      })
     } else {
-      callback(new Error("render appelé sans path à résoudre"))
+      callback(new Error('render appelé sans path à résoudre'))
     }
   }
 }
@@ -161,7 +161,7 @@ Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callbac
  * @param node
  * @returns {*} node tel quel
  */
-Renderer.prototype.whiteSpaceKeeper = function(ctx, node) { return node }
+Renderer.prototype.whiteSpaceKeeper = function (ctx, node) { return node }
 
 /**
  * Désactive la suppression des espaces
@@ -183,4 +183,4 @@ Renderer.prototype.enableWhiteSpaceCompression = function () {
   }
 }
 
-module.exports = Renderer;
+module.exports = Renderer

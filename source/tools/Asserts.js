@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
  * @preserve This file is part of "arf-assertions".
  *    Copyright 2009-2014, arNuméral
@@ -21,35 +21,35 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-require('colors');
-var util = require('util');
-var _            = require('lodash');
-function Asserts() {}
-Asserts.not = {};
-var is = require('./Validate');
+require('colors')
+var util = require('util')
+var _ = require('lodash')
+function Asserts () {}
+Asserts.not = {}
+var is = require('./Validate')
 
 /**
  * @constructor
  */
-function AssertError(message) {
-  function grabStack(){
-    var orig = Error.prepareStackTrace;
-    Error.prepareStackTrace = function(foo, stack){ return stack; };
-    var err = new Error();
-    Error.captureStackTrace(err, grabStack);
-    var stack = err.stack;
-    Error.prepareStackTrace = orig;
-    return stack;
+function AssertError (message) {
+  function grabStack () {
+    var orig = Error.prepareStackTrace
+    Error.prepareStackTrace = function (foo, stack) { return stack }
+    var err = new Error()
+    Error.captureStackTrace(err, grabStack)
+    var stack = err.stack
+    Error.prepareStackTrace = orig
+    return stack
   }
-  this.constructor.prototype.__proto__ = Error.prototype;
-  Error.call(this);
-  var stack = grabStack();
-  Error.captureStackTrace(this, stack[1].fun);
-  this.name = "Assertion Error".yellow;
+  this.constructor.prototype.__proto__ = Error.prototype
+  Error.call(this)
+  var stack = grabStack()
+  Error.captureStackTrace(this, stack[1].fun)
+  this.name = 'Assertion Error'.yellow
   if (is.object(message)) {
-    _.extend(this, message);
+    _.extend(this, message)
   } else {
-    this.message = message;
+    this.message = message
   }
 }
 
@@ -60,9 +60,9 @@ function AssertError(message) {
  * @param {String=} message the human name of subject
  * @throws {Error} When the assertion fail.
  */
-Asserts.instanceOf = function(subject, classInstance, message) {
-  message = message || util.format("%s should be instance of %s, but it's %s", stringify(subject), classInstance.name, subject.constructor.name);
-  if (!is.instanceOf(subject, classInstance)) throw new AssertError(message);
+Asserts.instanceOf = function (subject, classInstance, message) {
+  message = message || util.format("%s should be instance of %s, but it's %s", stringify(subject), classInstance.name, subject.constructor.name)
+  if (!is.instanceOf(subject, classInstance)) throw new AssertError(message)
 }
 
 /**
@@ -71,9 +71,9 @@ Asserts.instanceOf = function(subject, classInstance, message) {
  * @param {String=} message message
  * @throws {Error} When the assertion fail.
  */
-Asserts.undefined = function(subject, message) {
-  message = message || util.format("%s should be undefined", stringify(subject));
-  if (is.defined(subject)) throw new AssertError(message);
+Asserts.undefined = function (subject, message) {
+  message = message || util.format('%s should be undefined', stringify(subject))
+  if (is.defined(subject)) throw new AssertError(message)
 }
 
 /**
@@ -82,9 +82,9 @@ Asserts.undefined = function(subject, message) {
  * @param {String=} message message
  * @throws {Error} When the assertion fail.
  */
-Asserts.defined = function(subject, message) {
-  message = message || "Subject should not be undefined";
-  if (is.undefined(subject)) throw new AssertError(message);
+Asserts.defined = function (subject, message) {
+  message = message || 'Subject should not be undefined'
+  if (is.undefined(subject)) throw new AssertError(message)
 }
 
 /**
@@ -93,9 +93,9 @@ Asserts.defined = function(subject, message) {
  * @param {String=} message message
  * @throws {Error} When the assertion fail.
  */
-Asserts.not.defined = function(subject, message) {
-  message = message || "subject should not be defined";
-  if (is.defined(subject)) throw new AssertError(message);
+Asserts.not.defined = function (subject, message) {
+  message = message || 'subject should not be defined'
+  if (is.defined(subject)) throw new AssertError(message)
 }
 
 /**
@@ -105,9 +105,9 @@ Asserts.not.defined = function(subject, message) {
  * @param {Object=} more More data to inject in Exception.
  * @throws {Error} When the assertion fail.
  */
-Asserts.string = function(subject, message) {
-  message = message || util.format("%s should be a string, and it's not", stringify(subject));
-  if (!is.string(subject)) throw new AssertError(message);
+Asserts.string = function (subject, message) {
+  message = message || util.format("%s should be a string, and it's not", stringify(subject))
+  if (!is.string(subject)) throw new AssertError(message)
 }
 
 /**
@@ -117,22 +117,9 @@ Asserts.string = function(subject, message) {
  * @param {Object=} more More data to inject in Exception.
  * @throws {Error} When the assertion fail.
  */
-Asserts.numeric = function(subject, message) {
-  message = message || util.format("%s should be a numeric, and it's not", stringify(subject));
-  if (!is.number(subject)) throw new AssertError(message);
-}
-
-
-
-/**
- * Check if subject is a well formed array
- * @param {Object} subject subject to test.
- * @param {String} message message on faillure.
- * @throws {Error} When the assertion fail.
- */
-Asserts.array = function(subject, message) {
-  message = message || util.format("%s should be an array, and it's not.", stringify(subject));
-  if (!is.array(subject)) throw new AssertError(message);
+Asserts.numeric = function (subject, message) {
+  message = message || util.format("%s should be a numeric, and it's not", stringify(subject))
+  if (!is.number(subject)) throw new AssertError(message)
 }
 
 /**
@@ -141,11 +128,21 @@ Asserts.array = function(subject, message) {
  * @param {String} message message on faillure.
  * @throws {Error} When the assertion fail.
  */
-Asserts.not.array = function(subject, message) {
-  message = message || util.format("%s should not be an array, and it's", stringify(subject));
-  if (is.array(subject)) throw new AssertError(message);
+Asserts.array = function (subject, message) {
+  message = message || util.format("%s should be an array, and it's not.", stringify(subject))
+  if (!is.array(subject)) throw new AssertError(message)
 }
 
+/**
+ * Check if subject is a well formed array
+ * @param {Object} subject subject to test.
+ * @param {String} message message on faillure.
+ * @throws {Error} When the assertion fail.
+ */
+Asserts.not.array = function (subject, message) {
+  message = message || util.format("%s should not be an array, and it's", stringify(subject))
+  if (is.array(subject)) throw new AssertError(message)
+}
 
 /**
  * Check if subject is a well formed object
@@ -153,11 +150,10 @@ Asserts.not.array = function(subject, message) {
  * @param {String} message message on faillure.
  * @throws {Error} When the assertion fail.
  */
-Asserts.object = function(subject, message) {
-  message = message || util.format("%s should be an object, and it's not", stringify(subject));
-  if (!is.object(subject)) throw new AssertError(message);
+Asserts.object = function (subject, message) {
+  message = message || util.format("%s should be an object, and it's not", stringify(subject))
+  if (!is.object(subject)) throw new AssertError(message)
 }
-
 
 /**
  * Check if subject is not empty (think php empty function)
@@ -165,9 +161,9 @@ Asserts.object = function(subject, message) {
  * @param {String=} message message on error
  * @throws {Error} When the assertion fail.
  */
-Asserts.not.empty = function(subject, message) {
-  message = message || util.format('%s should not be empty', stringify(subject));
-  if (is.empty(subject)) throw new AssertError(message);
+Asserts.not.empty = function (subject, message) {
+  message = message || util.format('%s should not be empty', stringify(subject))
+  if (is.empty(subject)) throw new AssertError(message)
 }
 
 /**
@@ -176,9 +172,9 @@ Asserts.not.empty = function(subject, message) {
  * @param {String=} message fail case message.
  * @throws {Error} When the assertion fail.
  */
-Asserts.function = function(subject, message) {
-  message = message || util.format("%s should be a function", stringify(subject));
-  if (!is.function(subject)) throw new AssertError(message);
+Asserts.function = function (subject, message) {
+  message = message || util.format('%s should be a function', stringify(subject))
+  if (!is.function(subject)) throw new AssertError(message)
 }
 
 /**
@@ -188,9 +184,9 @@ Asserts.function = function(subject, message) {
  * @param {Function} name start function for the call stack.
  * @throws {Error} When the assertion fail.
  */
-Asserts.true = function(subject, message) {
-  message = message || util.format('%s should be true, but is not', stringify(subject));
-  if (subject!==true) throw new AssertError(message);
+Asserts.true = function (subject, message) {
+  message = message || util.format('%s should be true, but is not', stringify(subject))
+  if (subject !== true) throw new AssertError(message)
 }
 
 /**
@@ -200,14 +196,14 @@ Asserts.true = function(subject, message) {
  * @param {Function} name start function for the call stack.
  * @throws {Error} When the assertion fail.
  */
-Asserts.false = function(subject, message) {
-  message = message || util.format('%s should be true, but is not', stringify(subject));
-  if (subject!==false) throw new AssertError(message);
+Asserts.false = function (subject, message) {
+  message = message || util.format('%s should be true, but is not', stringify(subject))
+  if (subject !== false) throw new AssertError(message)
 }
 
 /** helper */
-function stringify(o) {
-  return is.undefined(o)?'undefined':o.toString();
+function stringify (o) {
+  return is.undefined(o) ? 'undefined' : o.toString()
 }
 /**
  * Check if subject is equal to a value.
@@ -216,9 +212,9 @@ function stringify(o) {
  * @param {String=} message a message when assertion fail
  * @throws {Error} When the assertion fail.
  */
-Asserts.equals = function(subject, value, message) {
-  message = message || util.format("%s should be equals to %s", stringify(subject).red, stringify(value).red);
-  if (!is.equals(subject, value)) throw new AssertError(message);
+Asserts.equals = function (subject, value, message) {
+  message = message || util.format('%s should be equals to %s', stringify(subject).red, stringify(value).red)
+  if (!is.equals(subject, value)) throw new AssertError(message)
 }
 
 /**
@@ -228,11 +224,10 @@ Asserts.equals = function(subject, value, message) {
  * @param {String=} message an optionnal message
  * @throws {Error} When the assertion fail.
  */
-Asserts.lower = function(subject, value, message) {
-  message = message || util.format("%s should be lower than %s", stringify(subject).red, stringify(value).red);
-  if (subject>value) throw new AssertError(message);
+Asserts.lower = function (subject, value, message) {
+  message = message || util.format('%s should be lower than %s', stringify(subject).red, stringify(value).red)
+  if (subject > value) throw new AssertError(message)
 }
-
 
 /**
  * Check if subject is greater than a value.
@@ -241,11 +236,10 @@ Asserts.lower = function(subject, value, message) {
  * @param {String=} message an optionnal message
  * @throws {Error} When the assertion fail.
  */
-Asserts.greater = function(subject, value, message) {
-  message = message || util.format("%s should be greater than %s", stringify(subject).red, stringify(value).red);
-  if (subject<value) throw new AssertError(message);
+Asserts.greater = function (subject, value, message) {
+  message = message || util.format('%s should be greater than %s', stringify(subject).red, stringify(value).red)
+  if (subject < value) throw new AssertError(message)
 }
-
 
 /**
  * Check if subject is a file and exists.
@@ -253,9 +247,9 @@ Asserts.greater = function(subject, value, message) {
  * @param {String=} message an optionnal message
  * @throws {Error} When the assertion fail.
  */
-Asserts.exists = function(subject, message) {
-  message = message || util.format('%s should exists', subject.red);
-  if (!is.exists(subject)) throw new AssertError(message);
+Asserts.exists = function (subject, message) {
+  message = message || util.format('%s should exists', subject.red)
+  if (!is.exists(subject)) throw new AssertError(message)
 }
 
 /**
@@ -264,9 +258,9 @@ Asserts.exists = function(subject, message) {
  * @param {String=} message an optionnal message
  * @throws {Error} When the assertion fail.
  */
-Asserts.not.null = function(subject, message) {
-  message = message || util.format('%s should not be null', subject);
-  if (subject === null) throw new AssertError(message);
+Asserts.not.null = function (subject, message) {
+  message = message || util.format('%s should not be null', subject)
+  if (subject === null) throw new AssertError(message)
 }
 
 /**
@@ -275,11 +269,9 @@ Asserts.not.null = function(subject, message) {
  * @param {String=} message an optionnal message
  * @throws {Error} When the assertion fail.
  */
-Asserts.null = function(subject, message) {
-  message = message || util.format('%s should be null', subject);
-  if (subject !== null) throw new AssertError(message);
+Asserts.null = function (subject, message) {
+  message = message || util.format('%s should be null', subject)
+  if (subject !== null) throw new AssertError(message)
 }
 
-module.exports = Asserts;
-
-
+module.exports = Asserts

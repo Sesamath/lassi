@@ -1,5 +1,5 @@
 'use strict'
-const log = require('an-log')('lassi-cli');
+const log = require('an-log')('lassi-cli')
 
 /**
  * Applique les mises à jour en attente
@@ -20,7 +20,7 @@ runPendingUpdates.help = function () {
 module.exports = function () {
   return {
     commands: () => ({
-      runPendingUpdates,
+      runPendingUpdates
     })
   }
 }

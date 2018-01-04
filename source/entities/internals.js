@@ -43,17 +43,17 @@ function castToType (value, type) {
   if (typeof value === type) return value
   if (value === null || value === undefined) return value
   switch (type) {
-    case 'boolean': value = !!value; break;
-    case 'string': value = String(value);break;
-    case 'integer': value =  Math.round(Number(value));break;
+    case 'boolean': value = !!value; break
+    case 'string': value = String(value); break
+    case 'integer': value = Math.round(Number(value)); break
     case 'date':
       if (!(value instanceof Date)) {
-        value = new Date(value);
+        value = new Date(value)
       }
-      break;
-    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
+      break
+    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break
   }
-  return value;
+  return value
 }
 
 /**

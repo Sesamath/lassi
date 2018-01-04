@@ -18,11 +18,11 @@ let SimpleEntity
  *
  * @param {Callback} next
  */
-function initEntities(dbSettings, next) {
+function initEntities (dbSettings, next) {
   entities = new Entities({database: dbSettings})
-  flow().seq(function() {
+  flow().seq(function () {
     entities.initialize(this)
-  }).seq(function() {
+  }).seq(function () {
     SimpleEntity = entities.define('SimpleEntity')
     SimpleEntity.flush(this)
   }).seq(function () {
@@ -90,7 +90,7 @@ describe('Test entities-indexes', function () {
     })
   })
 
-  describe("on modifie la définition d'une collection existante", function() {
+  describe("on modifie la définition d'une collection existante", function () {
     describe('on enlève un attribut indexé', function (done) {
       before(function (done) {
         // Plus d'index

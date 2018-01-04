@@ -1,4 +1,4 @@
-"use strict";
+'use strict'
 /*
  * This file is part of "Lassi".
  *    Copyright 2009-2014 arNuméral
@@ -22,7 +22,7 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-var Store = require('express-session/session/store');
+var Store = require('express-session/session/store')
 var util = require('util')
 
 /**
@@ -37,9 +37,9 @@ var util = require('util')
  * @constructor
  * @private
  */
-function SessionStore(options) {
-  this.$cache = lassi.service('$cache');
-  options = options || {};
+function SessionStore (options) {
+  this.$cache = lassi.service('$cache')
+  options = options || {}
   Store.call(this, options)
 }
 util.inherits(SessionStore, Store)
@@ -48,46 +48,46 @@ util.inherits(SessionStore, Store)
  * Helper pour lancer une fonction sur le prochain tick
  * @private
  */
-SessionStore.prototype.defer = function (fn){
-  if (typeof fn === 'undefined') return;
+SessionStore.prototype.defer = function (fn) {
+  if (typeof fn === 'undefined') return
   // fn va se retrouver avec elle-même en contexte, cela revient à
   // var args = arguments; process.nextTick(function () { fn.apply(args)); }
   // donc passer fn en 1er arg, le contexte, pas grave ici car les callback ne doivent pas utiliser de contexte
-  process.nextTick(fn.bind.apply(fn, arguments));
+  process.nextTick(fn.bind.apply(fn, arguments))
 }
 
 /** @inheritDoc */
-SessionStore.prototype.get = function(sid, callback) {
+SessionStore.prototype.get = function (sid, callback) {
   // faut ajouter du defer ici sinon express plante
   // on verra dans une prochaine version si on peut remplacer tout ça par un simple
   // this.$cache.get('session::'+sid, callback)
-  var self = this;
-  self.$cache.get('session::'+sid, function(error, session) {
-    if (error) return self.defer(callback, error);
+  var self = this
+  self.$cache.get('session::' + sid, function (error, session) {
+    if (error) return self.defer(callback, error)
     if (session) {
-      self.defer(callback, null, session);
+      self.defer(callback, null, session)
     } else {
-      self.defer(callback);
+      self.defer(callback)
     }
-  });
+  })
 }
 
 /** @inheritDoc */
-SessionStore.prototype.set = function(sid, session, callback) {
-  var self = this;
-  self.$cache.set('session::'+sid, session, 24*3600, function(error) {
-    if (error) return self.defer(callback, error);
-    self.defer(callback);
-  });
+SessionStore.prototype.set = function (sid, session, callback) {
+  var self = this
+  self.$cache.set('session::' + sid, session, 24 * 3600, function (error) {
+    if (error) return self.defer(callback, error)
+    self.defer(callback)
+  })
 }
 
 /** @inheritDoc */
-SessionStore.prototype.destroy = function(sid, callback) {
-  var self = this;
-  self.$cache.delete('session::'+sid, function(error) {
-    if (error) return self.defer(callback, error);
-    self.defer(callback);
-  });
+SessionStore.prototype.destroy = function (sid, callback) {
+  var self = this
+  self.$cache.delete('session::' + sid, function (error) {
+    if (error) return self.defer(callback, error)
+    self.defer(callback)
+  })
 }
 
 /**
@@ -101,4 +101,4 @@ SessionStore.prototype.destroy = function(sid, callback) {
   lassi.fs.writeFileSync(target, data);
   }
 */
-module.exports = SessionStore;
+module.exports = SessionStore

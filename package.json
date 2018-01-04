@@ -62,23 +62,13 @@
   "readme": "",
   "description": "",
   "eslintConfig": {
-    "plugins": [],
     "env": {
       "node": true,
       "browser": false
     },
-    "settings": {},
-    "parserOptions": {
-      "ecmaVersion": 6
-    },
-    "rules": {
-      "strict": 1,
-      "quotes": 0,
-      "no-unused-vars": 1,
-      "no-undef": 1,
-      "camelcase": 1,
-      "no-underscore-dangle": 0
-    },
+    "extends": [
+      "standard"
+    ],
     "globals": {
       "lassi": true
     }

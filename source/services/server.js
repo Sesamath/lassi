@@ -1,13 +1,13 @@
-"use strict";
-var log = require('an-log')('$server');
+'use strict'
+var log = require('an-log')('$server')
 var constantes = require('../constantes')
 
 /**
  * Service de gestion du serveur HTTP
  * @namespace $server
  */
-module.exports = function($settings, $rail) {
-  var _http;
+module.exports = function ($settings, $rail) {
+  var _http
 
   /**
    * Déparrage du serveur.
@@ -15,25 +15,25 @@ module.exports = function($settings, $rail) {
    * @param callback next callback de retour
    * @memberof $server
    */
-  function start(next) {
-    var port = $settings.get('$server.port', 3000);
+  function start (next) {
+    var port = $settings.get('$server.port', 3000)
     // 5 min max par défaut, lassi doit couper avant
     // +1000 pour laisser lassi prendre la main sur un timeout de 5min
-    var maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout);
-    _http = require('http').Server($rail.get());
+    var maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout)
+    _http = require('http').Server($rail.get())
     _http.timeout = maxTimeout
-    lassi.emit('httpReady', _http);
-    _http.listen(port, function() {
-      log('started', 'on port', port.toString().blue, 'with pid ' + process.pid + ' and timeout ' + maxTimeout +'ms');
-      next();
-    });
+    lassi.emit('httpReady', _http)
+    _http.listen(port, function () {
+      log('started', 'on port', port.toString().blue, 'with pid ' + process.pid + ' and timeout ' + maxTimeout + 'ms')
+      next()
+    })
   }
 
   /**
    * Arrêt du serveur http
    * @param {function} [next] callback appelé avec une éventuelle erreur
    */
-  function stop(next) {
+  function stop (next) {
     if (_http) {
       _http.close(function (error) {
         if (error) console.error(error.stack || error)
@@ -48,8 +48,7 @@ module.exports = function($settings, $rail) {
   }
 
   return {
-    start : start,
-    stop : stop
+    start: start,
+    stop: stop
   }
 }
-

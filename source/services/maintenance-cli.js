@@ -21,10 +21,10 @@ arg1 : on|off pour activer/désactiver le mode maintenance`)
  * Service de gestion de la maintenance via cli
  * @service $maintenance-cli
  */
-module.exports = function() {
+module.exports = function () {
   return {
     commands: () => ({
-      setMaintenance,
+      setMaintenance
     })
   }
 }

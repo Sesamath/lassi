@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -21,8 +21,8 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _   = require('lodash');
-var log = require('an-log')('lassi-actions');
+var _ = require('lodash')
+var log = require('an-log')('lassi-actions')
 var constantes = require('./constantes')
 // sera initialisé d'après les settings au 1er appel d'un contrôleur
 var maxTimeout
@@ -32,34 +32,34 @@ var maxTimeout
  * car le module https://github.com/component/path-to-regexp marche finalement
  * moins bien...
  */
-function pathtoRegexp(path, keys, options) {
-  options = options || {};
-  var sensitive = options.sensitive;
-  var strict = options.strict;
-  keys = keys || [];
+function pathtoRegexp (path, keys, options) {
+  options = options || {}
+  var sensitive = options.sensitive
+  var strict = options.strict
+  keys = keys || []
 
-  if (path instanceof RegExp) return path;
-  if (path instanceof Array) path = '(' + path.join('|') + ')';
+  if (path instanceof RegExp) return path
+  if (path instanceof Array) path = '(' + path.join('|') + ')'
 
   path = path
     .concat(strict ? '' : '/?')
     .replace(/\/\(/g, '(?:/')
     .replace(/\+/g, '__plus__')
-    .replace(/(\/)?(\.)?:(\w+)(?:(\(.*?\)))?(\?)?/g, function(_, slash, format, key, capture, optional){
-      keys.push({ name: key, optional: !! optional });
-      slash = slash || '';
+    .replace(/(\/)?(\.)?:(\w+)(?:(\(.*?\)))?(\?)?/g, function (_, slash, format, key, capture, optional) {
+      keys.push({ name: key, optional: !!optional })
+      slash = slash || ''
       return '' +
           (optional ? '' : slash) +
           '(?:' +
           (optional ? slash : '') +
           (format || '') + (capture || (format && '([^/.]+?)' || '([^/]+?)')) + ')' +
-          (optional || '');
+          (optional || '')
     })
     .replace(/([\/.])/g, '\\$1')
     .replace(/__plus__/g, '(.+)')
-    .replace(/\*/g, '(.*)');
+    .replace(/\*/g, '(.*)')
 
-  return new RegExp('^' + path + '$', sensitive ? '' : 'i');
+  return new RegExp('^' + path + '$', sensitive ? '' : 'i')
 }
 
 /**
@@ -75,61 +75,60 @@ function pathtoRegexp(path, keys, options) {
  * @private
  */
 class Action {
-  constructor(controller, methods, path, cb) {
-    this.path = path;
-    this.methods = methods;
+  constructor (controller, methods, path, cb) {
+    this.path = path
+    this.methods = methods
     if (!_.isFunction(cb)) {
-      _.extend(this, cb);
-      this.callback = undefined;
-      this.middleware = true;
+      _.extend(this, cb)
+      this.callback = undefined
+      this.middleware = true
     } else {
-      this.callback = cb;
-      this.middleware = undefined;
+      this.callback = cb
+      this.middleware = undefined
     }
-    if (this.path && this.path.trim()==='') this.path=undefined;
-
+    if (this.path && this.path.trim() === '') this.path = undefined
 
     if (typeof this.path === 'undefined') {
-      this.path = controller.path;
-    } else if (this.path.charAt(0)!=='/') {
-      this.path = controller.path+'/'+this.path;
+      this.path = controller.path
+    } else if (this.path.charAt(0) !== '/') {
+      this.path = controller.path + '/' + this.path
     }
-    this.path = this.path.replace(/\/+/,'/');
+    this.path = this.path.replace(/\/+/, '/')
     if (this.path !== '/') {
-     this.path = this.path.replace(/\/+$/,'');
+      this.path = this.path.replace(/\/+$/, '')
     }
 
     if (this.middleware) {
-      var express = require('express');
-      var options = {};
+      var express = require('express')
+      var options = {}
       if (lassi.settings && lassi.settings.pathProperties && lassi.settings.pathProperties[this.path]) {
-        _.extend(options, lassi.settings.pathProperties[this.path]);
+        _.extend(options, lassi.settings.pathProperties[this.path])
       }
       // par défaut, express met un max-age à 0 (cf http://expressjs.com/en/4x/api.html#express.static)
       // si l'appli ne précise rien on le met à 1h sur le statique
       if (!options.hasOwnProperty('maxAge')) options.maxAge = '1h'
-      var serveStatic = express.static(this.fsPath, options);
-      this.middleware = (function(base) {
-        return function(request, response, next) {
-          var saveUrl = request.url;
-          request.url = request.url.substr(base.length);
-          if (request.url.length===0 || request.url.charAt(0) !== '/') request.url = '/'+request.url;
-          serveStatic(request, response, function() {
-            request.url = saveUrl;
-            next();
-          });
+      var serveStatic = express.static(this.fsPath, options)
+      this.middleware = (function (base) {
+        return function (request, response, next) {
+          var saveUrl = request.url
+          request.url = request.url.substr(base.length)
+          if (request.url.length === 0 || request.url.charAt(0) !== '/') request.url = '/' + request.url
+          serveStatic(request, response, function () {
+            request.url = saveUrl
+            next()
+          })
         }
-      })(this.path);
-      this.path += '*';
+      })(this.path)
+      this.path += '*'
     }
 
-    this.pathRegexp = pathtoRegexp(this.path, this.keys = [], { sensitive: true, strict: true, end: false });
+    this.pathRegexp = pathtoRegexp(this.path, this.keys = [], { sensitive: true, strict: true, end: false })
     log('Add route',
-      (this.methods?this.methods.join(','):'ALL').toUpperCase(),
+      (this.methods ? this.methods.join(',') : 'ALL').toUpperCase(),
       this.path.yellow,
       this.pathRegexp,
-      this.middleware?' -> '+cb:''
-     );
+      this.middleware ? ' -> ' + cb : ''
+    )
   }
 
   /**
@@ -137,38 +136,37 @@ class Action {
    * @param path La route à tester
    * @returns {array} Les paramètres de la route qui correspondent au pattern du contrôleur
    */
-  match(method, path){
-    var params = {};
-    var key;
-    var val;
+  match (method, path) {
+    var params = {}
+    var key
+    var val
 
+    method = method.toLowerCase()
+    if (this.methods && !_.contains(this.methods, method)) return null
+    var match = this.pathRegexp.exec(path)
+    // console.log(path, this.pathRegexp, match);
+    if (!match) return null
 
-    method = method.toLowerCase();
-    if (this.methods && !_.contains(this.methods, method)) return null;
-    var match = this.pathRegexp.exec(path);
-    //console.log(path, this.pathRegexp, match);
-    if (!match) return null;
-
-    var paramIndex = 0;
-    var len = match.length;
+    var paramIndex = 0
+    var len = match.length
     for (var i = 1; i < len; ++i) {
-      key = this.keys[i - 1];
+      key = this.keys[i - 1]
       try {
-        val = 'string' == typeof match[i] ? decodeURIComponent(match[i]) : match[i];
-      } catch(e) {
-        var err = new Error("Failed to decode param '" + match[i] + "'");
-        err.status = 400;
-        throw err;
+        val = typeof match[i] === 'string' ? decodeURIComponent(match[i]) : match[i]
+      } catch (e) {
+        var err = new Error("Failed to decode param '" + match[i] + "'")
+        err.status = 400
+        throw err
       }
 
       if (key) {
-        params[key.name] = val;
+        params[key.name] = val
       } else {
-        params[paramIndex++] = val;
+        params[paramIndex++] = val
       }
     }
 
-    return params;
+    return params
   }
 
   /**
@@ -176,23 +174,23 @@ class Action {
    * @param {Context} context
    * @param {Function} next
    */
-  execute(context, next) {
-    var timer = false;
-    var isCbCompleted = false;
+  execute (context, next) {
+    var timer = false
+    var isCbCompleted = false
 
-    function fooProtect() {
-      console.error('Attention, un résultat est arrivé de manière inatendue (un appel de next en trop ?).');
-      console.trace();
+    function fooProtect () {
+      console.error('Attention, un résultat est arrivé de manière inatendue (un appel de next en trop ?).')
+      console.trace()
     }
-    function processResult(error, result) {
-      context.next = fooProtect;
-      isCbCompleted = true;
-      if (timer) clearTimeout(timer);
+    function processResult (error, result) {
+      context.next = fooProtect
+      isCbCompleted = true
+      if (timer) clearTimeout(timer)
       if (typeof result === 'undefined' && !(error instanceof Error)) {
-        result = error;
-        error = null;
+        result = error
+        error = null
       }
-      next(error, result);
+      next(error, result)
     }
 
     try {
@@ -200,15 +198,15 @@ class Action {
       // avant bootstrap, on initialise donc maxTimeout lors du 1er appel d'un controleur après le boot
       if (!maxTimeout) {
         var $settings = lassi.service('$settings')
-        maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout - constantes.minDiffTimeout);
+        maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout - constantes.minDiffTimeout)
       }
-      context.next = processResult;
+      context.next = processResult
 
-      this.callback.call(context, context);
+      this.callback.call(context, context)
 
       // Timeout de 1s par défaut après le retour synchrone
       // (ça permet aussi à l'action de modifier son timeout pendant son exécution)
-      var timeout = context.timeout || this.callback.timeout || constantes.defaultTimeout;
+      var timeout = context.timeout || this.callback.timeout || constantes.defaultTimeout
       if (timeout > maxTimeout) {
         console.error(new Error(`timeout ${timeout} supérieur au maximum autorisé dans cette application ${maxTimeout}, il sera ramené à ${maxTimeout - constantes.minDiffTimeout}`))
         // pour laisser le timeout ci-dessous prendre la main sur celui de node
@@ -217,16 +215,15 @@ class Action {
 
       // Si aucune donnée synchrone n'est déjà reçue, on arme le timeout
       if (!isCbCompleted) {
-        timer = setTimeout(function() {
-          timer = false;
-          next(new Error('Timeout while executing ('+timeout+'ms)'));
-        }, timeout);
+        timer = setTimeout(function () {
+          timer = false
+          next(new Error('Timeout while executing (' + timeout + 'ms)'))
+        }, timeout)
       }
-    } catch(e) {
-      processResult(e);
+    } catch (e) {
+      processResult(e)
     }
   }
 }
 
-
-module.exports = Action;
+module.exports = Action
