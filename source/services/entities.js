@@ -10,7 +10,7 @@ module.exports = function ($settings) {
     console.error(new Error('$entities should be called only once'))
     return entities
   }
-  entities = new Entities($settings.get('$entities'));
+  entities = new Entities($settings.get('$entities'))
 
   /**
    * Initialisation du service utilisé par lassi lors
@@ -22,5 +22,5 @@ module.exports = function ($settings) {
    */
   entities.setup = entities.initialize
 
-  return entities;
+  return entities
 }

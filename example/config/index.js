@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
  * @preserve This file is part of "labomep".
  *    Copyright 2009-2014,
@@ -23,7 +23,7 @@
  */
 // Configuration de la base de données
 module.exports = {
-  application : {
+  application: {
     name: 'Bang Lassi',
     staging: 'dev',
     mail: 'toto',
@@ -31,34 +31,34 @@ module.exports = {
     // nom du dossier où on ira chercher les vues partielles {>vuePartielle}, concaténé à $views,
     // peut être une chaîne vide ou une chaîne démarrant avec /
     // sera mis à /partials si absent
-    partialsPath : '/partials'
+    partialsPath: '/partials'
   },
 
-  $entities : {
-    database : {
-      user: "root",
-      password: "app",
-      database: "app"
-    },
+  $entities: {
+    database: {
+      user: 'root',
+      password: 'app',
+      database: 'app'
+    }
   },
 
-  $server : {
+  $server: {
     port: 3000,
     // timeout max mis sur toutes les requêtes par node,
     // mettre une valeur supérieure au plus grand timeout utilisé dans l'application
     maxTimeout: 5 * 60 * 1000 + 1000
   },
 
-  memcache : {
+  memcache: {
     host: '127.0.0.1',
     port: 11211,
     prefix: 'tagazok'
   },
 
-  $rail : {
+  $rail: {
     // cors : {origin: '*'},
-    logger : {format: ':method :url - :post - :referrer', options: {}},
-    //compression : {},
+    logger: {format: ':method :url - :post - :referrer', options: {}},
+    // compression : {},
     cookie: {key: 'keyboard cat'},
     session: {
       secret: 'keyboard cat',
@@ -75,6 +75,6 @@ module.exports = {
 /**
  * Exemple de composant qui va se placer en dépendance globale
  */
-lassi.component('test').config(function($settings) {
-  lassi.log("Example", "l'application s'appelle : ", $settings.get('application.name').red);
+lassi.component('test').config(function ($settings) {
+  lassi.log('Example', "l'application s'appelle : ", $settings.get('application.name').red)
 })

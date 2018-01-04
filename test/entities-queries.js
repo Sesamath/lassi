@@ -8,8 +8,7 @@ const {expect} = chai
 const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
-const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, setup} = require('./init')
+const {checkEntity, quit, setup} = require('./init')
 
 chai.use(sinonChai)
 
@@ -19,7 +18,7 @@ const seconde = 1000
 const STRING_PREFIX = 'test-'
 const TYPES = ['type_a', 'type_b', 'type_c']
 
-let TestEntity;
+let TestEntity
 /**
  * Vérifie si l'entité est celle attendue
  *
@@ -107,7 +106,7 @@ function addData (next) {
 describe('Test entities-queries', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     // Evite les erreurs de timeout sur une machine lente
-    this.timeout(10000);
+    this.timeout(10000)
     flow().seq(function () {
       setup(this)
     }).seq(function (Entity) {
@@ -121,6 +120,7 @@ describe('Test entities-queries', function () {
     // TestEntity.getCollection().deleteMany({}, done)
     // mais c'est plus lisible, même si on devrait pas tester purge ici
     TestEntity.match().purge(done)
+    quit()
   })
 
   describe('.beforeDelete()', function () {
@@ -136,7 +136,7 @@ describe('Test entities-queries', function () {
         entity.delete(this)
       }).seq(function () {
         assert.equal(deleted, 'oui!')
-        TestEntity.beforeDelete(function (cb) {cb()})
+        TestEntity.beforeDelete(function (cb) { cb() })
         this()
       }).done(done)
     })
@@ -144,8 +144,8 @@ describe('Test entities-queries', function () {
 
   describe('.match()', function () {
     it(`jette une exception si le champ n'est pas indexé`, function () {
-      assert.throws(function() {
-        TestEntity.match('nonIndexed').equals(1).grab(function (error, result) {
+      assert.throws(function () {
+        TestEntity.match('nonIndexed').equals(1).grab(function () {
           // devrait throw avant d'arriver là, on le vérifie avec une assertion toujours fausse
           assert.equal('On aurait pas dû arriver là', '')
         })
@@ -248,7 +248,7 @@ describe('Test entities-queries', function () {
       // attention, mocha utilise la console donc on le rend muet le temps de cet appel
       sinon.stub(console, 'error')
       TestEntity.match('s').in([]).grab(function (error, result) {
-        expect(console.error).to.have.been.calledOnce
+        expect(console.error).to.have.been.calledOnce // eslint-disable-line no-unused-expressions
         console.error.restore()
         if (error) return done(error)
         assert.equal(result.length, 0)
@@ -281,7 +281,7 @@ describe('Test entities-queries', function () {
       }).seq(function () {
         // On teste une combinaison impossible
         TestEntity
-          .match('s').like("test-4")
+          .match('s').like('test-4')
           .match('i').equals(5)
           .grab(this)
       }).seq(function (entities) {
@@ -313,7 +313,7 @@ describe('Test entities-queries', function () {
     })
 
     it(`Recherche avec l'opérateur IN pour un tableau de string`, function (done) {
-      TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result)  {
+      TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
         assert.equal(result.length, 2)
         done()
@@ -348,7 +348,7 @@ describe('Test entities-queries', function () {
 
     it(`Sélection d'entités avec hard limit`, function (done) {
       function last (error) {
-        expect(console.error).to.have.been.calledThrice
+        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
         console.error.restore()
         done(error)
       }
@@ -432,19 +432,30 @@ describe('Test entities-queries', function () {
   describe('.countBy()', function () {
     it(`Compte d'entités groupés`, function (done) {
       let groupedEntities
+      let nbEntities
       flow()
-      .seq(function () {
-        getAllEntities(TestEntity.match(), {}, this)
-      }).seq(function (_entities) {
-        // on vérifie que le countBy de Entities donne le même résultat que celui de lodash
-        groupedEntities = _.countBy(_entities, 't')
-        TestEntity.match().countBy('t', this)
-      }).seq(function (data) {
-        _.each(groupedEntities, (value, key) => {
-          assert.equal(data[key], value)
-        })
-        done()
-      }).catch(done)
+        .seq(function () {
+          getAllEntities(TestEntity.match(), {}, this)
+        }).seq(function (_entities) {
+          nbEntities = _entities.length
+          // on vérifie que le countBy de Entities donne le même résultat que celui de lodash
+          groupedEntities = _.countBy(_entities, 't')
+          TestEntity.match().countBy('t', this)
+        }).seq(function (data) {
+          _.each(groupedEntities, (value, key) => {
+            assert.equal(data[key], value)
+          })
+          // on teste que ça remonte aussi le nb de non indexés (index undefined ou null)
+          TestEntity.match().countBy('bArray', this)
+        }).seq(function (data) {
+          assert.equal(data.null, nbEntities)
+          // on teste aussi que le groupBy sur un index qui n'existe pas remonte une erreur
+          TestEntity.match().countBy('y', (error, data) => {
+            expect(error).to.have.property('message')
+            expect(data).to.equals(undefined)
+            done()
+          })
+        }).catch(done)
     })
   })
 
@@ -467,174 +478,174 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
   })
-  describe(`Suppression "douce" d'une entité()`, function() {
+  describe(`Suppression "douce" d'une entité()`, function () {
     var createdEntities
     var deletedEntity
     var nonDeletedEntity
     var started
 
-    beforeEach(function(done) {
+    beforeEach(function (done) {
       started = new Date()
 
       var entities = [
         { i: 42000 }, // <-- celle là sera soft-deleted
-        { i: 42001 },
+        { i: 42001 }
       ]
 
       flow(entities)
-      .seqEach(function(entity) {
-        TestEntity.create(entity).store(this);
-      })
-      .seq(function(instances) {
-        createdEntities = instances;
-        nonDeletedEntity = createdEntities[1];
-        createdEntities[0].softDelete(this)
-      })
-      .seq(function(_deletedEntity) {
-        deletedEntity = _deletedEntity;
-        done();
-      })
-      .catch(done)
+        .seqEach(function (entity) {
+          TestEntity.create(entity).store(this)
+        })
+        .seq(function (instances) {
+          createdEntities = instances
+          nonDeletedEntity = createdEntities[1]
+          createdEntities[0].softDelete(this)
+        })
+        .seq(function (_deletedEntity) {
+          deletedEntity = _deletedEntity
+          done()
+        })
+        .catch(done)
     })
 
-    afterEach(function(done) {
+    afterEach(function (done) {
       // Cleanup
       flow(createdEntities)
-      .seqEach(function(entity) {
-        entity.delete(this);
-      })
-      .done(done)
+        .seqEach(function (entity) {
+          entity.delete(this)
+        })
+        .done(done)
     })
 
-    describe('Deleted entity', function() {
-      it('Renvoie true pour isDeleted()', function() {
+    describe('Deleted entity', function () {
+      it('Renvoie true pour isDeleted()', function () {
         assert.equal(deletedEntity.isDeleted(), true)
       })
-      it(`N'apparaît plus dans le grab par defaut`, function(done) {
+      it(`N'apparaît plus dans le grab par defaut`, function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity, undefined);
-          this();
-        })
-        .done(done)
+          .seq(function () {
+            TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity, undefined)
+            this()
+          })
+          .done(done)
       })
-      it('Apparaît avec onlyDeleted()', function(done) {
+      it('Apparaît avec onlyDeleted()', function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity.oid, deletedEntity.oid);
-          this();
-        })
-        .done(done)
+          .seq(function () {
+            TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity.oid, deletedEntity.oid)
+            this()
+          })
+          .done(done)
       })
-      it('Apparaît avec includeDeleted()', function(done) {
+      it('Apparaît avec includeDeleted()', function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match('oid').equals(deletedEntity.oid).includeDeleted().grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity.oid, deletedEntity.oid);
-          this();
-        })
-        .done(done)
+          .seq(function () {
+            TestEntity.match('oid').equals(deletedEntity.oid).includeDeleted().grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity.oid, deletedEntity.oid)
+            this()
+          })
+          .done(done)
       })
-      it('Peut être trouvée par deletedAfter()', function(done) {
+      it('Peut être trouvée par deletedAfter()', function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match().deletedAfter(started).grabOne(this)
-        })
-        .seq(function(entity) {
+          .seq(function () {
+            TestEntity.match().deletedAfter(started).grabOne(this)
+          })
+          .seq(function (entity) {
           // @todo voir pourquoi deletedEntity est parfois (mais rarement) undefined
-          assert.equal(entity.oid, deletedEntity.oid);
-          TestEntity.match().deletedAfter(Date.now()).grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity, undefined);
-          this();
-        })
-        .done(done)
+            assert.equal(entity.oid, deletedEntity.oid)
+            TestEntity.match().deletedAfter(Date.now()).grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity, undefined)
+            this()
+          })
+          .done(done)
       })
-      it('Peut être trouvée par deletedBefore()', function(done) {
+      it('Peut être trouvée par deletedBefore()', function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match().deletedBefore(new Date(Date.now() + 1000)).grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity.oid, deletedEntity.oid);
-          TestEntity.match().deletedBefore(started).grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity, undefined);
-          this();
-        })
-        .done(done)
+          .seq(function () {
+            TestEntity.match().deletedBefore(new Date(Date.now() + 1000)).grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity.oid, deletedEntity.oid)
+            TestEntity.match().deletedBefore(started).grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity, undefined)
+            this()
+          })
+          .done(done)
       })
-      it('Peut être restaurée', function(done) {
+      it('Peut être restaurée', function (done) {
         flow()
-        .seq(function() {
-          deletedEntity.restore(this);
-        })
-        .seq(function() {
+          .seq(function () {
+            deletedEntity.restore(this)
+          })
+          .seq(function () {
           // On vérifie la mise à jour en bdd
-          TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity.isDeleted(), false);
-          assert.equal(entity.oid, deletedEntity.oid);
-          this();
-        })
-        .done(done)
+            TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity.isDeleted(), false)
+            assert.equal(entity.oid, deletedEntity.oid)
+            this()
+          })
+          .done(done)
       })
-      it('Peut être store', function(done) {
+      it('Peut être store', function (done) {
         flow()
-        .seq(function() {
-          deletedEntity.store(this);
-        })
-        .seq(function(entity) {
+          .seq(function () {
+            deletedEntity.store(this)
+          })
+          .seq(function (entity) {
           // Elle doit toujours etre "deleted"
-          assert.equal(entity.isDeleted(), true);
-          // On vérifie en bdd
-          TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity.isDeleted(), true);
-          assert.equal(entity.oid, deletedEntity.oid);
-          this();
-        })
-        .done(done)
+            assert.equal(entity.isDeleted(), true)
+            // On vérifie en bdd
+            TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity.isDeleted(), true)
+            assert.equal(entity.oid, deletedEntity.oid)
+            this()
+          })
+          .done(done)
       })
     })
 
-    describe('Non-deleted entity', function() {
-      it('Renvoie false pour isDeleted()', function() {
+    describe('Non-deleted entity', function () {
+      it('Renvoie false pour isDeleted()', function () {
         assert.equal(nonDeletedEntity.isDeleted(), false)
       })
-      it(`N'apparaît pas avec onlyDeleted()`, function(done) {
+      it(`N'apparaît pas avec onlyDeleted()`, function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity, undefined);
-          this();
-        })
-        .done(done)
+          .seq(function () {
+            TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity, undefined)
+            this()
+          })
+          .done(done)
       })
-      it('Apparaît avec includeDeleted()', function(done) {
+      it('Apparaît avec includeDeleted()', function (done) {
         flow()
-        .seq(function() {
-          TestEntity.match('oid').equals(nonDeletedEntity.oid).includeDeleted().grabOne(this)
-        })
-        .seq(function(entity) {
-          assert.equal(entity.oid, nonDeletedEntity.oid);
-          this();
-        })
-        .done(done)
+          .seq(function () {
+            TestEntity.match('oid').equals(nonDeletedEntity.oid).includeDeleted().grabOne(this)
+          })
+          .seq(function (entity) {
+            assert.equal(entity.oid, nonDeletedEntity.oid)
+            this()
+          })
+          .done(done)
       })
     })
   })
@@ -644,13 +655,13 @@ describe('Test entities-queries', function () {
       flow()
         .callbackWrapper(process.nextTick)
         .seq(function () {
-          TestEntity.match('iPair').equals(1).grab(this);
+          TestEntity.match('iPair').equals(1).grab(this)
         }).seq(function (entities) {
-        assert.equal(entities.length, nbEntities / 2)
-        this(null, entities)
-      }).seqEach(function (entity) {
-        entity.delete(this)
-      }).done(done)
+          assert.equal(entities.length, nbEntities / 2)
+          this(null, entities)
+        }).seqEach(function (entity) {
+          entity.delete(this)
+        }).done(done)
     })
 
     it('Vérification des suppressions', function (done) {
@@ -733,7 +744,7 @@ describe('Test entities-queries', function () {
     })
 
     it('Insert, update et delete en parallèle', function (done) {
-      this.timeout(10000); // 10s
+      this.timeout(10000) // 10s
       const count = 1000
       const objs = []
       for (let i = 0; i < count; i++) {
@@ -749,54 +760,54 @@ describe('Test entities-queries', function () {
         .parEach(function (obj) {
           obj.store(this)
         }).parEach(function (obj) {
-        obj.i *= 2
-        obj.tag = 'updated'
-        obj.store(this)
-      }).seqEach(function (obj) {
-        obj.delete(this)
-      }).seq(function () {
-        done();
-      }).catch(console.error)
+          obj.i *= 2
+          obj.tag = 'updated'
+          obj.store(this)
+        }).seqEach(function (obj) {
+          obj.delete(this)
+        }).seq(function () {
+          done()
+        }).catch(console.error)
     })
   })
 
   describe('.purge()', function () {
     before(function (done) {
-      const entities = [];
+      const entities = []
       for (let i = 0; i < nbEntities; i++) {
         entities.push({
           i: i,
-          s: STRING_PREFIX + i,
-        });
+          s: STRING_PREFIX + i
+        })
       }
       flow(entities)
-      .seqEach(function (entity) {
-        TestEntity.create(entity).store(this);
-      })
-      .done(done);
+        .seqEach(function (entity) {
+          TestEntity.create(entity).store(this)
+        })
+        .done(done)
     })
 
     it('Purge des entités', function (done) {
       flow().seq(function () {
-        TestEntity.match().count(this);
+        TestEntity.match().count(this)
       }).seq(function (nb) {
-        assert.equal(nb, nbEntities);
-        TestEntity.match('i').lowerThan(8).purge(this);
+        assert.equal(nb, nbEntities)
+        TestEntity.match('i').lowerThan(8).purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, 8);
-        TestEntity.match('s').equals(STRING_PREFIX + 42).purge(this);
+        assert.equal(nbDeleted, 8)
+        TestEntity.match('s').equals(STRING_PREFIX + 42).purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, 1);
-        TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).purge(this);
+        assert.equal(nbDeleted, 1)
+        TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, 3); // 41, 43, 44
-        TestEntity.match().purge(this);
+        assert.equal(nbDeleted, 3) // 41, 43, 44
+        TestEntity.match().purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, nbEntities - 12);
-        TestEntity.match().count(this);
+        assert.equal(nbDeleted, nbEntities - 12)
+        TestEntity.match().count(this)
       }).seq(function (count) {
-        assert.equal(count, 0);
-        this();
+        assert.equal(count, 0)
+        this()
       }).done(done)
     })
   })
@@ -806,7 +817,7 @@ describe('Test entities-queries', function () {
       const entities = [
         {oid: 'b', i: 2, s: 'deux', sArray: ['bb, ba, bc']},
         {oid: 'c', i: 3, s: 'trois', sArray: ['ca', 'cc', 'cb']},
-        {oid: 'a', i: 1, s: 'un', sArray: ['ac', 'ab', 'aa']},
+        {oid: 'a', i: 1, s: 'un', sArray: ['ac', 'ab', 'aa']}
       ]
       flow(entities).seqEach(function (entity) {
         TestEntity.create(entity).store(this)
@@ -835,8 +846,6 @@ describe('Test entities-queries', function () {
         assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par sArray
         this()
       }).done(done)
-
     })
   })
-});
-
+})

@@ -30,6 +30,8 @@
  */
 'use strict'
 
+const INDEX_TYPES = ['boolean', 'date', 'integer', 'string']
+
 /**
  * cast de value en type
  * @param {*} value
@@ -38,22 +40,32 @@
  * @throws si le type n'est pas boolean|string|integer|date
  */
 function castToType (value, type) {
-  if (typeof value === type) return value
+  if (typeof value === type) return value // eslint-disable-line valid-typeof
   if (value === null || value === undefined) return value
   switch (type) {
-    case 'boolean': value = !!value; break;
-    case 'string': value = String(value);break;
-    case 'integer': value =  Math.round(Number(value));break;
+    case 'boolean': value = !!value; break
+    case 'string': value = String(value); break
+    case 'integer': value = Math.round(Number(value)); break
     case 'date':
       if (!(value instanceof Date)) {
-        value = new Date(value);
+        value = new Date(value)
       }
-      break;
-    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break;
+      break
+    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`)
   }
-  return value;
+  return value
+}
+
+/**
+ * Retourne true si le type d'index est géré
+ * @param {string} type
+ * @return {boolean}
+ */
+function isAllowedIndexType (type) {
+  return INDEX_TYPES.includes(type)
 }
 
 module.exports = {
-  castToType
+  castToType,
+  isAllowedIndexType
 }

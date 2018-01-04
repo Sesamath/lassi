@@ -43,8 +43,8 @@ module.exports = function ($settings) {
    * @return {Number} timeout en ms
    */
   function getFirstConnectTimeout () {
-    const retry_strategy = $settings.get('$cache.redis.retry_strategy')
-    if (typeof retry_strategy === 'function') return retry_strategy({attempt: 1})
+    const retryStrategy = $settings.get('$cache.redis.retry_strategy')
+    if (typeof retryStrategy === 'function') return retryStrategy({attempt: 1})
     return $settings.get('$cache.redis.connect_timeout', CONNECT_TIMEOUT_DEFAULT)
   }
 
@@ -114,6 +114,16 @@ module.exports = function ($settings) {
       if (error) cb(error)
       else cb(null, keys.map(k => k.substr(redisPrefix.length)))
     })
+  }
+
+  /**
+   * Ferme la connexion à redis
+   * @see http://redis.js.org/#api-clientquit
+   */
+  function quit () {
+    if (!redisClient) return
+    redisClient.quit()
+    redisClient = null
   }
 
   /**
@@ -207,11 +217,11 @@ module.exports = function ($settings) {
     if (!client || !client.get) throw new Error('$cache.configure has failed')
     client.on('connect', () => {
       redisClient = client
-      log('connect OK, redis client is ready')
       // il faut faire ça qu'une fois (on est rappelé à chaque reconnexion du client)
       if (!isCbCalled) {
         client.on('error', log.error)
         isCbCalled = true
+        log('connect OK, redis client is ready')
         cb()
       }
     })
@@ -238,6 +248,7 @@ module.exports = function ($settings) {
     keys,
     get,
     getRedisClient,
+    quit,
     set,
     setup,
     TTL_DEFAULT,

@@ -21,13 +21,14 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-'use strict';
+'use strict'
 
-const _           = require('lodash');
-const Entity      = require('./Entity');
-const EntityQuery = require('./EntityQuery');
-const flow        = require('an-flow');
-const log              = require('an-log')('EntityDefinition');
+const _ = require('lodash')
+const Entity = require('./Entity')
+const EntityQuery = require('./EntityQuery')
+const {isAllowedIndexType} = require('./internals')
+const flow = require('an-flow')
+const log = require('an-log')('EntityDefinition')
 
 // pour marquer les index mis par lassi (et ne pas risquer d'en virer des mis par qqun d'autre,
 // internes à mongo par ex, genre _id_…)
@@ -48,10 +49,10 @@ class EntityDefinition {
    * @param {String} name le nom de l'entité
    */
   constructor (name) {
-    this.name = name;
-    this.indexes = {};
-    this.indexesByMongoIndexName = {};
-    this._textSearchFields = null;
+    this.name = name
+    this.indexes = {}
+    this.indexesByMongoIndexName = {}
+    this._textSearchFields = null
   }
 
   /**
@@ -59,7 +60,7 @@ class EntityDefinition {
    * @return {Collection}
    */
   getCollection () {
-    return this.entities.db.collection(this.name);
+    return this.entities.db.collection(this.name)
   }
 
   /**
@@ -73,8 +74,35 @@ class EntityDefinition {
     return this.entities.db
   }
 
+  /**
+   * Retourne le type de l'index demandé, throw si c'est pas un index connu
+   * @param {string} indexName
+   * @return {string} boolean|date|integer|string
+   * @throws {Error} si index n'est pas un index défini
+   */
+  getIndexType (indexName) {
+    if (indexName === '_id') return 'string'
+    if (indexName === '__deletedAt') return 'date'
+    if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
+    return this.indexes[indexName].fieldType
+  }
+
+  /**
+   * Retourne le nom de l'index mongo associé à un champ
+   * @param fieldName
+   * @return {string}
+   */
   getMongoIndexName (fieldName) {
-    return `${INDEX_PREFIX}${fieldName}`;
+    return `${INDEX_PREFIX}${fieldName}`
+  }
+
+  /**
+   * Pour savoir si un index est défini
+   * @param indexName
+   * @return {boolean}
+   */
+  hasIndex (indexName) {
+    return !!this.indexes[indexName]
   }
 
   /**
@@ -95,8 +123,8 @@ class EntityDefinition {
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (fieldName, fieldType, callback) {
-    const mongoIndexName = this.getMongoIndexName(fieldName);
-
+    if (!isAllowedIndexType(fieldType)) throw new Error(`Type d’index ${fieldType} non géré`)
+    const mongoIndexName = this.getMongoIndexName(fieldName)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
@@ -106,20 +134,20 @@ class EntityDefinition {
       fieldName,
       mongoIndexName,
       // Si on nous passe pas de callback, on retourne la valeur du champ
-      callback: callback || function() { return this[fieldName]; }
-    };
+      callback: callback || function () { return this[fieldName] }
+    }
 
-    this.indexes[fieldName] = index;
-    this.indexesByMongoIndexName[mongoIndexName] = index;
-    return this;
+    this.indexes[fieldName] = index
+    this.indexesByMongoIndexName[mongoIndexName] = index
+    return this
   }
 
   initialize (cb) {
     log(this.name, 'initialize')
     this.initializeIndexes(error => {
       if (error) return cb(error)
-      this.initializeTextSearchFieldsIndex(cb);
-    });
+      this.initializeTextSearchFieldsIndex(cb)
+    })
   }
 
   /**
@@ -143,12 +171,12 @@ class EntityDefinition {
         ) {
           // Ce cas peut se produire si la collection/database vient d'être créée
           // il n'y a donc pas d'index existant
-          return cb(null, []);
+          return cb(null, [])
         }
-        return cb(error);
+        return cb(error)
       }
 
-      return cb(null, indexes);
+      return cb(null, indexes)
     })
   }
 
@@ -163,31 +191,33 @@ class EntityDefinition {
     const coll = def.getCollection()
     const existingIndexes = {}
     flow().seq(function () {
-      def.getMongoIndexes(this);
+      def.getMongoIndexes(this)
     // on parse l'existant
     }).seqEach(function (existingIndex) {
-      const mongoIndexName = existingIndex.name;
-      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
-        if (def.indexesByMongoIndexName[mongoIndexName]) {
-          // la notion de type de valeur à indexer n'existe pas dans mongo.
-          // seulement des type d'index champ unique / composé / texte / etc.
-          // https://docs.mongodb.com/manual/indexes/#index-types
-          // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
-          // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
-          // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
-          existingIndexes[mongoIndexName] = existingIndex
-          log(def.name, `index ${mongoIndexName} ok`)
-          return this()
-        } else {
-          // on en veut plus
-          coll.dropIndex(mongoIndexName, this)
-          log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
-        }
-      } else {
-        if (mongoIndexName !== '_id_') log.error(def.name, `index ${mongoIndexName} existe dans mongo mais il n’a pas été défini par lassi`, existingIndex)
+      const mongoIndexName = existingIndex.name
+      // _id_ est un index mis d'office par mongo
+      if (mongoIndexName === '_id_') return this()
+
+      if (def.indexesByMongoIndexName[mongoIndexName]) {
+        // la notion de type de valeur à indexer n'existe pas dans mongo.
+        // seulement des type d'index champ unique / composé / texte / etc.
+        // https://docs.mongodb.com/manual/indexes/#index-types
+        // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
+        // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
+        // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
+        existingIndexes[mongoIndexName] = existingIndex
+        log(def.name, `index ${mongoIndexName} ok`)
         return this()
       }
-
+      // si on est toujours là c'est un index qui n'est plus défini,
+      // on met un message différent suivant que c'est un index lassi ou pas
+      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
+        log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
+      } else {
+        log(def.name, `index ${mongoIndexName} existe dans mongo mais n’est pas un index lassi => DROP`, existingIndex)
+      }
+      // on le vire
+      coll.dropIndex(mongoIndexName, this)
     }).seq(function () {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
@@ -204,15 +234,15 @@ class EntityDefinition {
   }
 
   defineTextSearchFields (fields) {
-    var self = this;
+    var self = this
 
     fields.forEach(function (field) {
       if (!self.indexes[field]) {
-        throw new Error(`defineTextSearchFields ne s'applique qu'à des index. Non indexé: ${field}`);
+        throw new Error(`defineTextSearchFields ne s'applique qu'à des index. Non indexé: ${field}`)
       }
-    });
+    })
 
-    self._textSearchFields = fields;
+    self._textSearchFields = fields
   }
 
   initializeTextSearchFieldsIndex (callback) {
@@ -223,12 +253,12 @@ class EntityDefinition {
      */
     function createIndex (cb) {
       // Pas de nouvel index à créer
-      if (!self._textSearchFields) { return cb(); }
+      if (!self._textSearchFields) { return cb() }
 
-      const indexParams = {};
+      const indexParams = {}
       self._textSearchFields.forEach(function (field) {
-        indexParams[field] = 'text';
-      });
+        indexParams[field] = 'text'
+      })
       dbCollection.createIndex(indexParams, {name: indexName}, cb)
     }
 
@@ -238,43 +268,43 @@ class EntityDefinition {
      */
     function findFirstExistingTextIndex (cb) {
       self.getMongoIndexes(function (error, indexes) {
-        if (error) return cb(error);
+        if (error) return cb(error)
         // le 1er index dont le nom commence par text_index
-        var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name));
+        var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name))
 
-        cb(null, textIndex ? textIndex.name : null);
+        cb(null, textIndex ? textIndex.name : null)
       })
     }
 
-    var self = this;
+    var self = this
 
-    var dbCollection = self.getCollection();
-    var indexName = self._textSearchFields ? 'text_index_' + self._textSearchFields.join('_') : null;
+    var dbCollection = self.getCollection()
+    var indexName = self._textSearchFields ? 'text_index_' + self._textSearchFields.join('_') : null
 
     flow()
-    .seq(function () {
-      findFirstExistingTextIndex(this);
-    })
-    .seq(function (oldTextIndex) {
-      var next = this;
+      .seq(function () {
+        findFirstExistingTextIndex(this)
+      })
+      .seq(function (oldTextIndex) {
+        var next = this
 
-      if (indexName === oldTextIndex) {
+        if (indexName === oldTextIndex) {
         // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
-        return callback();
-      }
+          return callback()
+        }
 
-      if (!oldTextIndex) {
+        if (!oldTextIndex) {
         // Pas d'index à supprimer, on passe à la suite
-        return next();
-      }
+          return next()
+        }
 
-      // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
-      dbCollection.dropIndex(oldTextIndex, this);
-    })
-    .seq(function () {
-      createIndex(this);
-    })
-    .done(callback);
+        // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
+        dbCollection.dropIndex(oldTextIndex, this)
+      })
+      .seq(function () {
+        createIndex(this)
+      })
+      .done(callback)
   }
 
   /**
@@ -284,10 +314,10 @@ class EntityDefinition {
    * @private
    */
   bless (entities) {
-    if (this.configure) this.configure();
-    this.entities = entities;
-    this.entityClass = this.entityClass || function () {};
-    return this;
+    if (this.configure) this.configure()
+    this.entities = entities
+    this.entityClass = this.entityClass || function () {}
+    return this
   }
 
   /**
@@ -300,28 +330,28 @@ class EntityDefinition {
    * @return {Entity} Une instance d'entité
    */
   create (values) {
-    var instance = new Entity();
-    instance.setDefinition(this);
+    var instance = new Entity()
+    instance.setDefinition(this)
     if (this._defaults) {
-      this._defaults.call(instance);
+      this._defaults.call(instance)
     }
     if (this._construct) {
-      this._construct.call(instance, values);
+      this._construct.call(instance, values)
       // Si la fonction passée en constructeur ne prend aucun argument,
       // on ajoute d'office les values passées au create dans l'entity
       // (si le constructeur ne les a pas créées)
       if (values && this._construct.length === 0) {
-        _.extend(instance, values);
+        _.extend(instance, values)
       }
     } else {
-      if (values) _.extend(instance, values);
+      if (values) _.extend(instance, values)
     }
 
     if (!instance.isNew() && this._onLoad) {
-      this._onLoad.call(instance);
+      this._onLoad.call(instance)
     }
 
-    return instance;
+    return instance
   }
 
   /**
@@ -337,7 +367,7 @@ class EntityDefinition {
         return cb(error)
       }
       cb()
-    });
+    })
   }
 
   /**
@@ -346,11 +376,10 @@ class EntityDefinition {
    * @return {EntityQuery}
    */
   match () {
-    var query = new EntityQuery(this);
-    if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments));
-    return query;
+    var query = new EntityQuery(this)
+    if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments))
+    return query
   }
-
 
   /**
    * Ajoute un constructeur (appelé par create avec l'objet qu'on lui donne), s'il n'existe pas
@@ -358,7 +387,7 @@ class EntityDefinition {
    * @param {function} fn Constructeur
    */
   construct (fn) {
-    this._construct = fn;
+    this._construct = fn
   }
 
   /**
@@ -366,7 +395,7 @@ class EntityDefinition {
    * @param {function} fn La fonction qui initialisera des valeurs par défaut (sera appelée sans arguments)
    */
   defaults (fn) {
-    this._defaults = fn;
+    this._defaults = fn
   }
 
   /**
@@ -374,7 +403,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
   beforeStore (fn) {
-    this._beforeStore = fn;
+    this._beforeStore = fn
   }
 
   /**
@@ -382,7 +411,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
   afterStore (fn) {
-    this._afterStore = fn;
+    this._afterStore = fn
   }
 
   /**
@@ -402,7 +431,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui ne prend pas de paramètre
    */
   onLoad (fn) {
-    this._onLoad = fn;
+    this._onLoad = fn
   }
 
   /**
@@ -410,7 +439,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
   beforeDelete (fn) {
-    this._beforeDelete = fn;
+    this._beforeDelete = fn
   }
 
   /**
@@ -421,14 +450,15 @@ class EntityDefinition {
 
 for (var method in EntityQuery.prototype) {
   if (['match', 'finalizeQuery', 'grab', 'count', 'countBy', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
-    EntityDefinition.prototype[method] = (function (method) { return function () {
-        var args = Array.prototype.slice.call(arguments);
-        var field = args.shift();
-        var matcher = this.match(field);
-        return matcher[method].apply(matcher, args);
+    EntityDefinition.prototype[method] = (function (method) {
+      return function () {
+        var args = Array.prototype.slice.call(arguments)
+        var field = args.shift()
+        var matcher = this.match(field)
+        return matcher[method].apply(matcher, args)
       }
-    })(method);
+    })(method)
   }
 }
 
-module.exports = EntityDefinition;
+module.exports = EntityDefinition

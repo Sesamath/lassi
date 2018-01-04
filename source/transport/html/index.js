@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -22,20 +22,20 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var _            = require('lodash');
-var flow = require('an-flow');
+var _ = require('lodash')
+var flow = require('an-flow')
 // var util = require('util');
-var Renderer = require('./Renderer');
-var Metas = require('./Metas');
+var Renderer = require('./Renderer')
+var Metas = require('./Metas')
 // var pathlib = require('path');
-var log = require('an-log')('LassiHtml');
+var log = require('an-log')('LassiHtml')
 
 /**
  * Gestion du transport HTML.
  */
-function HtmlTransport(lassi) {
-  this.engine = new Renderer();
-  this.lassi = lassi;
+function HtmlTransport (lassi) {
+  this.engine = new Renderer()
+  this.lassi = lassi
 }
 
 /**
@@ -54,47 +54,47 @@ function HtmlTransport(lassi) {
 * @param {SimpleCallback} next la callback de retour
 * @private
 */
-HtmlTransport.prototype.process = function(data, next) {
-  if (data.$layout === false) return next(null, data.content);
-  var self = this;
-  var sections = _.filter(_.keys(data), function(i) { return i.charAt(0)!=='$' });
-  var metas = new Metas(data.$metas || {});
+HtmlTransport.prototype.process = function (data, next) {
+  if (data.$layout === false) return next(null, data.content)
+  var self = this
+  var sections = _.filter(_.keys(data), function (i) { return i.charAt(0) !== '$' })
+  var metas = new Metas(data.$metas || {})
   flow(sections)
-    .seqEach(function(key) {
+    .seqEach(function (key) {
       // seul les objets sont traités comme des sections et rendus dans des vues dust,
       // les string|number sont passés directement au layout
-      if (!_.isObject(data[key])) return this();
-      var next = this;
+      if (!_.isObject(data[key])) return this()
+      var next = this
       // si $view n'existe pas on prendra le nom de la section
-      var view = data[key].$view || key;
+      var view = data[key].$view || key
       // le dossier où chercher view
-      var viewsPath = data.$views || lassi.settings.application.defaultViewsPath;
+      var viewsPath = data.$views || lassi.settings.application.defaultViewsPath
       // et on remplace chaque section par son rendu
       if (!_.isString(viewsPath)) {
-        log.error('Il semble que le $views de ce data ne soit pas correctement renseigné', data);
-        throw new Error('Wrong views path');
+        log.error('Il semble que le $views de ce data ne soit pas correctement renseigné', data)
+        throw new Error('Wrong views path')
       }
-      self.engine.render(viewsPath, view, data[key], function(error, result) {
-        if (error) return next(error);
-        data[key] = result;
-        next();
-      });
+      self.engine.render(viewsPath, view, data[key], function (error, result) {
+        if (error) return next(error)
+        data[key] = result
+        next()
+      })
     })
-    .seq(function() {
-      var next = this;
-      data.head = metas.head().render();
-      data.breadcrumbs = metas.breadcrumbs;
-      data.pageTitle = metas.pageTitle;
+    .seq(function () {
+      var next = this
+      data.head = metas.head().render()
+      data.breadcrumbs = metas.breadcrumbs
+      data.pageTitle = metas.pageTitle
       if (data.$layout) {
-        self.engine.render(data.$views, data.$layout, data, function(error, result) {
-          if (error) return next(error);
-          next(null, result);
-        });
+        self.engine.render(data.$views, data.$layout, data, function (error, result) {
+          if (error) return next(error)
+          next(null, result)
+        })
       } else {
-        next(new Error("render impossible sans $layout"))
+        next(new Error('render impossible sans $layout'))
       }
     })
-    .seq(function(output) { next(null, output); }).catch(next);
+    .seq(function (output) { next(null, output) }).catch(next)
 }
 
-module.exports = HtmlTransport;
+module.exports = HtmlTransport

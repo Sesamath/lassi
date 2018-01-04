@@ -7,7 +7,7 @@ module.exports = function ($settings) {
   const maintenanceConfig = $settings.get('application.maintenance', {})
   const lockFile = $settings.get('application.maintenance.lockFile', 'maintenance.lock')
 
-  const maintenanceMiddleware = require('../maintenance/middleware')(maintenanceConfig);
+  const maintenanceMiddleware = require('../maintenance/middleware')(maintenanceConfig)
 
   // 10s entre le set en cli et son entrée en matière effective sur l'appli
   // (ou un set par l'appli et son application par les autres childs du cluster node)
@@ -38,7 +38,7 @@ module.exports = function ($settings) {
    * Retourne le mode de maintenance actif ou inactif via un callback
    * @param {getMaintenanceModeCallback} cb
    */
-  function getMaintenanceMode(cb) {
+  function getMaintenanceMode (cb) {
     // On vérifie la présence du fichier lock-maintenance au maximum toutes les 5 secondes
     if (lastLockFileCheck && Date.now() < lastLockFileCheck + DELAY_BETWEEN_LOCK_FILE_CHECKS) {
       return cb(null, lastLockResult) // On utilise la dernière valeur connue
@@ -97,8 +97,8 @@ module.exports = function ($settings) {
      * @param res express response
      * @param next callback pour passer au middleware suivant
      */
-    return function(req, res, next) {
-      getMaintenanceMode(function(err, {mode}) {
+    return function (req, res, next) {
+      getMaintenanceMode(function (err, {mode}) {
         if (err) return next(err)
 
         if (mode === 'on') {

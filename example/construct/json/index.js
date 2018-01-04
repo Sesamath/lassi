@@ -1,4 +1,4 @@
-"use strict";
+'use strict'
 /*
  * This file is part of "node-lassi-example".
  *    Copyright 2009-2012, arNuméral
@@ -24,9 +24,8 @@
 
 lassi.component('example-json')
 
-.controller('api', function() {
-  this.get('toto', function(context) {
-    context.json({toto: 12});
-  });
-});
-
+  .controller('api', function () {
+    this.get('toto', function (context) {
+      context.json({toto: 12})
+    })
+  })

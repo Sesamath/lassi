@@ -21,25 +21,122 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-'use strict';
+'use strict'
 
-const log = require('an-log')('EntityQuery');
-const _    = require('lodash');
-const flow = require('an-flow');
+const log = require('an-log')('EntityQuery')
+const _ = require('lodash')
+const flow = require('an-flow')
 const {castToType} = require('./internals')
 
 // une limite hard pour grab
 const HARD_LIMIT_GRAB = 1000
 
 /**
- * Vérifie que value est un array
+ * Helper permettant d'altérer la dernière clause.
+ * @param {Object} data les données à injecter.
+ * @return {EntityQuery} La requête (pour chaînage)
  * @private
- * @param value
- * @throws si value invalide
  */
-function checkIsArray (value) {
-  if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
+function alterLastMatch (entityQuery, data) {
+  _.extend(entityQuery.clauses[entityQuery.clauses.length - 1], data)
+  return entityQuery
 }
+
+/**
+ * Applique les clauses pendantes à la requête courante
+ * @param {EntityQuery} entityQuery
+ * @param {EntityQuery~record} record
+ * @private
+ */
+function buildQuery (entityQuery, record) {
+  var query = record.query
+
+  entityQuery.clauses.forEach((clause) => {
+    if (!clause) throw new Error('Erreur interne, requête invalide')
+    if (clause.type === 'sort') {
+      record.options.sort = record.options.sort || []
+      record.options.sort.push([clause.index, clause.order])
+      return
+    }
+
+    if (clause.type !== 'match') return
+
+    var index = clause.index
+    var type
+
+    if (index === 'oid') {
+      index = '_id'
+      type = 'string'
+    } else {
+      type = entityQuery.entity.getIndexType(index)
+    }
+
+    const cast = x => castToType(x, type)
+
+    if (!clause.operator) return
+
+    var condition
+    switch (clause.operator) {
+      case '=':
+        condition = {$eq: cast(clause.value)}
+        break
+
+      case '<>':
+        condition = {$ne: cast(clause.value)}
+        break
+
+      case '>':
+        condition = {$gt: cast(clause.value)}
+        break
+
+      case '<':
+        condition = {$lt: cast(clause.value)}
+        break
+
+      case '>=':
+        condition = {$gte: cast(clause.value)}
+        break
+
+      case '<=':
+        condition = {$lte: cast(clause.value)}
+        break
+
+      case 'BETWEEN':
+        condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])}
+        break
+
+      case 'LIKE':
+        condition = {$regex: new RegExp(cast(clause.value).replace(/%/g, '.*'))}
+        break
+
+      case 'ISNULL':
+        condition = {$eq: null}
+        break
+
+      case 'ISNOTNULL':
+        condition = {$ne: null}
+        break
+
+      case 'NOT IN':
+        condition = {$nin: clause.value.map(cast)}
+        break
+
+      case 'IN':
+        condition = {$in: clause.value.map(cast)}
+        break
+
+      default:
+        log.error(new Error(`operator ${clause.operator} unknown`))
+    }
+
+    // On ajoute la condition
+    if (!query[index]) query[index] = {}
+    Object.assign(query[index], condition)
+  })
+
+  // par défaut on prend pas les softDeleted
+  if (!query['__deletedAt'] && !entityQuery._includeDeleted) query['__deletedAt'] = {$eq: null}
+} // buildQuery
 
 /**
  * Vérifie que value n'est pas falsy (sauf qui est 0 accepté)
@@ -63,54 +160,386 @@ function checkDate (value) {
   if (!value) throw new Error('paramètre de requête invalide (date voulue)')
 }
 
-// @todo documenter proprement tous les arguments et les callbacks
+/**
+ * Vérifie que value est un array
+ * @private
+ * @param value
+ * @throws si value invalide
+ */
+function checkIsArray (value) {
+  if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
+}
+
+/**
+ * Retourne un tableau d'entities à partir d'un array de documents mongo
+ * @private
+ * @param {EntityQuery} entityQuery
+ * @param {Array} rows
+ * @return {Entity[]}
+ * @throws Si _data n'est pas du json valide
+ */
+function createEntitiesFromRows (entityQuery, rows) {
+  // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
+  const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
+  const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
+
+  return rows.map((row) => {
+    let data
+    if (row._data) {
+      try {
+        data = JSON.parse(row._data, jsonReviver)
+      } catch (error) {
+        console.error(error, `avec les _data :\n${row._data}`)
+        // on renvoie un message plus compréhensible
+        throw new Error(`Données corrompues pour ${entityQuery.entity.name}/${row._id}`)
+      }
+    } else {
+      throw new Error(`Données corrompues pour ${entityQuery.entity.name}/${row._id}`)
+    }
+    data.oid = row._id.toString()
+    // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
+    if (row.__deletedAt) {
+      data.__deletedAt = row.__deletedAt
+    }
+
+    return entityQuery.entity.create(data)
+  })
+}
+
+/**
+ * @typedef EntityQuery~record
+ * @property {EntityQuery~query} query
+ * @property {number} limit toujours fourni, HARD_LIMIT_GRAB par défaut
+ * @property {object} options sera passé tel quel à mongo
+ * @property {number} options.skip Offset pour un find
+ */
+/**
+ * Prépare la requête pour un find ou un delete (helper de grab ou purge)
+ * @private
+ * @param {EntityQuery} entityQuery
+ * @param {object} options
+ */
+function prepareRecord (entityQuery, options) {
+  if (options) { // null est de type object…
+    if (typeof options === 'number') {
+      options = {limit: options}
+    } else if (typeof options !== 'object') {
+      log.error(new Error('options invalides'), options)
+      options = {}
+    }
+  } else {
+    options = {}
+  }
+  const record = {query: {}, options: {}, limit: HARD_LIMIT_GRAB}
+  // on accepte offset ou skip
+  const skip = options.offset || options.skip
+  if (skip > 0) record.options.skip = skip
+  // set limit
+  if (options.limit) {
+    if (options.limit > 0 && options.limit <= HARD_LIMIT_GRAB) {
+      record.limit = options.limit
+    } else {
+      log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)
+    }
+  }
+
+  buildQuery(entityQuery, record)
+  return record
+}
+
+/**
+ * Requête sur une entity, les méthodes sont chaînables,
+ * sauf celles qui renvoient des résultats à une callback
+ * (grab, grabOne, count, countBy, purge)
+ */
 class EntityQuery {
   /**
    * Construction d'une requête sur entité.
-   * Ce constructeur n'est jamais appelé directement. Utilisez
-   * {@link Entity#match}
-   *
+   * Ce constructeur ne doit jamais être appelé directement,
+   * utilisez {@link EntityDefinition#match}
    * @constructor
-   * @param {Entity} entity L'entité
+   * @param {EntityDefinition} entityDefinition La définition de l'entité
    */
-  constructor (entity) {
+  constructor (entityDefinition) {
     /**
      * La définition de l'entité
      * @type {EntityDefinition}
      */
-    this.entity = entity;
-    this.clauses = [];
-    this.search = null;
-    this._includeDeleted = false;
+    this.entity = entityDefinition
+    this.clauses = []
+    this.search = null
+    this._includeDeleted = false
+  }
+
+  /**
+   * Fait correspondre les enregistrement dont la valeur d'index supérieure à une date donnée
+   * @alias greaterThan
+   * @param {Date} value La valeur à faire correspondre.
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  after (value) {
+    checkDate(value)
+    return alterLastMatch(this, {value: value, operator: '>'})
+  }
+
+  /**
+   * Fait correspondre les enregistrement dont la valeur d'index est inférieure à une date donnée
+   * @alias lowerThan
+   * @param {Date} value La valeur à faire correspondre.
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  before (value) {
+    checkDate(value)
+    return alterLastMatch(this, {value: value, operator: '<'})
+  }
+
+  /**
+   * Fait correspondre les enregistrement dont la valeur d'index est comprise
+   * entre deux valeurs.
+   *
+   * @param {String|Integer|Date} from La valeur de la borne inférieure
+   * @param {String|Integer|Date} to La valeur de la borne supérieure
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  between (from, to) {
+    checkDate(from)
+    checkDate(to)
+    return alterLastMatch(this, {value: [from, to], operator: 'BETWEEN'})
+  }
+
+  /**
+   * Callback de count
+   * @callback EntityQuery~CountCallback
+   * @param {Error} error Une erreur est survenue.
+   * @param {Integer} count le nb de résultat
+   */
+  /**
+   * Compte le nombre d'objet correpondants.
+   * @param {EntityQuery~CountCallback} callback
+   */
+  count (callback) {
+    var self = this
+    var record = {query: {}, options: {}}
+
+    flow()
+      .seq(function () {
+        buildQuery(self, record)
+        self.entity.getCollection().count(record.query, record.options, this)
+      })
+      .done(callback)
+  }
+
+  /**
+   * Callback de countBy
+   * @callback EntityQuery~CountByCallback
+   * @param {Error} error Une erreur est survenue (l'index n'existait pas)
+   * @param {object} result le nb de résultats par valeur de l'index
+   */
+  /**
+   * Compte le nombre d'objet correpondants et les regroupes par index.
+   * @param {String} index L'index dont on veut le nb d'entities pour chaque valeur qu'il prend
+   * @param {EntityQuery~CountByCallback} callback
+   */
+  countBy (index, callback) {
+    if (!this.entity.hasIndex(index)) return callback(new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`))
+    var self = this
+    var record = {query: {}, options: {}}
+
+    flow()
+      .seq(function () {
+        buildQuery(self, record)
+        const query = [
+          {$match: record.query},
+          {$group: {_id: `$${index}`, count: {$sum: 1}}}
+        ]
+        self.entity.getCollection().aggregate(query, this)
+      })
+      .seq(function (_groupes) {
+        const groupes = {}
+        _.each(_groupes, (groupe) => {
+          groupes[groupe._id] = groupe.count
+        })
+        callback(null, groupes)
+      })
+      .catch(callback)
+  }
+
+  /**
+   * Remonte les entités softDeleted après when
+   * @param {Date} when
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  deletedAfter (when) {
+    checkDate(when)
+    this.clauses.push({type: 'match', index: '__deletedAt', operator: '>', value: when})
+    return this
+  }
+
+  /**
+   * Remonte les entités softDeleted avant when (<=)
+   * @param {Date} when
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  deletedBefore (when) {
+    checkDate(when)
+    this.clauses.push({type: 'match', index: '__deletedAt', operator: '<', value: when})
+    return this
   }
 
   /**
    * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est égale à une
    * valeur donnée.
-   *
    * @param {String|Integer|Date} value La valeur cherchée
-   * @return {EntityQuery} La requête (chaînable donc}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   equals (value, fieldValue) {
     if (typeof fieldValue !== 'undefined') {
-      this.match(value);
-      value = fieldValue;
+      this.match(value)
+      value = fieldValue
     }
-    return this.alterLastMatch({value: value,  operator: '='});
+    return alterLastMatch(this, {value: value, operator: '='})
   }
 
   /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est différente à une
-   * valeur donnée.
-   * @param {String|Integer|Date} value La valeur cherchée
-   * @return {EntityQuery} La requête (chaînable donc}
+   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est fausse.
+   * @return {EntityQuery} La requête (pour chaînage)
    */
-  notEquals (value, fieldValue) {
-    if (typeof fieldValue !== 'undefined') {
-      this.match(value);
-      value = fieldValue;
+  false () {
+    return this.equals(false)
+  }
+
+  /**
+   * Callback d'exécution d'une requête grab
+   * @callback EntityQuery~GrabCallback
+   * @param {Error} error
+   * @param {Array} entities La liste des entités remontées
+   */
+  /**
+   * Récupère des entités
+   * @param {number|object}           [options]      Si seulement un nombre est fourni, il sera traité comme options.limit
+   * @param {number}                   options.limit Entier >0 et < 1000
+   * @param {number}                   options.skip  Entier >0, pour démarrer avec un offset
+   * @param {EntityQuery~GrabCallback} callback rappelée avec l'erreur ou les résultats
+   */
+  grab (options, callback) {
+    if (_.isFunction(options)) {
+      callback = options
+      options = {}
     }
-    return this.alterLastMatch({value: value,  operator: '<>'});
+    const record = prepareRecord(this, options)
+    let query
+
+    if (this.search) {
+      let sorts = {}
+      _.each(record.options.sort, (sort) => {
+        sorts[sort[0]] = sort[1] === 'asc' ? 1 : -1
+      })
+      // Le sort sur le score doit être fait avant les sorts "classiques"
+      let recordSort = _.merge({score: {$meta: 'textScore'}}, sorts)
+      delete record.options.sort
+
+      let recordQuery = _.merge(record.query, {$text: {$search: this.search}})
+      let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}})
+
+      query = this.entity.getCollection()
+        .find(recordQuery, recordOptions)
+        .sort(recordSort)
+    } else {
+      query = this.entity.getCollection()
+        .find(record.query, record.options)
+    }
+
+    query.limit(record.limit)
+      .toArray((error, rows) => {
+        if (error) return callback(error)
+        // on râle si on atteint la limite, sauf si on avait demandé cette limite
+        if (rows.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
+        try {
+          callback(null, createEntitiesFromRows(this, rows))
+        } catch (error) {
+          callback(error)
+        }
+      })
+  }
+
+  /**
+   * Callback d'exécution d'une requête grabOne
+   * @callback EntityQuery~GrabOneCallback
+   * @param {Error} error Une erreur est survenue.
+   * @param {Entity} entites L'objet trouvé (ou null)
+   */
+  /**
+   * Renvoie un objet liés à la requête
+   * @param {EntityQuery~GrabOneCallback} callback La callback.
+   */
+  grabOne (callback) {
+    this.grab({limit: 1}, function (error, entities) {
+      if (error) return callback(error)
+      if (entities.length === 0) return callback()
+      callback(null, entities[0])
+    })
+  }
+
+  /**
+   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est supérieure à une
+   * valeur donnée.
+   *
+   * @param {String|Integer|Date} value La valeur à faire correspondre.
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  greaterThan (value) {
+    checkCompareValue(value)
+    return alterLastMatch(this, {value: value, operator: '>'})
+  }
+
+  /**
+   * Fait correspondre les enregistrement dont la valeur d'index est supérieure ou
+   * égale à une valeur donnée.
+   *
+   * @param {String|Integer|Date} value La valeur à faire correspondre.
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  greaterThanOrEquals (value) {
+    checkCompareValue(value)
+    return alterLastMatch(this, {value: value, operator: '>='})
+  }
+
+  /**
+   * Fait correspondre les enregistrement dont la valeur d'index est dans une liste
+   *
+   * @param {String[]|Integer[]|Date[]} value Les valeurs à faire correspondre.
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  in (values) {
+    checkIsArray(values)
+    // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
+    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), 'appelé avec :\n', this.clauses)
+    return alterLastMatch(this, {value: values, operator: 'IN'})
+  }
+
+  /**
+   * Remonte toutes les entités, softdeleted ou non
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  includeDeleted () {
+    this._includeDeleted = true
+    return this
+  }
+
+  /**
+   * Limite aux entities ayant l'index précédent non null
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  isNotNull () {
+    return alterLastMatch(this, {operator: 'ISNOTNULL'})
+  }
+
+  /**
+   * Limite aux entities ayant l'index précédent null (ou undefined)
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  isNull () {
+    return alterLastMatch(this, {operator: 'ISNULL'})
   }
 
   /**
@@ -119,72 +548,11 @@ class EntityQuery {
    * @see https://dev.mysql.com/doc/refman/5.5/en/pattern-matching.html
    *
    * @param {String|Integer|Date} value La valeur cherchée
-   * @return {EntityQuery} La requête (chaînable donc}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   like (value) {
     checkCompareValue(value)
-    return this.alterLastMatch({value: value,  operator: 'LIKE'});
-  }
-
-  /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est vraie.
-   *
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  true () {
-    return this.equals(true);
-  }
-
-  /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est fausse.
-   *
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  false () {
-    return this.equals(false);
-  }
-
-  isNull () {
-    return this.alterLastMatch({operator: 'ISNULL'});
-  }
-
-  isNotNull () {
-    return this.alterLastMatch({operator: 'ISNOTNULL'});
-  }
-
-  /**
-   * @alias equals
-   *
-   * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  with (value) {
-    return this.alterLastMatch({value: value,  operator: '='});
-  }
-
-  /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est supérieure à une
-   * valeur donnée.
-   *
-   * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  greaterThan (value) {
-    checkCompareValue(value)
-    return this.alterLastMatch({value: value,  operator: '>'});
-  }
-
-  /**
-   * Fait correspondre les enregistrement dont la valeur d'index supérieure à une
-   * date donnée.
-   * @alias greaterThan
-   *
-   * @param {Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  after (value) {
-    checkDate(value)
-    return this.alterLastMatch({value: value,  operator: '>'});
+    return alterLastMatch(this, {value: value, operator: 'LIKE'})
   }
 
   /**
@@ -192,36 +560,11 @@ class EntityQuery {
    * valeur donnée.
    *
    * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   lowerThan (value) {
     checkCompareValue(value)
-    return this.alterLastMatch({value: value,  operator: '<'});
-  }
-
-  /**
-   * Fait correspondre les enregistrement dont la valeur d'index est inférieure à une
-   * date donnée.
-   * @alias lowerThan
-   *
-   * @param {Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  before (value) {
-    checkDate(value)
-    return this.alterLastMatch({value: value,  operator: '<'});
-  }
-
-  /**
-   * Fait correspondre les enregistrement dont la valeur d'index est supérieure ou
-   * égale à une valeur donnée.
-   *
-   * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  greaterThanOrEquals (value) {
-    checkCompareValue(value)
-    return this.alterLastMatch({value: value,  operator: '>='});
+    return alterLastMatch(this, {value: value, operator: '<'})
   }
 
   /**
@@ -229,11 +572,11 @@ class EntityQuery {
    * égale à une valeur donnée.
    *
    * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   lowerThanOrEquals (value) {
     checkCompareValue(value)
-    return this.alterLastMatch({value: value,  operator: '<='});
+    return alterLastMatch(this, {value: value, operator: '<='})
   }
 
   /**
@@ -257,346 +600,44 @@ class EntityQuery {
    *
    * @param {String} index L'index tel que déclaré via {@link Entity#addIndex} ou
    * `oid` pour l'identifiant de l'objet.
-   * @return {EntityQuery} La requête (chaînable donc}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   match (index) {
-    this.clauses.push({type:'match', index: index});
-    return this;
+    this.clauses.push({type: 'match', index: index})
+    return this
   }
 
   /**
-   * Helper permettant d'altérer la dernière clause.
-   * @param {Object} data les données à injecter.
-   * @return {EntityQuery} Chaînable
-   * @private
+   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est différente à une
+   * valeur donnée.
+   * @param {String|Integer|Date} value La valeur cherchée
+   * @return {EntityQuery} La requête (pour chaînage)
    */
-  alterLastMatch (data) {
-    _.extend(this.clauses[this.clauses.length - 1], data);
-    return this;
-  }
-
-  /**
-   * Fait correspondre les enregistrement dont la valeur d'index est comprise
-   * entre deux valeurs.
-   *
-   * @param {String|Integer|Date} from La valeur de la borne inférieure
-   * @param {String|Integer|Date} to La valeur de la borne supérieure
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  between (from, to) {
-    checkDate(from)
-    checkDate(to)
-    return this.alterLastMatch({value: [from,to],  operator: 'BETWEEN'});
-  }
-
-  /**
-   * Fait correspondre les enregistrement dont la valeur d'index est dans une liste
-   *
-   * @param {String[]|Integer[]|Date[]} value Les valeurs à faire correspondre.
-   * @return {EntityQuery} La requête (chaînable donc}
-   */
-  in (values) {
-    checkIsArray(values)
-    // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
-    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), 'appelé avec :\n', this.clauses)
-    return this.alterLastMatch({value: values,  operator: 'IN'});
+  notEquals (value, fieldValue) {
+    if (typeof fieldValue !== 'undefined') {
+      this.match(value)
+      value = fieldValue
+    }
+    return alterLastMatch(this, {value: value, operator: '<>'})
   }
 
   /**
    * Remonte les enregistrement dont les valeurs d'index ne sont pas dans la liste
    * @param {String[]|Integer[]|Date[]} value Les valeurs à exclure
-   * @return {EntityQuery}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   notIn (values) {
     checkIsArray(values)
-    return this.alterLastMatch({value: values,  operator: 'NOT IN'});
+    return alterLastMatch(this, {value: values, operator: 'NOT IN'})
   }
 
   /**
    * Remonte uniquement les entités softDeleted (inutile avec deletedAfter ou deletedBefore)
-   * @return {EntityQuery}
+   * @return {EntityQuery} La requête (pour chaînage)
    */
   onlyDeleted () {
-    this.clauses.push({type:'match', index: '__deletedAt', operator: 'ISNOTNULL'});
+    this.clauses.push({type: 'match', index: '__deletedAt', operator: 'ISNOTNULL'})
     return this
-  }
-
-  /**
-   * Remonte uniquement toutes les entités softdeleted ou non
-   * @return {EntityQuery}
-   */
-  includeDeleted() {
-    this._includeDeleted = true;
-    return this
-  }
-
-  /**
-   * Remonte les entités softDeleted après when
-   * @param {Date} when
-   * @return {EntityQuery}
-   */
-  deletedAfter (when) {
-    checkDate(when)
-    this.clauses.push({type:'match', index: '__deletedAt', operator: '>', value: when});
-    return this
-  }
-
-  /**
-   * Remonte les entités softDeleted avant when (<=)
-   * @param {Date} when
-   * @return {EntityQuery}
-   */
-  deletedBefore (when) {
-    checkDate(when)
-    this.clauses.push({type:'match', index: '__deletedAt', operator: '<', value: when});
-    return this
-  }
-
-  /**
-   * Applique les clauses pendantes à la requête courante
-   * @param {EntityQuery~record} record
-   * @private
-   */
-  buildQuery (record) {
-    var query = record.query;
-
-    this.clauses.forEach((clause) => {
-      if (!clause) throw new Error('Erreur interne, requête invalide')
-      if (clause.type === 'sort') {
-        record.options.sort = record.options.sort || [];
-        record.options.sort.push([clause.index, clause.order]);
-        return;
-      }
-
-      if (clause.type !== 'match') return;
-
-      var index = clause.index;
-      var type;
-
-      if (index === 'oid') {
-        index = '_id';
-        type = 'string';
-      } else if (index === '_id') {
-        type = 'string';
-      } else if (index === '__deletedAt') {
-        type = 'date';
-      } else if (this.entity.indexes[index]) {
-        type = this.entity.indexes[index].fieldType;
-      } else {
-        throw new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`)
-      }
-
-      const cast = x => castToType(x, type)
-
-      if (!clause.operator) return;
-
-      var condition;
-      switch (clause.operator) {
-        case '=':
-          condition = {$eq: cast(clause.value)};
-          break;
-
-        case '<>':
-          condition = {$ne: cast(clause.value)};
-          break;
-
-        case '>':
-          condition = {$gt: cast(clause.value)};
-          break;
-
-        case '<':
-          condition = {$lt: cast(clause.value)};
-          break;
-
-        case '>=':
-          condition = {$gte: cast(clause.value)};
-          break;
-
-        case '<=':
-          condition = {$lte: cast(clause.value)};
-          break;
-
-        case 'BETWEEN':
-          condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])};
-          break;
-
-        case 'LIKE':
-          condition = {$regex: new RegExp(cast(clause.value).replace(/\%/g,'.*'))};
-          break;
-
-        case 'ISNULL':
-          condition = {$eq: null};
-          break;
-
-        case 'ISNOTNULL':
-          condition = {$ne: null};
-          break;
-
-        case 'NOT IN':
-          condition = {$nin: clause.value.map(cast)};
-          break;
-
-        case 'IN':
-          condition = {$in: clause.value.map(cast)};
-          break;
-
-        default:
-          log.error(new Error(`operator ${clause.operator} unknown`))
-      }
-
-      // On ajoute la condition
-      if (!query[index]) query[index] = {};
-      Object.assign(query[index], condition);
-    })
-
-    // par défaut on prend pas les softDeleted
-    if (!query['__deletedAt'] && !this._includeDeleted) query['__deletedAt'] = {$eq : null}
-  }
-
-  /**
-   * @typedef EntityQuery~record
-   * @property {EntityQuery~query} query
-   * @property {number} limit toujours fourni, HARD_LIMIT_GRAB par défaut
-   * @property {object} options sera passé tel quel à mongo
-   * @property {number} options.skip Offset pour un find
-   */
-  /**
-   * Prépare la requête pour un find ou un delete (helper de grab ou purge)
-   * @param {object} options
-   */
-  prepareRecord (options) {
-    if (options) { // null est de type object…
-      if (typeof options == 'number') {
-        options = {limit: options}
-      } else if (typeof options !== 'object') {
-        log.error(new Error('options invalides'), options)
-        options = {}
-      }
-    } else {
-      options = {}
-    }
-    const record = {query: {}, options: {}, limit: HARD_LIMIT_GRAB};
-    // on accepte offset ou skip
-    const skip = options.offset || options.skip
-    if (skip > 0) record.options.skip = skip;
-    // set limit
-    if (options.limit) {
-      if (options.limit > 0 && options.limit <= HARD_LIMIT_GRAB) {
-        record.limit = options.limit;
-      } else {
-        log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)
-      }
-    }
-
-    this.buildQuery(record);
-    return record;
-  }
-
-  /**
-   * Tri le résultat de la requête.
-   * @param {String} index L'index sur lequel trier
-   * @param {String=} [order=asc] Comme en SQL, asc ou desc.
-   * @return {EntityQuery} chaînable
-   */
-  sort (index, order) {
-    order = order || 'asc';
-    if (index === 'oid') index = '_id';
-    this.clauses.push({type: 'sort', index: index, order: order});
-    return this;
-  }
-
-  /**
-   * (Internal) Retourne un tableau d'entities à partir d'un array de documents mongo
-   * @param {Array} rows
-   * @return {Entity[]}
-   * @throws Si _data n'est pas du json valide
-   */
-  createEntitiesFromRows (rows) {
-    // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
-    const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/;
-    const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
-
-    return rows.map((row) => {
-      let data
-      if (row._data) {
-        try {
-          data = JSON.parse(row._data, jsonReviver)
-        } catch (error) {
-          console.error(error, `avec les _data :\n${row._data}`)
-          // on renvoie un message plus compréhensible
-          throw new Error(`Données corrompues pour ${this.entity.name}/${row._id}`)
-        }
-      } else {
-        throw new Error(`Données corrompues pour ${this.entity.name}/${row._id}`)
-      }
-      data.oid = row._id.toString();
-      // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
-      if (row.__deletedAt) {
-        data.__deletedAt = row.__deletedAt;
-      }
-
-      return this.entity.create(data);
-    });
-  }
-
-  textSearch (search) {
-    this.search = search;
-    return this;
-  }
-
-  /**
-   * Callback d'exécution d'une requête grab
-   * @callback EntityQuery~GrabCallback
-   * @param {Error} error
-   * @param {Array} entities La liste des entités remontées
-   */
-
-  /**
-   * Récupère des entités
-   * @param {number|object}           [options]      Si seulement un nombre est fourni, il sera traité comme options.limit
-   * @param {number}                   options.limit Entier >0 et < 1000
-   * @param {number}                   options.skip  Entier >0, pour démarrer avec un offset
-   * @param {EntityQuery~GrabCallback} callback rappelée avec l'erreur ou les résultats
-   */
-  grab (options, callback) {
-    if (_.isFunction(options)) {
-      callback = options
-      options = {};
-    }
-    const record = this.prepareRecord(options);
-    let query;
-
-    if (this.search) {
-      let sorts = {};
-      _.each(record.options.sort, (sort) => {
-        sorts[sort[0]] = sort[1] === 'asc' ? 1 : -1;
-      });
-      // Le sort sur le score doit être fait avant les sorts "classiques"
-      let recordSort = _.merge({score: {$meta: 'textScore'}}, sorts);
-      delete record.options.sort;
-
-      let recordQuery = _.merge(record.query, {$text: {$search: this.search}});
-      let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}});
-
-      query = this.entity.getCollection()
-        .find(recordQuery, recordOptions)
-        .sort(recordSort);
-     } else {
-      query = this.entity.getCollection()
-        .find(record.query, record.options);
-    }
-
-    query.limit(record.limit)
-      .toArray((error, rows) => {
-        if (error) return callback(error)
-        // on râle si on atteint la limite, sauf si on avait demandé cette limite
-        if (rows.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
-        try {
-          callback(null, this.createEntitiesFromRows(rows));
-        } catch (error) {
-          callback(error)
-        }
-      });
   }
 
   /**
@@ -609,7 +650,7 @@ class EntityQuery {
    * @param {purgeCallback} callback
    */
   purge (callback) {
-    const record = this.prepareRecord();
+    const record = prepareRecord(this)
     this.entity.getCollection()
       .deleteMany(record.query, null, function (error, result) {
         if (error) return callback(error)
@@ -621,84 +662,49 @@ class EntityQuery {
         }
         const deletedCount = (result && result.deletedCount) || (result && result.result && result.result.n) || 0
         callback(null, deletedCount)
-      });
-  }
-
-  /**
-   * Callback d'exécution d'une requête.
-   * @callback EntityQuery~CountCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Integer} count le nb de résultat
-   */
-
-  /**
-   * Compte le nombre d'objet correpondants.
-   * @param {EntityQuery~CountCallback} callback
-   */
-  count (callback) {
-    var self = this;
-    var record = {query: {}, options: {}};
-
-    flow()
-    .seq(function () {
-      self.buildQuery(record);
-      self.entity.getCollection().count(record.query, record.options, this);
-    })
-    .done(callback);
-  }
-
-  /**
-   * Callback d'exécution d'une requête.
-   * @callback EntityQuery~CountCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Integer} count le nb de résultat
-   */
-
-  /**
-   * Compte le nombre d'objet correpondants et les regroupes par index.
-   * @param {String} index L'index sur lequel trier
-   * @param {EntityQuery~CountCallback} callback
-   */
-  countBy (index, callback) {
-    var self = this
-    var record = {query: {}, options: {}}
-
-    flow()
-    .seq(function () {
-      self.buildQuery(record)
-      const query = [
-        {$match: record.query},
-        {$group: {_id: `$${index}`, count: {$sum: 1}}}
-      ]
-      self.entity.getCollection().aggregate(query, this)
-    })
-    .seq(function(_groupes) {
-      const groupes = {}
-      _.each(_groupes, (groupe) => {
-        groupes[groupe._id] = groupe.count
       })
-      callback(null, groupes)
-    })
-    .catch(callback)
   }
 
   /**
-   * Callback d'exécution d'une requête grabOne
-   * @callback EntityQuery~GrabOneCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Entity} entites L'objet trouvé (ou null)
+   * Tri le résultat de la requête.
+   * @param {String} index L'index sur lequel trier
+   * @param {String=} [order=asc] Comme en SQL, asc ou desc.
+   * @return {EntityQuery} La requête (pour chaînage)
    */
+  sort (index, order) {
+    order = order || 'asc'
+    if (index === 'oid') index = '_id'
+    this.clauses.push({type: 'sort', index: index, order: order})
+    return this
+  }
 
   /**
-   * Renvoie un objet liés à la requête
-   * @param {EntityQuery~GrabOneCallback} callback La callback.
+   * Ajoute un critère de recherche plain text
+   * @param search
+   * @return {EntityQuery} La requête (pour chaînage)
    */
-  grabOne (callback) {
-    this.grab({limit: 1}, function (error, entities) {
-      if (error) return callback(error);
-      if (entities.length === 0) return callback();
-      callback(null, entities[0])
-    });
+  textSearch (search) {
+    this.search = search
+    return this
+  }
+
+  /**
+   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est vraie.
+   *
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  true () {
+    return this.equals(true)
+  }
+
+  /**
+   * @alias equals
+   *
+   * @param {String|Integer|Date} value La valeur à faire correspondre.
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  with (value) {
+    return alterLastMatch(this, {value: value, operator: '='})
   }
 }
 
@@ -710,4 +716,4 @@ class EntityQuery {
  */
 EntityQuery.HARD_LIMIT_GRAB = HARD_LIMIT_GRAB
 
-module.exports = EntityQuery;
+module.exports = EntityQuery

@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 
 /*
  * @preserve
@@ -24,18 +24,18 @@
  * 02110-1301 USA, or see the fs. site: http://www.fs..org.
  */
 
-const flow         = require('an-flow');
-const _            = require('lodash');
-const Component    = require('./Component');
-const Services     = require('./tools/Services');
-const EventEmitter = require('events').EventEmitter;
-const fs           = require('fs');
-const log          = require('an-log')('lassi');
+const flow = require('an-flow')
+const _ = require('lodash')
+const Component = require('./Component')
+const Services = require('./tools/Services')
+const EventEmitter = require('events').EventEmitter
+const fs = require('fs')
+const log = require('an-log')('lassi')
 // ajoute les propriétés de couleur sur les string ('toto'.blue pour l'afficher bleu si y'a un tty)
-require('colors');
+require('colors')
 const requireContext = this
 
-let shutdownRequested = false;
+let shutdownRequested = false
 
 /**
  * Constructeur de l'application. Effectue les initialisations par défaut.
@@ -46,38 +46,38 @@ let shutdownRequested = false;
  */
 class Lassi extends EventEmitter {
   constructor (options) {
-    super();
+    super()
     // pas mal de taf pour pouvoir s'en passer…
     // if (!options.noGlobalLassi)
-    global.lassi = this;
+    global.lassi = this
 
-    this.transports = {};
-    const HtmlTransport = require('./transport/html');
-    const JsonTransport = require('./transport/json');
-    const RawTransport = require('./transport/raw');
+    this.transports = {}
+    const HtmlTransport = require('./transport/html')
+    const JsonTransport = require('./transport/json')
+    const RawTransport = require('./transport/raw')
     /**
      * Liste de transports (html, json et raw au bootstrap,
      * avec les alias 'text/html', 'application/json' et 'text/plain')
      */
-    this.transports.html = new HtmlTransport(this);
-    this.transports.json = new JsonTransport(this);
-    this.transports.raw = new RawTransport(this);
-    this.transports['text/plain'] = this.transports.raw;
-    this.transports['text/html'] = this.transports.html;
-    this.transports['application/json'] = this.transports.json;
-    this.transports['application/javascript'] = this.transports.raw;
+    this.transports.html = new HtmlTransport(this)
+    this.transports.json = new JsonTransport(this)
+    this.transports.raw = new RawTransport(this)
+    this.transports['text/plain'] = this.transports.raw
+    this.transports['text/html'] = this.transports.html
+    this.transports['application/json'] = this.transports.json
+    this.transports['application/javascript'] = this.transports.raw
 
-    this.components = {};
-    this.services = new Services();
-    lassi.options = options;
+    this.components = {}
+    this.services = new Services()
+    lassi.options = options
     // cette commande nous ajoute lassi en component
-    const lassiComponent = lassi.component('lassi');
+    const lassiComponent = lassi.component('lassi')
     lassiComponent.service('$settings', require('./services/settings'))
     lassiComponent.service('$cache', require('./services/cache'))
     lassiComponent.service('$entities', require('./services/entities'))
     lassiComponent.entity('LassiUpdate', require('./updates/LassiUpdate'))
-    lassiComponent.service('$updates', require('./services/updates'));
-    lassiComponent.service('$maintenance', require('./services/maintenance'));
+    lassiComponent.service('$updates', require('./services/updates'))
+    lassiComponent.service('$maintenance', require('./services/maintenance'))
     if (lassi.options.cli) {
       lassiComponent.service('$cli', require('./services/cli'))
       lassiComponent.service('$cache-cli', require('./services/cache-cli'))
@@ -86,81 +86,82 @@ class Lassi extends EventEmitter {
       lassiComponent.service('$updates-cli', require('./services/updates-cli'))
     } else {
       lassiComponent.service('$rail', require('./services/rail'))
-      lassiComponent.service('$server', require('./services/server'));
+      lassiComponent.service('$server', require('./services/server'))
     }
 
-    options.root = fs.realpathSync(options.root);
-    lassi.settings = options.settings ? options.settings : require(options.root + '/config');
-    lassi.settings.root = options.root;
+    options.root = fs.realpathSync(options.root)
+    lassi.settings = options.settings ? options.settings : require(options.root + '/config')
+    lassi.settings.root = options.root
     // On ajoute un basePath s'il n'existe pas (le préfixe des routes pour des uri absolues)
     if (!lassi.settings.basePath) lassi.settings.basePath = '/'
     // et les composants par défaut qui seront mis en premier (seulement lassi lui-même
     // mis par le lassi.component ci-dessus, mais on laisse ça au cas où qqun ajouterait
     // des components dans ce constructeur)
-    this.defaultDependencies = _.keys(lassi.components);
+    this.defaultDependencies = _.keys(lassi.components)
   }
 
   startup (component, cb) {
     if (!cb) cb = (error) => error && console.error(error)
     log('startup component', component.name)
-    const lassiInstance = this;
-    component.dependencies = this.defaultDependencies.concat(component.dependencies);
+    const lassiInstance = this
+    component.dependencies = this.defaultDependencies.concat(component.dependencies)
     flow()
     // Configuration des composants
-    .seq(function () {
-      component.configure();
-      this();
-    })
+      .seq(function () {
+        component.configure()
+        this()
+      })
     // Configuration des services
-    .seq(function () {
+      .seq(function () {
       /**
        * résoud un service à l'ajoute à setupables et postSetupable si besoin
        * @private
        * @param {string} name
        */
-      function addService (name) {
-        if (added.has(name)) return
-        added.add(name)
-        const service = lassiInstance.services.resolve(name); // Permet de concrétiser les services non encore injectés
-        if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`);
-        if (service.setup) setupables.push(service)
-        if (service.postSetup) postSetupable.push(service);
-      }
-      // pour mémoriser les services déjà ajoutés
-      const added = new Set()
-      // liste des setup à lancer
-      const setupables = []
-      // postSetup est utilisé pour les services qui ont des actions à faire quand tous les services
-      // sont dispo (setup terminé, par ex pour que la BDD soit initialisée)
-      // mais avant $server.start()
-      const postSetupable = [];
-      const services = lassiInstance.services.services()
+        function addService (name) {
+          if (added.has(name)) return
+          added.add(name)
+          const service = lassiInstance.services.resolve(name) // Permet de concrétiser les services non encore injectés
+          if (!service) throw new Error(`Le service ${name} n'a pu être résolu (il ne retourne probablement rien)`)
+          if (service.setup) setupables.push(service)
+          if (service.postSetup) postSetupable.push(service)
+        }
+        // pour mémoriser les services déjà ajoutés
+        /* global Set */
+        const added = new Set()
+        // liste des setup à lancer
+        const setupables = []
+        // postSetup est utilisé pour les services qui ont des actions à faire quand tous les services
+        // sont dispo (setup terminé, par ex pour que la BDD soit initialisée)
+        // mais avant $server.start()
+        const postSetupable = []
+        const services = lassiInstance.services.services()
       // on veut $settings puis $cache puis $entities dispos dans cet ordre,
       // pour que les autres setup puissent les utiliser
-      ;['$settings', '$cache', '$entities'].forEach(name => addService)
-      Object.keys(services).forEach(addService)
-      // fin init
-      log('starting setup chain', Array.from(added).join(', '))
-      flow(setupables)
-      .seqEach(function (service) {
-        service.setup(this);
+      ;['$settings', '$cache', '$entities'].forEach(addService)
+        Object.keys(services).forEach(addService)
+        // fin init
+        log('starting setup chain', Array.from(added).join(', '))
+        flow(setupables)
+          .seqEach(function (service) {
+            service.setup(this)
+          })
+          .seq(function () {
+            log('starting postSetup chain')
+            this(null, postSetupable)
+          })
+          .seqEach(function (service) {
+            log('postSetup', service.serviceName)
+            service.postSetup(this)
+          })
+          .done(this)
       })
-      .seq(function() {
-        log('starting postSetup chain')
-        this(null, postSetupable);
+      .seq(function () {
+        log('startup event')
+        lassiInstance.emit('startup')
+        cb()
       })
-      .seqEach(function (service) {
-        log('postSetup', service.serviceName);
-        service.postSetup(this);
-      })
-      .done(this);
-    })
-    .seq(function () {
-      log('startup event')
-      lassiInstance.emit('startup');
-      cb();
-    })
-    .catch(cb);
+      .catch(cb)
   }
 
   /**
@@ -169,20 +170,20 @@ class Lassi extends EventEmitter {
    * @private
    */
   bootstrap (component, cb) {
-    const lassiInstance = this;
+    const lassiInstance = this
     flow()
-    .seq(function () {
-      lassiInstance.startup(component, this);
-    })
-    .seq(function () {
-      if (lassiInstance.options.cli) return this();
-      const $server = lassiInstance.service('$server');
-      $server.start(this);
-    })
-    .done(function (error) {
-      if (error) console.error(error.stack);
-      if (cb) cb(error);
-    });
+      .seq(function () {
+        lassiInstance.startup(component, this)
+      })
+      .seq(function () {
+        if (lassiInstance.options.cli) return this()
+        const $server = lassiInstance.service('$server')
+        $server.start(this)
+      })
+      .done(function (error) {
+        if (error) console.error(error.stack)
+        if (cb) cb(error)
+      })
   }
 
   /**
@@ -191,7 +192,8 @@ class Lassi extends EventEmitter {
    * @param {string[]}  [dependencies] Une liste de noms de composants en dépendance
    */
   component (name, dependencies) {
-    return this.components[name] = new Component(name, dependencies);
+    this.components[name] = new Component(name, dependencies)
+    return this.components[name]
   }
 
   /**
@@ -199,14 +201,14 @@ class Lassi extends EventEmitter {
    * @param {String} name           Le nom du component
    */
   service (name) {
-    return this.services.resolve(name);
+    return this.services.resolve(name)
   }
 
   /**
    * Liste tous les services enregistrés
    */
   allServices () {
-    return this.services.services();
+    return this.services.services()
   }
 
   /**
@@ -216,45 +218,52 @@ class Lassi extends EventEmitter {
    */
   shutdown () {
     function thisIsTheEnd () {
-      log('shutdown completed');
-      process.exit();
+      log('shutdown completed')
+      process.exit()
     }
 
-    if (!shutdownRequested) {
-      shutdownRequested = true;
+    // normal d'être appelé 2× avec SIGINT puis exit
+    if (shutdownRequested) return
 
+    shutdownRequested = true
+    log('processing shutdown')
+    // Avant de lancer l'événement on met une limite pour les réponses à 2s
+    setTimeout(function () {
+      log('shutdown too slow, forced')
+      thisIsTheEnd()
+    }, 2000)
+
+    /**
+     * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
+     * @event Lassi#shutdown
+     */
+    this.emit('shutdown')
+
+    process.nextTick(() => {
       try {
-        log('processing shutdown');
-        // Avant de lancer l'événement on met une limite pour les réponses à 2s
-        setTimeout(function () {
-          log('shutdown too slow, forced');
-          thisIsTheEnd();
-        }, 2000);
-
-        /**
-         * Évènement généré lorsque l'application est arrêtée par la méthode shutdown.
-         * @event Lassi#shutdown
-         */
-        this.emit('shutdown');
-
-        // Avec un sgbd, il fallait pas fermer la connexion ici
-        // sinon les transactions en cours ne pouvaient pas se terminer
-        // on laisse aussi à connexion à mongo expirer…
-        // => pas de $entities.database.end()
-
         // Dans certains cas, this.service n'existe déjà plus !
-        const $server = this.service && this.service('$server');
-        if ($server) {
-          $server.stop(thisIsTheEnd);
+        if (this.service) {
+          // Avec un sgbd, il fallait pas fermer la connexion ici
+          // sinon les transactions en cours ne pouvaient pas se terminer
+          log('closing $entities')
+          this.service('$entities').close()
+
+          // on ferme aussi $cache (ça ferme le client redis de la session qui est le même)
+          log('closing redis connection')
+          this.service('$cache').quit()
+
+          // et pour finir $server
+          log('closing $server')
+          this.service('$server').stop(thisIsTheEnd)
         } else {
-          log('server is already gone');
-          thisIsTheEnd();
+          log('server is already gone')
+          thisIsTheEnd()
         }
       } catch (error) {
-        log('error on shutdown\n' + error.stack);
-        process.exit();
+        log.error('error on shutdown', error)
+        process.exit()
       }
-    }
+    })
   }
 }
 
@@ -269,50 +278,55 @@ class Lassi extends EventEmitter {
  */
 function startLassi (options) {
   // on accepte root tout seul à la place de l'objet options
-  if (typeof options=='string') {
+  if (typeof options === 'string') {
     options = {
       root: options
     }
   }
-  options.cli = !!options.cli;
+  options.cli = !!options.cli
   // on ne tolère qu'un seul lassi en global, mais on pourrait en avoir plusieurs
   // en passant du options.noGlobalLassi = true (quand lassi lui-même pourra se passer d'être global)
   if (_.has(global, 'lassi')) {
     log('ERROR'.red, ' : lassi already exists')
-    return lassi;
+    return global.lassi
   }
-  const lassi = new Lassi(options);
-  lassi.Context = require('./Context');
-  lassi.require = () => require.apply(requireContext, arguments);
+  const lassi = new Lassi(options)
+  lassi.Context = require('./Context')
+  lassi.require = () => require.apply(requireContext, arguments)
 
   // Un écouteur pour tout ce qui pourrait passer au travers de la raquette
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
   process.on('uncaughtException', (error) => {
     // On envoie l'erreur en console
-    console.error('uncaughtException : ', error.stack);
+    console.error('uncaughtException : ', error)
   })
 
   // On ajoute nos écouteurs pour le shutdown car visiblement beforeExit n'arrive jamais, et exit ne sert
   // que sur les sorties "internes" via un process.exit() car sinon on reçoit normalement un SIG* avant
   if (!options.cli) {
-    _.each(['beforeExit', 'SIGINT', 'SIGTERM', 'SIGHUP', 'exit'], (signal) => {
+    // see https://en.wikipedia.org/wiki/Signal_(IPC)#POSIX_signals
+    // ctrl + c => SIGINT
+    // fermeture du term parent => SIGHUP
+    // kill -N pid, avec N :
+    // --------------- 1 ------ 2 ------- 15
+    ['beforeExit', 'SIGHUP', 'SIGINT', 'SIGTERM', 'exit'].forEach((signal) => {
       process.on(signal, () => {
-        log('pid ' + process.pid + ' received signal ' + signal);
-        lassi.shutdown();
-      });
+        log('pid ' + process.pid + ' received signal ' + signal)
+        lassi.shutdown()
+      })
     })
   }
 
   // Le message 'shutdown' est envoyé par pm2 sur les gracefulReload
   process.on('message', (message) => {
     // On récupère bien la string 'shutdown' qui est affichée ici
-    log(`message "${message}" of pid ${process.pid}`);
+    log(`message "${message}" of pid ${process.pid}`)
     if (message === 'shutdown') {
       // Mais on n'arrive jamais là, le process meurt visiblement avant
-      log('launching shutdown');
-      lassi.shutdown();
+      log('launching shutdown')
+      lassi.shutdown()
     }
-  });
+  })
 
   return lassi
 }

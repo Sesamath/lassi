@@ -4,34 +4,13 @@ const assert = require('assert')
 const flow = require('an-flow')
 const chai = require('chai')
 const {expect} = chai
-const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
-const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, setup} = require('./init')
+const {quit, setup} = require('./init')
 
 chai.use(sinonChai)
 
-const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
-const bt = 1041476706000
-const seconde = 1000
-const STRING_PREFIX = 'test-'
-
-let TestEntity;
-/**
- * Vérifie si l'entité est celle attendue
- *
- * @param {Integer} i      Identifiant de l'entité
- * @param {Object}  entity Entité
- */
-function assertEntity (i, entity) {
-  assert.equal(entity.i, i)
-  assert.equal(entity.s, STRING_PREFIX + i)
-  assert.equal(entity.d.getTime(), bt + seconde * i)
-  assert.equal(entity.sArray.length, 3)
-  assert.equal(entity.iArray.length, 3)
-  assert.equal(entity.dArray.length, 3)
-}
+let TestEntity
 
 describe('Test entities-queries', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
@@ -42,6 +21,8 @@ describe('Test entities-queries', function () {
       done()
     }).catch(done)
   })
+
+  after('ferme la connexion', quit)
 
   // Normalement déjà testé par entities-indexes, mais ça mange pas de pain de le vérifier de nouveau
   // dans cette entity plus complète
@@ -55,7 +36,7 @@ describe('Test entities-queries', function () {
       this(null, indexes.filter(i => i.name !== '_id_'))
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
-      this();
+      this()
     }).done(done)
   })
 
@@ -70,7 +51,7 @@ describe('Test entities-queries', function () {
       {b: 42, s: 'boolean truthy int'},
       {b: 'foo', s: 'boolean truthy string'},
       {b: {}, s: 'boolean truthy obj'},
-      {b: new Date(), s: 'boolean truthy date'},
+      {b: new Date(), s: 'boolean truthy date'}
     ]
     flow(entities).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
@@ -209,7 +190,7 @@ describe('Test entities-queries', function () {
       {bArray: [42], s: 'boolean truthy int'},
       {bArray: ['foo'], s: 'boolean truthy string'},
       {bArray: [{}], s: 'boolean truthy obj'},
-      {bArray: [new Date()], s: 'boolean truthy date'},
+      {bArray: [new Date()], s: 'boolean truthy date'}
     ]
     flow(entities).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
@@ -251,7 +232,7 @@ describe('Test entities-queries', function () {
         {bArray: [true, 42, true], i: 1},
         {bArray: [null, false], i: 2},
         {bArray: [false, undefined], i: 3},
-        {bArray: [true, false], i: 4},
+        {bArray: [true, false], i: 4}
       ]
       this(null, entities)
     }).seqEach(function (entity) {
@@ -274,4 +255,4 @@ describe('Test entities-queries', function () {
     }).done(done)
   })
   // @todo array de date/int/string
-});
+})

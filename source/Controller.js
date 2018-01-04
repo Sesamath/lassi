@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
  * @preserve This file is part of "lassi".
  *    Copyright 2009-2014, arNuméral
@@ -22,30 +22,30 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-var Action       = require('./Action');
+var Action = require('./Action')
 var EventEmitter = require('events').EventEmitter
-var _    = require('lodash');
+var _ = require('lodash')
 
 /**
  * Cette classe est instanciée par {@link Component#controller}
  * @constructor
  */
 class Controller extends EventEmitter {
-  constructor(path) {
-    super();
-    this.path = '/' + (path || '');
-    this.actions = [];
-    return this;
+  constructor (path) {
+    super()
+    this.path = '/' + (path || '')
+    this.actions = []
+    return this
   }
 
-  on(methods, path, callback) {
+  on (methods, path, callback) {
     if (typeof callback === 'undefined') {
-      callback = path;
-      path = undefined;
+      callback = path
+      path = undefined
     }
-    if (methods && !_.isArray(methods)) methods = [ methods ];
+    if (methods && !_.isArray(methods)) methods = [ methods ]
     this.actions.push(new Action(this, methods, path, callback))
-    return this;
+    return this
   }
 
   /**
@@ -64,9 +64,9 @@ class Controller extends EventEmitter {
    * @fires Lassi#beforeTransport
    * @return {Controller} Chaînable
    */
-  put(path, cb) {
-    this.on('put', path, cb);
-    return this;
+  put (path, cb) {
+    this.on('put', path, cb)
+    return this
   }
 
   /**
@@ -76,8 +76,8 @@ class Controller extends EventEmitter {
    * @fires Lassi#beforeTransport
    * @return {Controller} Chaînable
    */
-  post(path, cb) {
-    return this.on('post', path, cb);
+  post (path, cb) {
+    return this.on('post', path, cb)
   }
 
   /**
@@ -87,8 +87,8 @@ class Controller extends EventEmitter {
    * @fires Lassi#beforeTransport
    * @return {Controller} Chaînable
    */
-  get(path, cb) {
-    return this.on('get', path, cb);
+  get (path, cb) {
+    return this.on('get', path, cb)
   }
 
   /**
@@ -98,8 +98,8 @@ class Controller extends EventEmitter {
    * @fires Lassi#beforeTransport
    * @return {Controller} Chaînable
    */
-  delete(path, cb) {
-    return this.on('delete', path, cb);
+  delete (path, cb) {
+    return this.on('delete', path, cb)
   }
 
   /**
@@ -109,8 +109,8 @@ class Controller extends EventEmitter {
    * @fires Lassi#beforeTransport
    * @return {Controller} Chaînable
    */
-  options(path, cb) {
-    return this.on('options', path, cb);
+  options (path, cb) {
+    return this.on('options', path, cb)
   }
 
   /**
@@ -120,10 +120,9 @@ class Controller extends EventEmitter {
    * @fires Lassi#beforeTransport
    * @return {Controller} Chaînable
    */
-  all(path, cb) {
-    return this.on(undefined, path, cb);
+  all (path, cb) {
+    return this.on(undefined, path, cb)
   }
-
 
   /**
    * Publie l'ensemble des fichiers d'un dossier physique.
@@ -131,19 +130,17 @@ class Controller extends EventEmitter {
    * @param {String|Object} options Si c'est une string ça doit être le chemin physique, sinon un objet avec fsPath ou d'autres propriétés qui seront passées à express.static
    * @return {Controller} Chaînable
    */
-  serve(path, options) {
-    if (typeof options==='undefined') {
+  serve (path, options) {
+    if (typeof options === 'undefined') {
       options = {fsPath: path}
-      path = undefined;
-    } else if (typeof options==='string') {
+      path = undefined
+    } else if (typeof options === 'string') {
       options = {fsPath: options}
     }
-    return this.on('get', path, options);
+    return this.on('get', path, options)
   }
-
 }
 
-
-module.exports = function(path) {
-  return new Controller(path);
+module.exports = function (path) {
+  return new Controller(path)
 }

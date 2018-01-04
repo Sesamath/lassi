@@ -21,12 +21,12 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-'use strict';
+'use strict'
 
-const _    = require('lodash');
-const flow = require('an-flow');
-const ObjectID = require('mongodb').ObjectID;
-const log = require('an-log')('Entity');
+const _ = require('lodash')
+const flow = require('an-flow')
+const ObjectID = require('mongodb').ObjectID
+// const log = require('an-log')('Entity');
 const {castToType} = require('./internals')
 
 /**
@@ -35,9 +35,8 @@ const {castToType} = require('./internals')
  * @param {Object} settings
  */
 class Entity {
-
   setDefinition (entity) {
-    Object.defineProperty(this, 'definition', {value: entity});
+    Object.defineProperty(this, 'definition', {value: entity})
   }
 
   /**
@@ -45,14 +44,14 @@ class Entity {
    * @return {boolean} true si l'instance n'a jamais été sauvegardée
    */
   isNew () {
-    return !this.oid;
+    return !this.oid
   }
   /**
    * Répond true si l'instance de cette Entity est "soft deleted"
    * @return {boolean}
    */
   isDeleted () {
-    return !!this.__deletedAt;
+    return !!this.__deletedAt
   }
 
   /**
@@ -61,12 +60,12 @@ class Entity {
    */
   buildIndexes () {
     const entityDefinition = this.definition
-    const indexes = {};
+    const indexes = {}
     let field, index, values
     for (field in entityDefinition.indexes) {
-      index = entityDefinition.indexes[field];
+      index = entityDefinition.indexes[field]
       // valeurs retournées par la fct d'indexation
-      values = index.callback.apply(this);
+      values = index.callback.apply(this)
       // affectation après cast dans le type indiqué
       if (Array.isArray(values)) {
         indexes[field] = values.map(x => castToType(x, index.fieldType))
@@ -74,11 +73,11 @@ class Entity {
         indexes[field] = castToType(values, index.fieldType)
       }
     }
-    return indexes;
+    return indexes
   }
 
   db () {
-    return this.definition.entities.db;
+    return this.definition.entities.db
   }
 
   /**
@@ -86,47 +85,47 @@ class Entity {
    * @param {Object=} options non utilisé
    */
   store (options, callback) {
-    const self = this;
-    const entity = this.definition;
+    const self = this
+    const entity = this.definition
 
     if (_.isFunction(options)) {
-      callback = options;
-      options = undefined;
+      callback = options
+      options = undefined
     }
     options = options || {object: true, index: true}
-    callback = callback || function() {};
+    callback = callback || function () {}
 
     let document
     flow().seq(function () {
       if (entity._beforeStore) {
-        entity._beforeStore.call(self, this);
+        entity._beforeStore.call(self, this)
       } else {
-        this();
+        this()
       }
     }).seq(function () {
       let isNew = !self.oid
       // on génère un oid sur les créations
-      if (isNew) self.oid = ObjectID().toString();
+      if (isNew) self.oid = ObjectID().toString()
       // les index
-      document = self.buildIndexes();
+      document = self.buildIndexes()
       if (self.__deletedAt) {
-        document.__deletedAt = self.__deletedAt;
+        document.__deletedAt = self.__deletedAt
       }
-      document._id = self.oid;
+      document._id = self.oid
       // on vire les _, $ et méthodes, puis serialize et sauvegarde
       // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
-      document._data = JSON.stringify(self, function(k,v) {
-        if (_.isFunction(v)) return;
-        if (k[0] === '_') return;
-        if (k[0] === '$') return;
-        return v;
-      });
+      document._data = JSON.stringify(self, function (k, v) {
+        if (_.isFunction(v)) return
+        if (k[0] === '_') return
+        if (k[0] === '$') return
+        return v
+      })
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/
-      if (isNew) entity.getCollection().insertOne(document, {w: 1}, this);
-      else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this);
-    }).seq(function (result) {
+      if (isNew) entity.getCollection().insertOne(document, {w: 1}, this)
+      else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this)
+    }).seq(function () {
       if (entity._afterStore) {
         // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
         // mais on l'a pas sous la main, et self devrait être en tout point identique,
@@ -134,12 +133,12 @@ class Entity {
         // EntityQuery.createEntitiesFromRows au retour de mongo
         entity._afterStore.call(self, this)
       } else {
-        this();
+        this()
       }
     }).seq(function () {
       // On appelle le onLoad() car l'état de l'entité en BDD a changé,
       // comme si l'entity avait été "rechargée".
-      if (entity._onLoad) entity._onLoad.call(self);
+      if (entity._onLoad) entity._onLoad.call(self)
       callback(null, self)
     }).catch(callback)
   }
@@ -147,7 +146,7 @@ class Entity {
   reindex (callback) {
     // faut pouvoir réindexer d'éventuel doublons pour mieux les trouver ensuite
     this.$byPassDuplicate = true
-    this.store(callback);
+    this.store(callback)
   }
 
   /**
@@ -155,25 +154,25 @@ class Entity {
    * @param {SimpleCallback} callback
    */
   restore (callback) {
-    var self = this;
-    var entity = this.definition;
+    var self = this
+    var entity = this.definition
 
     flow()
-    .seq(function() {
-      if (!self.oid) return this('Impossible de restaurer une entité sans oid');
-      entity.getCollection().update({
-        _id: self.oid
-      },{
-        $unset: {__deletedAt: ''}
-      }, this);
-    })
-    .seq(function() {
+      .seq(function () {
+        if (!self.oid) return this('Impossible de restaurer une entité sans oid')
+        entity.getCollection().update({
+          _id: self.oid
+        }, {
+          $unset: {__deletedAt: ''}
+        }, this)
+      })
+      .seq(function () {
       // On appelle le onLoad() car l'état de l'entité en BDD a changé,
       // comme si l'entity avait été "rechargée".
-      if (entity._onLoad) entity._onLoad.call(self);
-      callback(null, self)
-    })
-    .catch(callback)
+        if (entity._onLoad) entity._onLoad.call(self)
+        callback(null, self)
+      })
+      .catch(callback)
   }
 
   /**
@@ -191,10 +190,10 @@ class Entity {
    * @param {SimpleCallback} callback
    * @see restore
    */
-  softDelete(callback) {
-    if (!this.oid) return callback(new Error(`Impossible de softDelete une entité qui n'a pas encore été sauvegardée`));
-    this.__deletedAt = new Date();
-    this.store(callback);
+  softDelete (callback) {
+    if (!this.oid) return callback(new Error(`Impossible de softDelete une entité qui n'a pas encore été sauvegardée`))
+    this.__deletedAt = new Date()
+    this.store(callback)
   }
 
   /**
@@ -203,25 +202,24 @@ class Entity {
    * @param {SimpleCallback} callback
    */
   delete (callback) {
-    var self = this;
+    var self = this
     // @todo activer ce throw ?
     // if (!self.oid) throw new Error('Impossible d’effacer une entity sans oid')
-    var entity = this.definition;
+    var entity = this.definition
     flow()
-    .seq(function () {
-      if (entity._beforeDelete ) {
-        entity._beforeDelete.call(self, this)
-      } else {
-        this();
-      }
-    })
-    .seq(function() {
-      if (!self.oid) return this();
-      entity.getCollection().remove({_id: self.oid}, {w : 1}, this);
-    })
-    .done(callback)
+      .seq(function () {
+        if (entity._beforeDelete) {
+          entity._beforeDelete.call(self, this)
+        } else {
+          this()
+        }
+      })
+      .seq(function () {
+        if (!self.oid) return this()
+        entity.getCollection().remove({_id: self.oid}, {w: 1}, this)
+      })
+      .done(callback)
   }
-
 }
 
-module.exports = Entity;
+module.exports = Entity

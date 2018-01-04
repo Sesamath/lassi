@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
  * @preserve This file is part of "node-lassi-example".
  *    Copyright 2009-2014, arNuméral
@@ -21,38 +21,38 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-var flow = require('an-flow');
+var flow = require('an-flow')
 lassi.component('example-entities')
-  .entity('Person', function() {
-    this.construct(function() {
-      this.name = undefined;
-      this.truc = 'machin';
+  .entity('Person', function () {
+    this.construct(function () {
+      this.name = undefined
+      this.truc = 'machin'
     })
 
-    this.beforeStore(function(cb) {
-      this.rand = Math.random();
-      cb();
+    this.beforeStore(function (cb) {
+      this.rand = Math.random()
+      cb()
     })
 
-    this.afterStore(function(cb) {
-      this.$id = this.name+'::'+this.oid;
-      cb();
+    this.afterStore(function (cb) {
+      this.$id = this.name + '::' + this.oid
+      cb()
     })
 
-    this.onLoad(function() {
-      this.$loaded = new Date();
+    this.onLoad(function () {
+      this.$loaded = new Date()
     })
 
-    this.defineIndex('name', 'string');
+    this.defineIndex('name', 'string')
   })
-  .controller('api', function(Person) {
-    this.get('person', function(context) {
+  .controller('api', function (Person) {
+    this.get('person', function (context) {
       flow()
-        .seq(function() { Person.create({name:'gaston'}).store(this); })
-        .seq(function() { Person.match('name').equals('gaston').grab(this); })
-        .seq(function(gastons) {
-          context.json({gastons: gastons});
+        .seq(function () { Person.create({name: 'gaston'}).store(this) })
+        .seq(function () { Person.match('name').equals('gaston').grab(this) })
+        .seq(function (gastons) {
+          context.json({gastons: gastons})
         })
-        .catch(context.next);
-    });
-  });
+        .catch(context.next)
+    })
+  })
