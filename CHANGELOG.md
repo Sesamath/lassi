@@ -137,7 +137,7 @@ Version 2.2 (redis)
   * ajout updates non bloquants
 * 2.2.9 (2017-12-29)
   * ajout countBy
-* 2.2.10 (2018-01-02)
+* 2.2.10 (2018-01-04)
   * solidification countBy en imposant un index existant
   * méthodes internes sorties de la classe EntityQuery (alterLastMatch, createEntitiesFromRows, getType, hasIndex, prepareRecord)
   * les index non lassi d'une collection lassi sont tous virés à l'init de l'Entity
@@ -146,4 +146,4 @@ Version 2.2 (redis)
   * Entities.initializeEntity() supprimé (doublon de EntityDefinition.initialize)
   * refacto des tests pour les rendre plus indépendants
   * ajout de $cache.quit() et refacto du test pour l'utiliser (et que mocha rende la main à la fin de ce test seul)
-
+  * passage à eslint standard et fix de tous les warnings qui traînaient (certains depuis longtemps)
