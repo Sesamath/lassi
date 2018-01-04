@@ -8,8 +8,7 @@ const {expect} = chai
 const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
-const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, quit, setup} = require('./init')
+const {checkEntity, quit, setup} = require('./init')
 
 chai.use(sinonChai)
 
@@ -146,7 +145,7 @@ describe('Test entities-queries', function () {
   describe('.match()', function () {
     it(`jette une exception si le champ n'est pas indexé`, function () {
       assert.throws(function () {
-        TestEntity.match('nonIndexed').equals(1).grab(function (error, result) {
+        TestEntity.match('nonIndexed').equals(1).grab(function () {
           // devrait throw avant d'arriver là, on le vérifie avec une assertion toujours fausse
           assert.equal('On aurait pas dû arriver là', '')
         })
@@ -249,7 +248,7 @@ describe('Test entities-queries', function () {
       // attention, mocha utilise la console donc on le rend muet le temps de cet appel
       sinon.stub(console, 'error')
       TestEntity.match('s').in([]).grab(function (error, result) {
-        expect(console.error).to.have.been.calledOnce
+        expect(console.error).to.have.been.calledOnce // eslint-disable-line no-unused-expressions
         console.error.restore()
         if (error) return done(error)
         assert.equal(result.length, 0)
@@ -349,7 +348,7 @@ describe('Test entities-queries', function () {
 
     it(`Sélection d'entités avec hard limit`, function (done) {
       function last (error) {
-        expect(console.error).to.have.been.calledThrice
+        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
         console.error.restore()
         done(error)
       }

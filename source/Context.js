@@ -112,13 +112,13 @@ class Context {
    * Détermine si la requête est de type Get
    * @return {Boolean} vrai si c'est le cas.
    */
-  isGet () { return this.method == 'get' }
+  isGet () { return this.method === 'get' }
 
   /**
    * Détermine si la requête est de type Post
    * @return {Boolean} vrai si c'est le cas.
    */
-  isPost () { return this.method == 'post' }
+  isPost () { return this.method === 'post' }
 
   /**
    * Provoque une redirection.

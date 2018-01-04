@@ -16,7 +16,7 @@ class Services {
 
   parseInjections (fn, context) {
     context = context || {}
-    const match = fn.toString().match(/function[\s\w]+\(\s*([^\)]*)\s*\)/)
+    const match = fn.toString().match(/function[\s\w]+\(\s*([^)]*)\s*\)/)
     const strArgs = match[1].trim()
     const args = strArgs ? strArgs.split(/\s*,\s*/) : []
     const injections = args.map(name => this.resolve(name))

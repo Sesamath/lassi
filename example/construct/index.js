@@ -23,7 +23,8 @@
  */
 
 // Récupération du module lassi
-require('../../source/Lassi.js')(__dirname + '/..')
+const path = require('path')
+require('../../source/Lassi.js')(path.join(__dirname, '/..'))
 
 require('./html')
 require('./json')

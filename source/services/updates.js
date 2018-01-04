@@ -335,7 +335,10 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
       cb()
       if (updatesToRun && updatesToRun.length) runPendingUpdates()
     })
-    $maintenance.getMaintenanceMode((error, {mode, reason}) => log(`Actuellement la maintenance est ${mode} (reason: ${reason})`))
+    $maintenance.getMaintenanceMode((error, {mode, reason}) => {
+      if (error) log.error(error)
+      log(`Actuellement la maintenance est ${mode} (reason: ${reason})`)
+    })
   }
 
   // runPendingUpdates pourrait être appelé avant postSetup (dans un autre postSetup qui passerait avant nous),

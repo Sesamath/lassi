@@ -21,7 +21,7 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
+const path = require('path')
 lassi.component('example-html')
 
   .config(function ($appSettings) {
@@ -32,12 +32,12 @@ lassi.component('example-html')
         data.$layout = 'layout-' + context.status
         data.content = {
           $view: 'error',
-          message: (context.status == 404 ? 'not found' : 'access denied') + ' ' + context.request.url
+          message: (context.status === 404 ? 'not found' : 'access denied') + ' ' + context.request.url
         }
       }
-      if (context.contentType == 'text/html') {
+      if (context.contentType === 'text/html') {
         data.$metas = data.$metas || {}
-        data.$views = __dirname + '/views'
+        data.$views = path.join(__dirname, '/views')
         _.extend(data.$metas, {
           title: $appSettings.title(),
           css: ['/styles/main.css'],
@@ -55,7 +55,7 @@ lassi.component('example-html')
   })
 
   .controller(function ($appSettings) {
-    this.serve(__dirname + '/public')
+    this.serve(path.join(__dirname, '/public'))
 
     function sidebar (data) {
       data.sidebar = {

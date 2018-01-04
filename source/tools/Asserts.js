@@ -28,6 +28,8 @@ function Asserts () {}
 Asserts.not = {}
 var is = require('./Validate')
 
+// @todo virer l'usage de ce Asserts et le remplacer par chai
+
 /**
  * @constructor
  */
@@ -41,7 +43,7 @@ function AssertError (message) {
     Error.prepareStackTrace = orig
     return stack
   }
-  this.constructor.prototype.__proto__ = Error.prototype
+  this.constructor.prototype.__proto__ = Error.prototype // eslint-disable-line no-proto
   Error.call(this)
   var stack = grabStack()
   Error.captureStackTrace(this, stack[1].fun)

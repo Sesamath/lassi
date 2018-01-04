@@ -4,34 +4,13 @@ const assert = require('assert')
 const flow = require('an-flow')
 const chai = require('chai')
 const {expect} = chai
-const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 
-const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, quit, setup} = require('./init')
+const {quit, setup} = require('./init')
 
 chai.use(sinonChai)
 
-const nbEntities = 1500 // doit être supérieur à la hard limit de lassi
-const bt = 1041476706000
-const seconde = 1000
-const STRING_PREFIX = 'test-'
-
 let TestEntity
-/**
- * Vérifie si l'entité est celle attendue
- *
- * @param {Integer} i      Identifiant de l'entité
- * @param {Object}  entity Entité
- */
-function assertEntity (i, entity) {
-  assert.equal(entity.i, i)
-  assert.equal(entity.s, STRING_PREFIX + i)
-  assert.equal(entity.d.getTime(), bt + seconde * i)
-  assert.equal(entity.sArray.length, 3)
-  assert.equal(entity.iArray.length, 3)
-  assert.equal(entity.dArray.length, 3)
-}
 
 describe('Test entities-queries', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {

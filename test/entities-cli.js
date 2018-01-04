@@ -6,20 +6,9 @@ const expect = require('chai').expect
 const flow = require('an-flow')
 const moment = require('moment')
 const EntitiesCli = require('../source/services/entities-cli')()
-const {checkEntity, quit, setup} = require('./init')
+const {quit, setup} = require('./init')
 
 let TestEntity
-
-/**
- * Vérifie si l'entité est celle attendue
- *
- * @param {Integer} i      Identifiant de l'entité
- * @param {Object}  entity Entité
- */
-function assertEntity (i, entity) {
-  checkEntity(entity)
-  assert.equal(entity.i, i)
-}
 
 /**
  * Ajoute 3 entités softDeleted

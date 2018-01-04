@@ -4,10 +4,8 @@
 const assert = require('assert')
 const {expect} = require('chai')
 const flow = require('an-flow')
-const moment = require('moment')
 const Entities = require('../source/entities')
-const EntitiesCli = require('../source/services/entities-cli')()
-const {checkEntity, connectToMongo, getTestEntity, quit, setup} = require('./init')
+const {connectToMongo, quit, setup} = require('./init')
 const _ = require('lodash')
 
 let entities
@@ -82,8 +80,9 @@ describe('Test entities-indexes', function () {
     })
 
     it('crée un index mongoDB', function (done) {
-      SimpleEntity.getMongoIndexes(function (err, indexes) {
-        const index = _.find(indexes, { name: SimpleEntity.getMongoIndexName('index1')})
+      SimpleEntity.getMongoIndexes(function (error, indexes) {
+        if (error) return done(error)
+        const index = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
         assert.equal(index.key.index1, 1)
         done()
       })
@@ -100,8 +99,9 @@ describe('Test entities-indexes', function () {
       })
 
       it("supprime l'index existant", function (done) {
-        SimpleEntity.getMongoIndexes(function (err, indexes) {
-          const index = _.find(indexes, { name: SimpleEntity.getMongoIndexName('index1')})
+        SimpleEntity.getMongoIndexes(function (error, indexes) {
+          if (error) return done(error)
+          const index = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
           assert.equal(index, undefined)
           done()
         })
@@ -119,9 +119,10 @@ describe('Test entities-indexes', function () {
       })
 
       it('crée le nouvel index mongo', function (done) {
-        SimpleEntity.getMongoIndexes(function (err, indexes) {
-          const oldIndex = _.find(indexes, { name: SimpleEntity.getMongoIndexName('index1')})
-          const newIndex = _.find(indexes, { name: SimpleEntity.getMongoIndexName('anotherIndexedAttribute')})
+        SimpleEntity.getMongoIndexes(function (error, indexes) {
+          if (error) return done(error)
+          const oldIndex = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
+          const newIndex = _.find(indexes, {name: SimpleEntity.getMongoIndexName('anotherIndexedAttribute')})
           assert(!!oldIndex)
           assert.equal(newIndex.key.anotherIndexedAttribute, 1)
           done()

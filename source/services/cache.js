@@ -43,8 +43,8 @@ module.exports = function ($settings) {
    * @return {Number} timeout en ms
    */
   function getFirstConnectTimeout () {
-    const retry_strategy = $settings.get('$cache.redis.retry_strategy')
-    if (typeof retry_strategy === 'function') return retry_strategy({attempt: 1})
+    const retryStrategy = $settings.get('$cache.redis.retry_strategy')
+    if (typeof retryStrategy === 'function') return retryStrategy({attempt: 1})
     return $settings.get('$cache.redis.connect_timeout', CONNECT_TIMEOUT_DEFAULT)
   }
 

@@ -96,8 +96,7 @@ function addConditions (Entity, wheres) {
  */
 function parse (json) {
   try {
-    const retour = JSON.parse(json)
-    return retour
+    return JSON.parse(json)
   } catch (error) {
     if (lassi.debug) {
       log.error('Error de parsing json sur ' + json)
@@ -196,8 +195,6 @@ function select (entityName, fields, wheres, options, done) {
   const fieldList = fields ? fields.split(',').map(field => field.trim()) : []
 
   let query
-  const limit = 100
-  let offset = 0
   let Entity
   try {
     try {
@@ -305,7 +302,7 @@ function purge (entity, nbDays, done) {
   }
   if (typeof done !== 'function') throw new Error('Erreur interne, pas de callback de commande')
   nbDays = Number(nbDays)
-  if (!nbDays || nbDays <= 0) throw new Error('Le second argument doit être un nombre positif')
+  if (!nbDays || nbDays <= 0) throw new Error('Le second argument doit être un nombre positif')
 
   try {
     let Entity

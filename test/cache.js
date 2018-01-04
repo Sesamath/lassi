@@ -1,11 +1,9 @@
 /* eslint-env mocha */
 'use strict'
 
-const assert = require('assert')
 const chai = require('chai')
 const {expect} = chai
 const flow = require('an-flow')
-const redis = require('redis')
 const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 const log = require('an-log')('$cache')
@@ -89,7 +87,9 @@ describe('$cache', () => {
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/should have prefix property/))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/host not defined in settings/))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/port not defined in settings/))
-        expect(console.error).to.have.been.calledThrice
+        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
+        // on pourrait remplacer par
+        // expect(console.error).to.have.been.callCount(3)
         expect($cache.getRedisClient).not.to.throw(Error)
         quitCache()
         done()
@@ -109,7 +109,7 @@ describe('$cache', () => {
       $cache.setup((error) => {
         if (error) return done(error)
         const client = $cache.getRedisClient()
-        expect(!client).to.be.false
+        expect(!client).to.be.false // eslint-disable-line no-unused-expressions
         expect(client).to.respondTo('get')
         expect(client).to.respondTo('set')
         expect(client).to.respondTo('flushdb')
@@ -163,7 +163,7 @@ describe('$cache', () => {
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(RegExp(`ttl ${ttlLow} too low`)))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(RegExp(`ttl ${ttlHigh} too high`)))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/ttl must be a number/))
-        expect(console.error).to.have.been.calledThrice
+        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
         done()
       }).catch(done)
     })

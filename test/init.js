@@ -3,7 +3,6 @@
 
 const MongoClient = require('mongodb').MongoClient
 const anLog = require('an-log')
-const anLogLevels = require('an-log/source/lib/levels.js')
 const assert = require('assert')
 const flow = require('an-flow')
 const Entities = require('../source/entities')
@@ -48,15 +47,15 @@ function overrideSettings () {
       case '--db': // alias
         dbSettings.name = process.argv[i + 1]
         break
-      case '--host': dbSettings.host = process.argv[i + 1]; break
-      case '--port': dbSettings.port = process.argv[i + 1]; break
-      case '--user': dbSettings.user = process.argv[i + 1]; break
-      case '--pass': dbSettings.password = process.argv[i + 1]; break
-      case '--ssl-cert': dbSettings.sslCert = process.argv[i + 1]; break
-      case '--ssl-key': dbSettings.sslKey = process.argv[i + 1]; break
-      case '--auth-mechanism': dbSettings.authMechanism = process.argv[i + 1]; break
-      case '--auth-source': dbSettings.authSource = process.argv[i + 1]; break
-      case '--pool-size': dbSettings.poolSize = process.argv[i + 1]; break
+      case '--host': dbSettings.host = process.argv[i + 1]; break
+      case '--port': dbSettings.port = process.argv[i + 1]; break
+      case '--user': dbSettings.user = process.argv[i + 1]; break
+      case '--pass': dbSettings.password = process.argv[i + 1]; break
+      case '--ssl-cert': dbSettings.sslCert = process.argv[i + 1]; break
+      case '--ssl-key': dbSettings.sslKey = process.argv[i + 1]; break
+      case '--auth-mechanism': dbSettings.authMechanism = process.argv[i + 1]; break
+      case '--auth-source': dbSettings.authSource = process.argv[i + 1]; break
+      case '--pool-size': dbSettings.poolSize = process.argv[i + 1]; break
       default:
         console.error(`argument ${a} ignoré car non géré`)
         i--

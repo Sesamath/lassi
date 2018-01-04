@@ -1,12 +1,10 @@
 /* eslint-env mocha */
 'use strict'
 
-const assert = require('assert')
 const expect = require('chai').expect
 const flow = require('an-flow')
 const Entities = require('../source/entities')
-const _ = require('lodash')
-const {checkEntity, getTestEntity, quit, setup} = require('./init')
+const {quit, setup} = require('./init')
 
 let entities
 let TestEntity
@@ -46,7 +44,7 @@ describe('Entity', () => {
 
     it('est appelée après un store de création', (done) => {
       const entity = TestEntity.create({})
-      expect(entity.$loaded).to.be.undefined
+      expect(entity.$loaded).to.be.undefined // eslint-disable-line no-unused-expressions
 
       entity.store(function (err, storedEntity) {
         if (err) return done(err)
@@ -120,7 +118,7 @@ describe('Entity', () => {
         })
         .seq(function (dbEntity) {
           expect(dbEntity.nonTemporaire).to.equal(1)
-          expect(dbEntity.$temporaire).to.be.undefined
+          expect(dbEntity.$temporaire).to.be.undefined // eslint-disable-line no-unused-expressions
           this()
         })
         .done(done)
@@ -132,7 +130,7 @@ describe('Entity', () => {
         // faire des opération sur l'oid à la fois pour la création et la mise à jour
         TestEntity.afterStore(function () {
           const entity = this
-          expect(entity.oid).to.not.be.undefined
+          expect(entity.oid).to.not.be.undefined // eslint-disable-line no-unused-expressions
           done()
         })
         TestEntity.create({}).store()

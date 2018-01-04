@@ -1,19 +1,17 @@
 'use strict'
 
-const express = require('express')
 const fs = require('fs')
-const log = require('an-log')('$rail')
+
+const express = require('express')
 const {stringify} = require('sesajstools')
+
+const log = require('an-log')('$rail')
 
 /**
  * Service de gestion des middlewares
  * @namespace $rail
  */
 module.exports = function ($maintenance, $settings) {
-  const express = require('express')
-  const _rail = express()
-  let _redisClient
-
   /**
    * Enregistrer un middleware sur le rail Express avec lancement des events beforeRailUse et afterRailUse
    * @fires Lassi#beforeRailUse
@@ -217,7 +215,9 @@ module.exports = function ($maintenance, $settings) {
     } catch (error) {
       next(error)
     }
-  }
+  } // setup
+
+  const _rail = express()
 
   return {
     setup,

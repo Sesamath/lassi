@@ -192,7 +192,8 @@ class Lassi extends EventEmitter {
    * @param {string[]}  [dependencies] Une liste de noms de composants en dépendance
    */
   component (name, dependencies) {
-    return this.components[name] = new Component(name, dependencies)
+    this.components[name] = new Component(name, dependencies)
+    return this.components[name]
   }
 
   /**
@@ -287,7 +288,7 @@ function startLassi (options) {
   // en passant du options.noGlobalLassi = true (quand lassi lui-même pourra se passer d'être global)
   if (_.has(global, 'lassi')) {
     log('ERROR'.red, ' : lassi already exists')
-    return lassi
+    return global.lassi
   }
   const lassi = new Lassi(options)
   lassi.Context = require('./Context')

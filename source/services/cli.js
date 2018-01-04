@@ -152,7 +152,7 @@ Options :
   const cliRunner = process.argv[1]
   const args = minimist(process.argv.slice(2), {boolean: ['debug', 'h', 'help', 'l', 'list', 'q', 'quiet', 'v', 'verbose']})
   const commandName = args._[0]
-  const commandArgs = commandName && args._.slice(1) || []
+  const commandArgs = (commandName && args._.slice(1)) || []
   const helpAsked = args.h || args.help
   const listAsked = args.l || args.list
   const debug = args.debug

@@ -82,9 +82,11 @@ class Controllers extends EventEmitter {
       var context = new Context(request, response)
 
       // Sélection des actions déclenchables
-      var params, actionnables = []
+      var params
+      const actionnables = []
       _.each(self.actions, function (action) {
-        if (params = action.match(request.method, request.parsedUrl.pathname)) {
+        params = action.match(request.method, request.parsedUrl.pathname)
+        if (params) {
           actionnables.push({action: action, params: params})
         }
       })
@@ -122,10 +124,8 @@ class Controllers extends EventEmitter {
                 context.contentType = context.contentType || 'text/plain'
                 data.content = result
                 data.$layout = false
-              }
-
-              // Cas général d'un retour objet à merger
-              else {
+              } else {
+                // Cas général d'un retour objet à merger
                 merge(data, result)
               }
 

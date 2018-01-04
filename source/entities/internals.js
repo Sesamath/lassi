@@ -40,7 +40,7 @@ const INDEX_TYPES = ['boolean', 'date', 'integer', 'string']
  * @throws si le type n'est pas boolean|string|integer|date
  */
 function castToType (value, type) {
-  if (typeof value === type) return value
+  if (typeof value === type) return value // eslint-disable-line valid-typeof
   if (value === null || value === undefined) return value
   switch (type) {
     case 'boolean': value = !!value; break
@@ -51,7 +51,7 @@ function castToType (value, type) {
         value = new Date(value)
       }
       break
-    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`); break
+    default: throw new Error(`le type d’index ${type} n’est pas géré par Entity`)
   }
   return value
 }

@@ -106,7 +106,7 @@ function buildQuery (entityQuery, record) {
         break
 
       case 'LIKE':
-        condition = {$regex: new RegExp(cast(clause.value).replace(/\%/g, '.*'))}
+        condition = {$regex: new RegExp(cast(clause.value).replace(/%/g, '.*'))}
         break
 
       case 'ISNULL':
@@ -236,7 +236,7 @@ function prepareRecord (entityQuery, options) {
   if (skip > 0) record.options.skip = skip
   // set limit
   if (options.limit) {
-    if (options.limit > 0 && options.limit <= HARD_LIMIT_GRAB) {
+    if (options.limit > 0 && options.limit <= HARD_LIMIT_GRAB) {
       record.limit = options.limit
     } else {
       log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)

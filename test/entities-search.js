@@ -5,7 +5,7 @@ const assert = require('assert')
 const flow = require('an-flow')
 
 const Entities = require('../source/entities')
-const {checkEntity, getTestEntity, quit, setup} = require('./init')
+const {quit, setup} = require('./init')
 
 let entities
 let TestEntity
