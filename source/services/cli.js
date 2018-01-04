@@ -1,7 +1,7 @@
-"use strict";
+'use strict'
 
-const minimist = require('minimist');
-const anLog = require('an-log')('lassi-cli');
+const minimist = require('minimist')
+const anLog = require('an-log')('lassi-cli')
 const anLogLevels = require('an-log/source/lib/levels.js')
 
 const log = {
@@ -33,8 +33,8 @@ Options :
   -h --help : affiche cette aide
   -l --list : affiche la liste des commandes possibles
   -q --quiet : n'affiche que les warnings et les erreurs
-  -v --verbose : affiche tous les messages`);
-    if (errorCode) process.exit(errorCode);
+  -v --verbose : affiche tous les messages`)
+    if (errorCode) process.exit(errorCode)
   }
 
   /**
@@ -43,18 +43,18 @@ Options :
    * @param {string|Error} error
    */
   function printError (error) {
-    log.error('Une erreur est survenue à l’exécution de ' + commandName);
+    log.error('Une erreur est survenue à l’exécution de ' + commandName)
     // en mode debug on affiche toute la stack
-    if (debug) log.error(error);
+    if (debug) log.error(error)
     // sinon le message seulement
-    else log.error(error.message ? error.message : error);
+    else log.error(error.message ? error.message : error)
   }
 
   /**
    * Affiche la liste des commandes cli de l'appli (avec celles fournies par lassi)
    */
   function printAllCommands () {
-    console.log('Liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '));
+    console.log('Liste des commandes disponibles :\n*', Object.keys(commands).join('\n* '))
   }
 
   /**
@@ -63,96 +63,96 @@ Options :
    */
   function run () {
     function exit (error, result) {
-      if (error) printError(error);
-      if (result) log.info(`Retour de la commande ${commandName}\n`, result);
-      else log.info('Fin ' + commandName);
-      process.exit(error ? 2 : 0);
+      if (error) printError(error)
+      if (result) log.info(`Retour de la commande ${commandName}\n`, result)
+      else log.info('Fin ' + commandName)
+      process.exit(error ? 2 : 0)
     }
 
     try {
       if (!listAsked && (helpAsked || !commandName)) {
-        const errorCode = helpAsked ? 0 : 1;
-        if (errorCode) log.error('Il faut passer une commande à exécuter');
-        usage(errorCode);
+        const errorCode = helpAsked ? 0 : 1
+        if (errorCode) log.error('Il faut passer une commande à exécuter')
+        usage(errorCode)
       }
 
       // On récupère tous les services
-      const services = lassi.allServices();
+      const services = lassi.allServices()
 
       // Filtre sur *-cli
       const cliServices = Object.keys(services)
         .filter(k => k.substr(-4) === '-cli')
-        .map(k => lassi.service(k));
+        .map(k => lassi.service(k))
 
       // Appelle pour chaque service *-cli sa méthode commands ou lui-même
       cliServices.forEach((service) => {
         const serviceCommands = service.commands ? service.commands() : service
         for (let name in serviceCommands) {
-          commands[name] = serviceCommands[name];
+          commands[name] = serviceCommands[name]
           if (typeof serviceCommands[name].help !== 'function') {
-            serviceCommands[name].help = () => log.error(`La commande ${name} ne fournit pas d’aide sur son usage`);
+            serviceCommands[name].help = () => log.error(`La commande ${name} ne fournit pas d’aide sur son usage`)
           }
         }
-      });
+      })
 
       // On ajoute quelques commandes universelles
       commands.listAllServices = (cb) => {
-        console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n');
-        cb();
+        console.log('Tous les services :\n  ' + Object.keys(services).join('\n  ') + '\n')
+        cb()
       }
       commands.listAllServices.help = (cb) => {
-        console.log('Liste tous les services déclarés dans cette appli');
-        cb();
+        console.log('Liste tous les services déclarés dans cette appli')
+        cb()
       }
 
       if (listAsked) {
-        printAllCommands();
-        process.exit(0);
+        printAllCommands()
+        process.exit(0)
       }
 
       if (helpAsked) {
         if (commands[commandName]) {
-          if (commands[commandName].help) commands[commandName].help();
-          else console.warn(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`);
+          if (commands[commandName].help) commands[commandName].help()
+          else console.warn(`La commande ${commandName} existe mais ne propose pas d'aide (méthode help)`)
         } else {
-          usage();
+          usage()
         }
-        process.exit(0);
+        process.exit(0)
       }
 
       if (!commandName) {
-        log.error('Il faut passer une commande à exécuter');
-        usage(1);
+        log.error('Il faut passer une commande à exécuter')
+        usage(1)
       }
       // On ajoute debug sur lassi
-      lassi.debug = debug;
+      lassi.debug = debug
 
-      const command = commands[commandName];
+      const command = commands[commandName]
       if (!command) {
-        log.error(`Commande "${commandName}" inconnue`);
-        usage(1);
+        log.error(`Commande "${commandName}" inconnue`)
+        usage(1)
       }
 
       // Info avant de lancer
-      const msgStart = 'Lancement de la commande ' + commandName;
-      if (commandArgs.length) log.info(msgStart, 'avec les arguments', commandArgs);
-      else log.info(msgStart, 'sans arguments');
+      const msgStart = 'Lancement de la commande ' + commandName
+      if (commandArgs.length) log.info(msgStart, 'avec les arguments', commandArgs)
+      else log.info(msgStart, 'sans arguments')
 
       // On ajoute la callback en dernier argument
-      commandArgs.push(exit);
+      commandArgs.push(exit)
 
       // On lance la commande
-      command.apply(this, commandArgs);
+      command.apply(this, commandArgs)
     } catch (error) {
-      printError(error);
-      process.exit(3);
+      printError(error)
+      process.exit(3)
     }
   }
 
   const cliRunner = process.argv[1]
   const args = minimist(process.argv.slice(2), {boolean: ['debug', 'h', 'help', 'l', 'list', 'q', 'quiet', 'v', 'verbose']})
   const commandName = args._[0]
-  const commandArgs = commandName && args._.slice(1) || []
+  const commandArgs = (commandName && args._.slice(1)) || []
   const helpAsked = args.h || args.help
   const listAsked = args.l || args.list
   const debug = args.debug
@@ -170,5 +170,5 @@ Options :
     printWarning: log.warn,
     run,
     usage
-  };
+  }
 }

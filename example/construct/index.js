@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
  * @preserve This file is part of "lassi-example".
  *    Copyright 2009-2014, arNuméral
@@ -23,18 +23,18 @@
  */
 
 // Récupération du module lassi
-require('../../source/Lassi.js')(__dirname+'/..');
+const path = require('path')
+require('../../source/Lassi.js')(path.join(__dirname, '/..'))
 
-require('./html');
-require('./json');
-require('./entities');
+require('./html')
+require('./json')
+require('./entities')
 
 lassi.component('exemple', ['example-html', 'example-entities', 'example-json'])
 
-//.config(function($cache, $appSettings) {
-  //var _ = require('lodash');
-  //$cache.addEngine('', 'memcache', '127.0.0.1:11211');
-//})
+// .config(function($cache, $appSettings) {
+  // var _ = require('lodash');
+  // $cache.addEngine('', 'memcache', '127.0.0.1:11211');
+// })
 
-.bootstrap();
-
+  .bootstrap()

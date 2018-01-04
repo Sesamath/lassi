@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -22,7 +22,7 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var _            = require('lodash');
+var _ = require('lodash')
 
 /**
  * Contexte d'exécution d'une action.
@@ -32,17 +32,17 @@ var _            = require('lodash');
  * @constructor
  */
 class Context {
-  constructor(request, response) {
+  constructor (request, response) {
     /**
      * La requête Express
      * @see http://expressjs.com/api.html#request
      */
-    this.request      = request;
+    this.request = request
     /**
      * La réponse Express
      * @see http://expressjs.com/api.html#response
      */
-    this.response     = response;
+    this.response = response
 
     /**
      * Alias de response.cookie
@@ -64,26 +64,26 @@ class Context {
     this.setCookie = this.response.cookie
 
     /** La méthode http utilisée (en minuscules) */
-    this.method       = request.method.toLowerCase();
+    this.method = request.method.toLowerCase()
     /**
      * Les paramètres passés en get, alias vers request.query
      * @see http://expressjs.com/api.html#req.query
      */
-    this.get          = this.request.query;
+    this.get = this.request.query
     /**
      * Les paramètres passés en post, alias vers request.body
      * http://expressjs.com/api.html#req.body
      */
-    this.post         = this.request.body;
+    this.post = this.request.body
 
     /** La session */
-    this.session      = this.request.session || {};
+    this.session = this.request.session || {}
     /**
      * Évènement généré de la création d'un nouveau contexte.
      * @param {Context} context le context fraîchement créé.
      * @event Lassi#context
      */
-    lassi.emit('context', this);
+    lassi.emit('context', this)
   } // constructor
 
   /**
@@ -100,25 +100,25 @@ class Context {
    * Détermine si la requête comporte des arguments Get
    * @return {Boolean} vrai si c'est le cas.
    */
-	hasGet () { return !_.isEmpty(this.get) }
+  hasGet () { return !_.isEmpty(this.get) }
 
   /**
    * Détermine si la requête comporte des arguments Post
    * @return {Boolean} vrai si c'est le cas.
    */
-	hasPost() { return !_.isEmpty(this.post) }
+  hasPost () { return !_.isEmpty(this.post) }
 
   /**
    * Détermine si la requête est de type Get
    * @return {Boolean} vrai si c'est le cas.
    */
-	isGet() { return this.method=='get'; }
+  isGet () { return this.method === 'get' }
 
   /**
    * Détermine si la requête est de type Post
    * @return {Boolean} vrai si c'est le cas.
    */
-	isPost() { return this.method=='post' }
+  isPost () { return this.method === 'post' }
 
   /**
    * Provoque une redirection.
@@ -127,20 +127,20 @@ class Context {
    * @param {Integer=} [code=302] Le code de redirection à utiliser (301 pour une redirection permanente)
    * @param {boolean} [disableAutoCacheControl] Passer true pour que cette fct n'ajoute pas de header cache-control (sinon elle ajoute du noCache sur les code≠301)
    */
-	redirect (path, code, disableAutoCacheControl) {
-    this.location = path;
-    this.status = code || 302;
-    if (this.status !== 301 && !disableAutoCacheControl) this.setNoCache();
-    this.next();
+  redirect (path, code, disableAutoCacheControl) {
+    this.location = path
+    this.status = code || 302
+    if (this.status !== 301 && !disableAutoCacheControl) this.setNoCache()
+    this.next()
   }
 
   /**
    * Provoque la génération d'un access denied (403)
    * @param {string=} message Le message éventuel (sera "access denied" si non fourni)
    */
-	accessDenied(message) {
-    this.status = 403;
-    this.plain(message || "access denied");
+  accessDenied (message) {
+    this.status = 403
+    this.plain(message || 'access denied')
   }
 
   /**
@@ -148,9 +148,9 @@ class Context {
    *
    * @param {string=} message Le message éventuel (sera "not found" si non fourni)
    */
-	notFound(message) {
-    this.status = 404;
-    this.plain(message || "not found");
+  notFound (message) {
+    this.status = 404
+    this.plain(message || 'not found')
   }
 
   /**
@@ -159,9 +159,9 @@ class Context {
    *                      un array est transformé en objet, un string devient la propriété content
    *                      et les autres types primitifs sont ignorés)
    */
-	json(data) {
-    this.contentType = 'application/json';
-    this.next(null, data);
+  json (data) {
+    this.contentType = 'application/json'
+    this.next(null, data)
   }
 
   /**
@@ -171,54 +171,54 @@ class Context {
    * @param {object} data Les données à passer en paramètre à la fct de callback,
    *                      attention à ne pas envoyer de références circulaires
    */
-	jsonP(data) {
-    this.contentType = 'application/javascript';
+  jsonP (data) {
+    this.contentType = 'application/javascript'
     // on formate le code js
     var callbackName = this.$callbackName || this.get.callback || 'callback'
-    var jsString = callbackName +'('
+    var jsString = callbackName + '('
     // stringify peut planter en cas de références circulaire (faudra cloner avant)
     try {
       jsString += JSON.stringify(data)
     } catch (error) {
-      jsString += '{ "error" : "' +error.toString().replace('"', '\\"') +'"}'
+      jsString += '{ "error" : "' + error.toString().replace('"', '\\"') + '"}'
     }
     jsString += ');'
-    this.next(null, jsString);
+    this.next(null, jsString)
   }
 
   /**
    * Renvoie une réponse de type HTML.
    * @param {object} data données
    */
-	html(data) {
-    this.contentType = 'text/html';
-    this.next(null, data);
+  html (data) {
+    this.contentType = 'text/html'
+    this.next(null, data)
   }
 
   /**
    * Renvoie une réponse en text/plain
    * @param {string} text
    */
-	plain(text) {
-    this.contentType = 'text/plain';
-    this.next(null, {content: text});
+  plain (text) {
+    this.contentType = 'text/plain'
+    this.next(null, {content: text})
   }
 
   /**
    * Renvoie une réponse raw
    * @param {string} text
    */
-	raw(content, options) {
-    if (options.attachment) this.response.attachment(options.attachment);
+  raw (content, options) {
+    if (options.attachment) this.response.attachment(options.attachment)
     if (options.headers) {
       for (var prop in options.headers) {
-        this.response.append(prop, options.headers[prop]);
-        if (prop === 'Content-Type') this.contentType = options.headers[prop];
+        this.response.append(prop, options.headers[prop])
+        if (prop === 'Content-Type') this.contentType = options.headers[prop]
       }
     }
     // on force le transport
-    this.transport = 'raw';
-    this.next(null, {content: content});
+    this.transport = 'raw'
+    this.next(null, {content: content})
   }
 
   /**
@@ -227,22 +227,22 @@ class Context {
    * @param {string|null} field le nom du champ en erreur
    * @param message Le message d'erreur
    */
-	fieldError(field, message) {
-    var data = {};
-    if (field) data.field = field;
-    data.message = message;
-    data.success = false;
-    this.json(data);
+  fieldError (field, message) {
+    var data = {}
+    if (field) data.field = field
+    data.message = message
+    data.success = false
+    this.json(data)
   }
 
   /**
    * Envoi data (cloné) en json en ajoutant une propriété success mise à true
    * @param data Les données à envoyer en json
    */
-	rest(data) {
-    data = _.clone(data);
-    data.success = true;
-    this.json(data);
+  rest (data) {
+    data = _.clone(data)
+    data.success = true
+    this.json(data)
   }
 
   /**
@@ -282,15 +282,15 @@ class Context {
    * @param name
    * @param value
    */
-	setHeader(name, value) {
-    this.response.setHeader(name, value);
+  setHeader (name, value) {
+    this.response.setHeader(name, value)
   }
 
   /**
    * Ajoute un header Cache-Control pour empêcher la mise en cache de la réponse
    */
-  setNoCache() {
-    this.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  setNoCache () {
+    this.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
   }
 
   /**
@@ -299,14 +299,13 @@ class Context {
    * @param {string} [defaultValue=undefined] Valeur à retourner si le header name n'existe pas
    * @returns {string|undefined}
    */
-	header(name, defaultValue) {
+  header (name, defaultValue) {
     if (_.has(this.request.headers, name)) {
-      return this.request.headers[name];
+      return this.request.headers[name]
     } else {
-      return defaultValue;
+      return defaultValue
     }
   }
 }
 
-
-module.exports = Context;
+module.exports = Context

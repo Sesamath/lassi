@@ -1,11 +1,9 @@
 /* eslint-env mocha */
 'use strict'
 
-const assert = require('assert')
 const chai = require('chai')
 const {expect} = chai
 const flow = require('an-flow')
-const redis = require('redis')
 const sinon = require('sinon')
 const sinonChai = require('sinon-chai')
 const log = require('an-log')('$cache')
@@ -33,11 +31,11 @@ const truthyValues = {
   foo: 42,
   bar: 'baz',
   baz: -1,
-  obj: {foo:'bar', zero: 0, num: 42, bool: true, func: function() { return 1 }, funcArrow: () => 1},
+  obj: {foo: 'bar', zero: 0, num: 42, bool: true, func: function () { return 1 }, funcArrow: () => 1},
   // JSON.stringify transforme les undefined en null dans un array, on le vérifie pas
   array: ['un', 2, null, 'kat', '', true, false, {a: 1}]
 }
-const expectedObjectValues = {foo:'bar', zero: 0, num: 42, bool: true} // on ne doit pas conserver la function
+const expectedObjectValues = {foo: 'bar', zero: 0, num: 42, bool: true} // on ne doit pas conserver la function
 
 const values1 = Object.assign({}, truthyValues, falsyValues)
 Object.keys(values1).forEach(key => allValues.set(key, values1[key]))
@@ -56,6 +54,9 @@ describe('$cache', () => {
   const initCache = () => {
     $cache = $cacheFactory($settings)
   }
+  const quitCache = () => {
+    $cache.quit()
+  }
   const refreshCache = (done) => {
     initCache()
     $cache.setup(done)
@@ -69,8 +70,6 @@ describe('$cache', () => {
   after(() => console.error.restore())
 
   describe('setup', () => {
-    beforeEach(initCache)
-
     it('plante avec des settings foireux', () => {
       const lazyGet = $settings.get
       $settings.get = () => 'ooops'
@@ -81,14 +80,18 @@ describe('$cache', () => {
     })
 
     it('râle si on lui donne aucun settings mais s’initialise avec ses valeurs par défaut', (done) => {
+      initCache()
       $cache.setup((error) => {
         if (error) return done(error)
         // anLog utilise console.error pour warning
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/should have prefix property/))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/host not defined in settings/))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/port not defined in settings/))
-        expect(console.error).to.have.been.calledThrice
+        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
+        // on pourrait remplacer par
+        // expect(console.error).to.have.been.callCount(3)
         expect($cache.getRedisClient).not.to.throw(Error)
+        quitCache()
         done()
       })
     })
@@ -96,6 +99,7 @@ describe('$cache', () => {
 
   describe('getRedisClient', () => {
     beforeEach(initCache)
+    afterEach(quitCache)
 
     it('throw si le setup n’est pas appelé avant', () => {
       expect($cache.getRedisClient).to.throw(Error)
@@ -105,7 +109,7 @@ describe('$cache', () => {
       $cache.setup((error) => {
         if (error) return done(error)
         const client = $cache.getRedisClient()
-        expect(!client).to.be.false
+        expect(!client).to.be.false // eslint-disable-line no-unused-expressions
         expect(client).to.respondTo('get')
         expect(client).to.respondTo('set')
         expect(client).to.respondTo('flushdb')
@@ -128,8 +132,15 @@ describe('$cache', () => {
     // utilisant directement le module redis, mais on peut pas utiliser flushdb ou flushall
     // car on veut pas purger tout redis, seulement nos préfixes, faudrait alors
     // recoder ici l'équivalent de $cache.purge…
-    before(resetCache)
+    before((done) => {
+      resetCache(error => {
+        if (error) return done(error)
+        quitCache()
+        done()
+      })
+    })
     beforeEach(refreshCache)
+    afterEach(quitCache)
 
     it('set affecte des valeur avec callback', (done) => {
       let i = 0
@@ -152,7 +163,7 @@ describe('$cache', () => {
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(RegExp(`ttl ${ttlLow} too low`)))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(RegExp(`ttl ${ttlHigh} too high`)))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/ttl must be a number/))
-        expect(console.error).to.have.been.calledThrice
+        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
         done()
       }).catch(done)
     })
@@ -195,7 +206,7 @@ describe('$cache', () => {
             else if (typeof value === 'object') expect(value).to.deep.equals(values2[key], `Pb avec ${key}`)
             else expect(value).to.equals(values2[key], `Pb avec ${key}`)
           } catch (e) {
-            done(e);
+            done(e)
             throw e
           }
           nextGet()
@@ -274,6 +285,7 @@ describe('$cache', () => {
 
   describe('del', () => {
     beforeEach(resetCache)
+    afterEach(quitCache)
     const key = 'testKey'
     const value = 42
 
@@ -316,12 +328,7 @@ describe('$cache', () => {
   describe('ttl', function () {
     this.timeout(3500)
     before(resetCache)
-    // set 3 valeurs avec 1, 2s et 3s
-    before(() => Promise.all([
-      $cache.set('foo', 42, 1),
-      $cache.set('bar', 43, 2),
-      $cache.set('baz', 44, 3)
-    ]))
+    after(quitCache)
 
     it('vire les clés après les ttl fixés (1, 2 et 3s)', () => {
       /**
@@ -335,10 +342,16 @@ describe('$cache', () => {
       const fetchAll = () => Promise.all([
         $cache.get('foo'),
         $cache.get('bar'),
-        $cache.get('baz'),
+        $cache.get('baz')
+      ])
+      // set 3 valeurs avec 1, 2s et 3s
+      const setAll = () => Promise.all([
+        $cache.set('foo', 42, 1),
+        $cache.set('bar', 43, 2),
+        $cache.set('baz', 44, 3)
       ])
       // go
-      return fetchAll()
+      return setAll().then(() => fetchAll()
         .then(values => {
           expect(values).to.deep.equals([42, 43, 44])
           return resolveAfter(1100).then(fetchAll)
@@ -355,6 +368,11 @@ describe('$cache', () => {
           expect(values).to.deep.equals([null, null, null])
           return Promise.resolve()
         })
+      )
     })
+  })
+
+  describe('ne fait rien', () => {
+    it('vraiment rien', () => undefined)
   })
 })

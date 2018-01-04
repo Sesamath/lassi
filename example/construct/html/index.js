@@ -1,4 +1,4 @@
-"use strict";
+'use strict'
 /*
  * This file is part of "node-lassi-example".
  *    Copyright 2009-2012, arNuméral
@@ -21,113 +21,112 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
+const path = require('path')
 lassi.component('example-html')
 
-.config(function($appSettings) {
-  var _ = require('lodash');
-  lassi.on('beforeTransport', function(context, data) {
-    if (context.status >= 400 && context.status < 500) {
-      context.contentType = 'text/html';
-      data.$layout = 'layout-'+context.status;
-      data.content = {
-        $view: 'error',
-        message: (context.status==404?'not found':'access denied') + ' ' + context.request.url
+  .config(function ($appSettings) {
+    var _ = require('lodash')
+    lassi.on('beforeTransport', function (context, data) {
+      if (context.status >= 400 && context.status < 500) {
+        context.contentType = 'text/html'
+        data.$layout = 'layout-' + context.status
+        data.content = {
+          $view: 'error',
+          message: (context.status === 404 ? 'not found' : 'access denied') + ' ' + context.request.url
+        }
       }
-    }
-    if (context.contentType=='text/html') {
-      data.$metas = data.$metas || {};
-      data.$views = __dirname+'/views';
-      _.extend(data.$metas, {
-        title : $appSettings.title(),
-        css   : ['/styles/main.css'],
-        js    : ['/vendors/jquery.min.js'],
-      });
-      data.$layout = data.$layout || 'layout-page';
-    }
-  });
-})
-
-.service('$appSettings', function() {
-  return {
-    title: function() { return 'Titre via appSettings'; }
-  }
-})
-
-.controller(function($appSettings) {
-  this.serve(__dirname+'/public');
-
-  function sidebar(data) {
-    data.sidebar = {
-      $view: 'sidebar',
-      actions: [
-      '<a href="/">Accueil</a>',
-      '<a href="/images/test.jpg">Fichier statique</a>',
-      '<a href="/vraie404">404 réelle</a>',
-      '<a href="/error404">404 programmée</a>',
-      '<a href="/error403">403 programmée</a>',
-      '<a href="/error500">500</a>',
-      '<a href="/timeout">timeout KO</a>',
-      '<a href="/timeout1">timeout OK</a>',
-      '<a href="/too-late">too late..</a>',
-      '<a href="/redirect">redirect</a>',
-      '<a href="/api/toto">json</a>',
-      '<a href="/api/person">entities</a>',
-    ]};
-    return data;
-  }
-
-  this.get(function(context) {
-    var data = {
-      $metas : {
-        title: $appSettings.title(),
-        css: [ 'aaa' ]
-      },
-      content: {
-        $view: 'home',
-        message: 'Bienvenue !!'
+      if (context.contentType === 'text/html') {
+        data.$metas = data.$metas || {}
+        data.$views = path.join(__dirname, '/views')
+        _.extend(data.$metas, {
+          title: $appSettings.title(),
+          css: ['/styles/main.css'],
+          js: ['/vendors/jquery.min.js']
+        })
+        data.$layout = data.$layout || 'layout-page'
       }
+    })
+  })
+
+  .service('$appSettings', function () {
+    return {
+      title: function () { return 'Titre via appSettings' }
     }
-    sidebar(data);
-    context.html(data);
-  });
+  })
 
-  this.get('redirect', function(context) {
-    context.redirect('/');
-  });
+  .controller(function ($appSettings) {
+    this.serve(path.join(__dirname, '/public'))
 
-  this.get('timeout', function(context) {
-    setTimeout(function() {
-      context.plain('coucou');
-    }, 2000);
-  });
+    function sidebar (data) {
+      data.sidebar = {
+        $view: 'sidebar',
+        actions: [
+          '<a href="/">Accueil</a>',
+          '<a href="/images/test.jpg">Fichier statique</a>',
+          '<a href="/vraie404">404 réelle</a>',
+          '<a href="/error404">404 programmée</a>',
+          '<a href="/error403">403 programmée</a>',
+          '<a href="/error500">500</a>',
+          '<a href="/timeout">timeout KO</a>',
+          '<a href="/timeout1">timeout OK</a>',
+          '<a href="/too-late">too late..</a>',
+          '<a href="/redirect">redirect</a>',
+          '<a href="/api/toto">json</a>',
+          '<a href="/api/person">entities</a>'
+        ]}
+      return data
+    }
 
-  this.get('timeout1', function(context) {
-    context.timeout = 3000;
-    setTimeout(function() {
-      context.plain('coucou');
-    }, 2000);
-  });
+    this.get(function (context) {
+      var data = {
+        $metas: {
+          title: $appSettings.title(),
+          css: [ 'aaa' ]
+        },
+        content: {
+          $view: 'home',
+          message: 'Bienvenue !!'
+        }
+      }
+      sidebar(data)
+      context.html(data)
+    })
 
-  this.get('too-late', function(context) {
-    setTimeout(function() {
-      context.plain('in time...');
-    }, 500);
-    setTimeout(function() {
-      context.plain('too late...');
-    }, 800);
-  });
+    this.get('redirect', function (context) {
+      context.redirect('/')
+    })
 
-  this.get('error404', function(context) {
-    context.notFound("Je n'existe pas, non non...");
-  });
+    this.get('timeout', function (context) {
+      setTimeout(function () {
+        context.plain('coucou')
+      }, 2000)
+    })
 
-  this.get('error403', function(context) {
-    context.accessDenied("Qui va là ?");
-  });
+    this.get('timeout1', function (context) {
+      context.timeout = 3000
+      setTimeout(function () {
+        context.plain('coucou')
+      }, 2000)
+    })
 
-  this.get('error500', function(context) {
-    context.next(new Error('Ça va pas bien dans ma tête...'));
-  });
-});
+    this.get('too-late', function (context) {
+      setTimeout(function () {
+        context.plain('in time...')
+      }, 500)
+      setTimeout(function () {
+        context.plain('too late...')
+      }, 800)
+    })
 
+    this.get('error404', function (context) {
+      context.notFound("Je n'existe pas, non non...")
+    })
+
+    this.get('error403', function (context) {
+      context.accessDenied('Qui va là ?')
+    })
+
+    this.get('error500', function (context) {
+      context.next(new Error('Ça va pas bien dans ma tête...'))
+    })
+  })

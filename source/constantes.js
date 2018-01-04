@@ -1,4 +1,4 @@
-'use strict';
+'use strict'
 /*
 * @preserve This file is part of "lassi".
 *    Copyright 2009-2014, arNuméral
@@ -30,4 +30,4 @@ module.exports = {
   // les contrôleurs devront avoir un timeout plus court que le max d'au moins cette valeur
   minDiffTimeout: 1000,
   maxTimeout: 5 * 60 * 1000 + 1000
-};
+}

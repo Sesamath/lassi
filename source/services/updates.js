@@ -6,7 +6,7 @@ const path = require('path')
 const fs = require('fs')
 const log = require('an-log')('$updates')
 
-module.exports = function(LassiUpdate, $maintenance, $settings) {
+module.exports = function (LassiUpdate, $maintenance, $settings) {
   /**
    * @callback errorCallback
    * @param {Error|string} [error]
@@ -38,7 +38,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
       // Si aucune MAJ bloquantes, pas besoin d'activer la maintenance
       if (_.every(updatesToRun, (u) => u.isNotBlocking)) {
         log(msg)
-        return cb();
+        return cb()
       }
 
       log(msg + ' dont certaines bloquantes')
@@ -72,10 +72,10 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     if (isUpdateLocked()) return warn(`${lockFile} présent, on ignore les updates automatiques`)
     // on regarde si y'a un n° de départ en conf (appli avec anciens updates virés du code)
     const defaultVersion = $settings.get('application.updates.defaultVersion', 0)
-    flow().seq(function() {
+    flow().seq(function () {
       // version actuelle
       LassiUpdate.match('num').sort('num', 'desc').grabOne(this)
-    }).seq(function(lastUpdate) {
+    }).seq(function (lastUpdate) {
       dbVersion = (lastUpdate && lastUpdate.num) || 0
       if (dbVersion < defaultVersion) {
         // init avec la version de départ mise en config
@@ -92,7 +92,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
       } else {
         this()
       }
-    }).seq(function() {
+    }).seq(function () {
       getUpdatesAboveVersion(dbVersion, this)
     }).done(cb)
   }
@@ -103,7 +103,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param {string|number} num
    * @return {string}
    */
-  function getUpdateFilename(num) {
+  function getUpdateFilename (num) {
     const folder = $settings.get('application.updates.folder')
     if (!folder) throw new Error('settings.application.updates.folder is undefined')
     return path.join(folder, num + '.js')
@@ -113,7 +113,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @private
    * @return {boolean} true si y'a un lock
    */
-  function isUpdateLocked() {
+  function isUpdateLocked () {
     try {
       fs.accessSync(lockFile, fs.R_OK)
       return true
@@ -130,7 +130,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
   function lockMaintenance (cb) {
     flow().seq(function () {
       $maintenance.getMaintenanceMode(this)
-    }).seq(function({mode, reason}) {
+    }).seq(function ({mode, reason}) {
       // On active la maintenance si elle n'est pas déjà active
       if (mode === 'off') {
         log('Activation du mode maintenance')
@@ -148,7 +148,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * Pose le lock Updates
    * @private
    */
-  function lockUpdates() {
+  function lockUpdates () {
     lockFileSet = true
     fs.writeFileSync(lockFile, null)
   }
@@ -156,15 +156,14 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * Enlève le lock
    * @private
    */
-  function unlockUpdates() {
+  function unlockUpdates () {
     lockFileSet = false
     try {
       fs.unlinkSync(lockFile)
-    } catch(e) {
+    } catch (e) {
       log.error(e)
     }
   }
-
 
   /**
    * @callback updateExistCallback
@@ -195,14 +194,14 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
    * @param {number|string} dbVersion
    * @param {getUpdatesAboveVersionCallback} cb
    */
-  function getUpdatesAboveVersion(dbVersion, cb) {
+  function getUpdatesAboveVersion (dbVersion, cb) {
     const pendingUpdates = []
     const checkUpdate = (num) => {
       updateExist(num, (err, exist) => {
-        if (err) return cb(err);
+        if (err) return cb(err)
         if (exist) {
-          const update = require(getUpdateFilename(num));
-          update.$num = num;
+          const update = require(getUpdateFilename(num))
+          update.$num = num
           pendingUpdates.push(update)
           checkUpdate(num + 1)
         } else {
@@ -211,7 +210,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
         }
       })
     }
-    checkUpdate(dbVersion + 1);
+    checkUpdate(dbVersion + 1)
   }
 
   // méthodes exportées
@@ -235,24 +234,24 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     function runUpdate (update, cb) {
       const num = update.$num
       flow()
-      .seq(function() {
-        log(`lancement update n° ${num} : ${update.name}`)
-        update.run(this)
-      })
-      .seq(function() {
-        log(`fin update n° ${num}`)
-        LassiUpdate.create({
-          name: update.name,
-          description: update.description,
-          num
-        }).store(this)
-      })
-      .seq(function() {
-        log(`update n° ${num} OK, base en version ${num}`)
-        dbVersion = num
-        cb()
-      })
-      .catch(cb)
+        .seq(function () {
+          log(`lancement update n° ${num} : ${update.name}`)
+          update.run(this)
+        })
+        .seq(function () {
+          log(`fin update n° ${num}`)
+          LassiUpdate.create({
+            name: update.name,
+            description: update.description,
+            num
+          }).store(this)
+        })
+        .seq(function () {
+          log(`update n° ${num} OK, base en version ${num}`)
+          dbVersion = num
+          cb()
+        })
+        .catch(cb)
     }
 
     /**
@@ -261,11 +260,11 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
      * @param version
      * @param cb rappelée avec (error, version)
      */
-    function runUpdates(updates, cb) {
+    function runUpdates (updates, cb) {
       const [update, ...nextUpdates] = updates
       // On lance la première...
       runUpdate(update, (err) => {
-        if (err) return cb(err);
+        if (err) return cb(err)
         if (nextUpdates.length) {
           // ... puis les suivantes (récursivement)
           process.nextTick(() => runUpdates(nextUpdates, cb))
@@ -282,33 +281,33 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     if (updatesToRun && !updatesToRun.length) return cb()
 
     flow()
-    .seq(function() {
+      .seq(function () {
       // on est pas sûr que postSetup ait déjà été appelé
-      if (updatesToRun === undefined) checkAndLock(this)
-      else this()
-    })
-    .seq(function() {
-      runUpdates(updatesToRun, this)
-    })
-    .seq(function(updatedDbVersion) {
-      log('plus d’update à faire, base en version', updatedDbVersion)
-      // On enlève la maintenance, sauf si elle était déjà en place pour une autre raison (setings ou manuel)
-      if (maintenanceReason === 'update') {
-        return $maintenance.setMaintenance('off', maintenanceReason, this)
-      }
-      this()
-    })
-    .done(function(err) {
-      if (err) {
-        log.error(`Une erreur est survenue dans l’update ${dbVersion + 1}`)
-        log.error(err)
+        if (updatesToRun === undefined) checkAndLock(this)
+        else this()
+      })
+      .seq(function () {
+        runUpdates(updatesToRun, this)
+      })
+      .seq(function (updatedDbVersion) {
+        log('plus d’update à faire, base en version', updatedDbVersion)
+        // On enlève la maintenance, sauf si elle était déjà en place pour une autre raison (setings ou manuel)
         if (maintenanceReason === 'update') {
-          log.error(`Le mode maintenance sera automatiquement désactivé une fois l'update correctement terminée`)
+          return $maintenance.setMaintenance('off', maintenanceReason, this)
         }
-      }
-      unlockUpdates()
-      cb(err)
-    })
+        this()
+      })
+      .done(function (err) {
+        if (err) {
+          log.error(`Une erreur est survenue dans l’update ${dbVersion + 1}`)
+          log.error(err)
+          if (maintenanceReason === 'update') {
+            log.error(`Le mode maintenance sera automatiquement désactivé une fois l'update correctement terminée`)
+          }
+        }
+        unlockUpdates()
+        cb(err)
+      })
   }
 
   /**
@@ -319,7 +318,7 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
     // On applique automatiquement les mises à jour au démarrage
     // (hors cli, mais runPendingUpdates peut être appelé en cli quand même)
     if (lassi.options.cli) {
-      return cb();
+      return cb()
     }
     // si on est en mode cluster avec pm2, on ne se lance que sur la 1re instance (0)
     // C'est une sécurité en plus du lockFile
@@ -336,7 +335,10 @@ module.exports = function(LassiUpdate, $maintenance, $settings) {
       cb()
       if (updatesToRun && updatesToRun.length) runPendingUpdates()
     })
-    $maintenance.getMaintenanceMode((error, {mode, reason}) => log(`Actuellement la maintenance est ${mode} (reason: ${reason})`))
+    $maintenance.getMaintenanceMode((error, {mode, reason}) => {
+      if (error) log.error(error)
+      log(`Actuellement la maintenance est ${mode} (reason: ${reason})`)
+    })
   }
 
   // runPendingUpdates pourrait être appelé avant postSetup (dans un autre postSetup qui passerait avant nous),

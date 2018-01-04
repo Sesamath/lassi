@@ -3,14 +3,13 @@
 
 const MongoClient = require('mongodb').MongoClient
 const anLog = require('an-log')
-const anLogLevels = require('an-log/source/lib/levels.js')
 const assert = require('assert')
 const flow = require('an-flow')
 const Entities = require('../source/entities')
 
 let dbSettings = {
   name: 'testLassi',
-  host : 'localhost',
+  host: 'localhost',
   port: 27017,
   user: 'mocha',
   password: 'mocha',
@@ -23,6 +22,7 @@ let dbSettings = {
 let isInitDone = false
 let isVerbose = false
 
+let entities
 let TestEntity
 
 /**
@@ -47,15 +47,15 @@ function overrideSettings () {
       case '--db': // alias
         dbSettings.name = process.argv[i + 1]
         break
-      case '--host': dbSettings.host = process.argv[i + 1]; break
-      case '--port': dbSettings.port = process.argv[i + 1]; break
-      case '--user': dbSettings.user = process.argv[i + 1]; break
-      case '--pass': dbSettings.password = process.argv[i + 1]; break
-      case '--ssl-cert': dbSettings.sslCert = process.argv[i + 1]; break
-      case '--ssl-key': dbSettings.sslKey = process.argv[i + 1]; break
-      case '--auth-mechanism': dbSettings.authMechanism = process.argv[i + 1]; break
-      case '--auth-source': dbSettings.authSource = process.argv[i + 1]; break
-      case '--pool-size': dbSettings.poolSize = process.argv[i + 1]; break
+      case '--host': dbSettings.host = process.argv[i + 1]; break
+      case '--port': dbSettings.port = process.argv[i + 1]; break
+      case '--user': dbSettings.user = process.argv[i + 1]; break
+      case '--pass': dbSettings.password = process.argv[i + 1]; break
+      case '--ssl-cert': dbSettings.sslCert = process.argv[i + 1]; break
+      case '--ssl-key': dbSettings.sslKey = process.argv[i + 1]; break
+      case '--auth-mechanism': dbSettings.authMechanism = process.argv[i + 1]; break
+      case '--auth-source': dbSettings.authSource = process.argv[i + 1]; break
+      case '--pool-size': dbSettings.poolSize = process.argv[i + 1]; break
       default:
         console.error(`argument ${a} ignoré car non géré`)
         i--
@@ -96,21 +96,17 @@ function checkEntity (entity, values, checkers) {
 }
 
 /**
- * Connexion à Mongo (on gère pas certif ssl ni kerberos)
- *
- * @param {Callback} next
+ * @callback checkMongoConnexionCallback
+ * @param {Error} error
+ * @param {object} dbSettings
  */
-function connectToMongo (next) {
-  const {name, host, port, authMechanism} = dbSettings
-  let url = 'mongodb://'
-  // ssl prioritaire sur user/pass
-  if (dbSettings.user && dbSettings.password) {
-    url += `${encodeURIComponent(dbSettings.user)}:${encodeURIComponent(dbSettings.password)}@`
-  }
-  url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
-  if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
-  const {options} = dbSettings
-  MongoClient.connect(url, options, (error, db) => {
+/**
+ * Teste la connexion à Mongo (on gère pas certif ssl ni kerberos)
+ * @private
+ * @param {checkMongoConnexionCallback} next
+ */
+function checkMongoConnexion (next) {
+  connectToMongo((error, db) => {
     // en cas d'erreur, le process s'arrête avant d'exécuter ça…
     if (error) {
       console.error('La connexion mongoDb a échoué')
@@ -122,15 +118,33 @@ function connectToMongo (next) {
 }
 
 /**
+ * File une connexion à next
+ * @see http://mongodb.github.io/node-mongodb-native/2.0/api/Db.html
+ * @param {MongoClient~connectCallback} next
+ */
+function connectToMongo (next) {
+  const {name, host, port, authMechanism} = dbSettings
+  let url = 'mongodb://'
+  // ssl prioritaire sur user/pass
+  if (dbSettings.user && dbSettings.password) {
+    url += `${encodeURIComponent(dbSettings.user)}:${encodeURIComponent(dbSettings.password)}@`
+  }
+  url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
+  if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
+  const {options} = dbSettings
+  MongoClient.connect(url, options, next)
+}
+
+/**
  * Initialisation de l'entité de test
  *
  * @param {Callback} next
  */
-function initEntities(next) {
-  const entities = new Entities({database: dbSettings})
-  flow().seq(function() {
+function initEntities (next) {
+  entities = new Entities({database: dbSettings})
+  flow().seq(function () {
     entities.initialize(this)
-  }).seq(function() {
+  }).seq(function () {
     TestEntity = entities.define('TestEntity')
     TestEntity.flush(this)
   }).seq(function () {
@@ -153,12 +167,21 @@ function initEntities(next) {
     TestEntity.defineIndex('dArray', 'date')
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
-
-    entities.initializeEntity(TestEntity, this)
+    TestEntity.initialize(this)
   }).seq(function () {
-    next (null, TestEntity)
+    next(null, TestEntity)
   }).catch(next)
-};
+}
+
+/**
+ * Ferme la connexion ouverte par Entities au setup
+ */
+function quit () {
+  if (entities) {
+    entities.close()
+    isInitDone = false
+  }
+}
 
 /**
  * Teste la connexion à Mongo et passe les settings à next
@@ -170,7 +193,7 @@ function setup (next) {
   if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
   // pour les tests on veut qu'ils se taisent
   anLog('EntityDefinition').setLogLevel('error')
-  connectToMongo(error => {
+  checkMongoConnexion(error => {
     if (error) return next(error)
     initEntities((error, Entity) => {
       if (error) return next(error)
@@ -182,8 +205,10 @@ function setup (next) {
 
 module.exports = {
   checkEntity,
+  connectToMongo,
   getDbSettings: () => dbSettings,
   getTestEntity: () => TestEntity,
+  quit,
   setup
 }
 
