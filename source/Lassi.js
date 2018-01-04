@@ -127,6 +127,7 @@ class Lassi extends EventEmitter {
         if (service.postSetup) postSetupable.push(service);
       }
       // pour mémoriser les services déjà ajoutés
+      /* global Set */
       const added = new Set()
       // liste des setup à lancer
       const setupables = []
@@ -137,7 +138,7 @@ class Lassi extends EventEmitter {
       const services = lassiInstance.services.services()
       // on veut $settings puis $cache puis $entities dispos dans cet ordre,
       // pour que les autres setup puissent les utiliser
-      ;['$settings', '$cache', '$entities'].forEach(name => addService)
+      ;['$settings', '$cache', '$entities'].forEach(addService)
       Object.keys(services).forEach(addService)
       // fin init
       log('starting setup chain', Array.from(added).join(', '))
