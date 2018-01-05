@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "an-flow": "git://src.sesamath.net/an-flow#2.0.7",
-    "an-log": "git://src.sesamath.net/an-log#3.1.2",
+    "an-log": "git://src.sesamath.net/an-log#3.1.4",
     "colors": "^1.1.2",
     "compression": "^1.7.1",
     "connect-redis": "^3.3.2",
