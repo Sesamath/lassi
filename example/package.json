@@ -3,7 +3,6 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "mysql": "^2.5.4",
     "seq": "^0.3.5",
     "underscore": "^1.6.0"
   },
