@@ -525,7 +525,7 @@ describe('Test entities-queries', function () {
     })
 
     afterEach(function (done) {
-      // Cleanup
+      // Cleanup des entités créés par ce test (mais pas les autres créé au before du test englobant)
       flow(createdEntities)
         .seqEach(function (entity) {
           entity.delete(this)
@@ -572,6 +572,7 @@ describe('Test entities-queries', function () {
       })
       it('Peut être trouvée par deletedAfter()', function (done) {
         // @todo voir pourquoi entity est parfois (mais rarement) undefined
+        // ça semble réglé par le quit qui était fait avant la cb du after générique (maintenant dans la cb)
         grabOneCheck(
           TestEntity.match().deletedAfter(started),
           (entity) => expect(entity.oid).to.equals(deletedEntity.oid),
