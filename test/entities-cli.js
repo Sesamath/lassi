@@ -31,8 +31,8 @@ function addData (next) {
     }).done(next)
 }
 
-describe('Test $entities-cli', function () {
-  before('Connexion à Mongo et initialisation des entités', function (done) {
+describe('Test $entities-cli', () => {
+  before('Connexion à Mongo et initialisation des entités', (done) => {
     flow().seq(function () {
       setup(this)
     }).seq(function (Entity) {
@@ -43,28 +43,28 @@ describe('Test $entities-cli', function () {
 
   after('ferme la connexion', quit)
 
-  describe('.purge()', function () {
-    it('Vérification des erreurs', function () {
-      const wrongArguments = function () { EntitiesCli.commands().purge(TestEntity, this) }
+  describe('.purgeDeleted()', () => {
+    it('Throw Error en cas d’usage incorrect', () => {
+      const wrongArguments = () => EntitiesCli.commands().purgeDeleted(TestEntity, this)
       expect(wrongArguments).to.throw(Error) // Nombre d'arguments incorrects
-      const noCallback = function () { EntitiesCli.commands().purge(TestEntity, 13, 'string') }
+      const noCallback = () => EntitiesCli.commands().purgeDeleted(TestEntity, 13, 'string')
       expect(noCallback).to.throw(Error) // Dernier paramètre n'est pas un callback
-      const notNumber = function () { EntitiesCli.commands().purge(TestEntity, 'string', this) }
+      const notNumber = () => EntitiesCli.commands().purgeDeleted(TestEntity, 'string', this)
       expect(notNumber).to.throw(Error) // Deuxième argument n'est pas un nombre
-      const negativeNumber = function () { EntitiesCli.commands().purge(TestEntity, -5, this) }
+      const negativeNumber = () => EntitiesCli.commands().purgeDeleted(TestEntity, -5, this)
       expect(negativeNumber).to.throw(Error) // Deuxième argument n'est pas un nombre positif
-      const noEntity = function () { EntitiesCli.commands().purge('NotFoundEntity', 13, this) }
-      expect(noEntity).to.throw(Error) // Aucune entité n'est récupérée
-      const wrongFirstArgument = function () { EntitiesCli.commands().purge(5, 13, this) }
-      expect(wrongFirstArgument).to.throw(Error) // Premier argument incorrect
+      const noEntity = () => EntitiesCli.commands().purgeDeleted('NotFoundEntity', 13, this)
+      expect(noEntity).to.throw(Error) // Pas une Entity passée en 1er argument (string)
+      const wrongFirstArgument = () => EntitiesCli.commands().purgeDeleted(5, 13, this)
+      expect(wrongFirstArgument).to.throw(Error) // Pas une Entity passée en 1er argument (number)
     })
 
-    it('Purge une entité', function (done) {
+    it('Purge une entité', (done) => {
       flow().seq(function () {
         TestEntity.match().onlyDeleted().count(this)
       }).seq(function (count) {
         assert.equal(count, 3)
-        EntitiesCli.commands().purge(TestEntity, 13, this)
+        EntitiesCli.commands().purgeDeleted(TestEntity, 13, this)
       }).seq(function () {
         TestEntity.match().onlyDeleted().sort('i', 'asc').grab(this)
       }).seq(function (entities) {
