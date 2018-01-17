@@ -62,6 +62,20 @@ function getAllEntities (query, options, callback) {
 }
 
 /**
+ * Fait un grabOne sur query, passe les assertions et appelle done
+ * @param {EntityQuery} query
+ * @param {function} checks liste d'assertions, appelée avec le résultat du grab
+ * @param {simpleCallback} done
+ */
+function grabOneCheck (query, checks, done) {
+  query.grabOne((error, entity) => {
+    if (error) return done(error)
+    checks(entity)
+    done()
+  })
+}
+
+/**
  * Ajout des données aux entités
  *
  * @param {Callback} next
@@ -119,8 +133,10 @@ describe('Test entities-queries', function () {
     // on pourrait passer un purge natif mongo du genre
     // TestEntity.getCollection().deleteMany({}, done)
     // mais c'est plus lisible, même si on devrait pas tester purge ici
-    TestEntity.match().purge(done)
-    quit()
+    TestEntity.match().purge((error) => {
+      quit()
+      done(error)
+    })
   })
 
   describe('.beforeDelete()', function () {
@@ -555,20 +571,19 @@ describe('Test entities-queries', function () {
           .done(done)
       })
       it('Peut être trouvée par deletedAfter()', function (done) {
-        flow()
-          .seq(function () {
-            TestEntity.match().deletedAfter(started).grabOne(this)
-          })
-          .seq(function (entity) {
-          // @todo voir pourquoi deletedEntity est parfois (mais rarement) undefined
-            assert.equal(entity.oid, deletedEntity.oid)
-            TestEntity.match().deletedAfter(Date.now()).grabOne(this)
-          })
-          .seq(function (entity) {
-            assert.equal(entity, undefined)
-            this()
-          })
-          .done(done)
+        // @todo voir pourquoi entity est parfois (mais rarement) undefined
+        grabOneCheck(
+          TestEntity.match().deletedAfter(started),
+          (entity) => expect(entity.oid).to.equals(deletedEntity.oid),
+          done
+        )
+      })
+      it('N’est pas remontée par deletedAfter(now)', function (done) {
+        grabOneCheck(
+          TestEntity.match().deletedAfter(Date.now()),
+          (entity) => expect(entity).to.equals(undefined),
+          done
+        )
       })
       it('Peut être trouvée par deletedBefore()', function (done) {
         flow()
