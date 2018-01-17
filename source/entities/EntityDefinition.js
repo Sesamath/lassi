@@ -134,6 +134,7 @@ class EntityDefinition {
       fieldName,
       mongoIndexName,
       // Si on nous passe pas de callback, on retourne la valeur du champ
+      // attention, pas de fat arrow ici car on fera du apply dessus
       callback: callback || function () { return this[fieldName] }
     }
 
