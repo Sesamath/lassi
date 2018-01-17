@@ -26,6 +26,11 @@ var pathlib = require('path')
 var fs = require('fs')
 var _ = require('lodash')
 
+// pas vraiment la peine de le require, c'est là pour montrer qu'on en a besoin
+// car dustjs-helpers en a besoin mais ce n'est que dans ses devDependencies
+require('dustjs-linkedin')
+const dust = require('dustjs-helpers')
+
 /**
  * Le moteur de rendu html, accessible via lassi.transports.html.engine
  * @param options
@@ -36,7 +41,7 @@ function Renderer (options) {
   this.cacheStore = {}
   this.keepWhiteSpace = false
   for (var key in options) this[key] = options[key]
-  this.dust = require('dustjs-helpers')
+  this.dust = dust
 }
 
 /**

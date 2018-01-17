@@ -293,7 +293,7 @@ La commande count demande 1 ou 2 arguments :
  * @param {string}        nbDays Nombre de jours minimum pour que l'entité soit purgée
  * @param {errorCallback} done   Callback
  */
-function purge (entity, nbDays, done) {
+function purgeDeleted (entity, nbDays, done) {
   log = (...args) => anLog('entities-cli purge', ...args)
   if (!arguments.length) throw new Error('Erreur interne, aucun arguments de commande')
   if (arguments.length !== 3) {
@@ -315,34 +315,26 @@ function purge (entity, nbDays, done) {
         return done(new Error(`Aucune entity nommée ${entity} (utiliser la commande "allServices" pour voir services et entités)`))
       }
     } else {
-      throw new Error('Le premier argument doit être une string ou un objet')
+      return done(new Error('Le premier argument doit être une string ou un objet'))
     }
-    let nb = 0
     const date = moment().subtract(nbDays, 'days').toDate()
     flow()
       .seq(function () {
         Entity
           .match('__deletedAt').lowerThanOrEquals(date)
           .onlyDeleted()
-          .grab(this)
+          .purge(this)
       })
-      .seqEach(function (entity) {
-        const nextEntity = this
-        process.nextTick(function () {
-          nb++
-          entity.delete(nextEntity)
-        })
+      .seq(function (nbDeleted) {
+        log(`${nbDeleted} entités ${Entity.name} effacées depuis plus de ${nbDays} viennent d'être purgées`)
+        done(null, nbDeleted)
       })
-      .seq(function () {
-        log(`${nb} entités ${Entity.name} viennent d'être purgées`)
-        this()
-      })
-      .done(done)
+      .catch(done)
   } catch (error) {
     done(error)
   }
 }
-purge.help = function purgeHelp () {
+purgeDeleted.help = function purgeHelp () {
   log = (...args) => anLog('entities-cli purge', 'usage', ...args)
   log(`
 La commande purge demande 2 arguments :
@@ -358,7 +350,7 @@ module.exports = function () {
   return {
     commands: () => ({
       count,
-      purge,
+      purgeDeleted,
       reindexAll,
       select
     })
