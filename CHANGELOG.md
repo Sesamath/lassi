@@ -2,6 +2,9 @@ Version 2
 =========
 Version 2.2 (redis)
 -------------------
+* 2.2.11 (2018-01-17)
+  * [BREAKING CHANGE] commande purge renommé en purgeDeleted (et optimisée)
+  * dépendances obsolètes virées (mime, mkdirp, mysql, static-favicon, validator)
 * 2.2.10 (2018-01-04)
   * solidification countBy en imposant un index existant
   * méthodes internes sorties de la classe EntityQuery (alterLastMatch, createEntitiesFromRows, getType, hasIndex, prepareRecord)
