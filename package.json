@@ -6,7 +6,8 @@
   "main": "./source/Lassi",
   "scripts": {
     "lint": "eslint --ignore-pattern **/vendors/ .",
-    "test": "mocha"
+    "test": "mocha",
+    "posttest": "npm run lint"
   },
   "dependencies": {
     "an-flow": "git://src.sesamath.net/an-flow#2.0.7",
@@ -29,6 +30,12 @@
   },
   "devDependencies": {
     "chai": "^4.1.2",
+    "eslint": "^4.15.0",
+    "eslint-config-standard": "^11.0.0-beta.0",
+    "eslint-plugin-import": "^2.8.0",
+    "eslint-plugin-node": "^5.2.1",
+    "eslint-plugin-promise": "^3.6.0",
+    "eslint-plugin-standard": "^3.0.1",
     "jsdoc": "^3.5.5",
     "mocha": "^2.5.3",
     "sinon": "^4.0.1",

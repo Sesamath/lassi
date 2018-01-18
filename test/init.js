@@ -9,7 +9,7 @@ const Entities = require('../source/entities')
 
 let dbSettings = {
   name: 'testLassi',
-  host: '127.0.0.1',
+  host: 'localhost',
   port: 27017,
   authMechanism: 'DEFAULT',
   authSource: '',
