@@ -326,7 +326,7 @@ function purgeDeleted (entity, nbDays, done) {
           .purge(this)
       })
       .seq(function (nbDeleted) {
-        log(`${nbDeleted} entités ${Entity.name} effacées depuis plus de ${nbDays} viennent d'être purgées`)
+        log(`${nbDeleted} entités ${Entity.name} effacées depuis plus de ${nbDays}j viennent d'être purgées`)
         done(null, nbDeleted)
       })
       .catch(done)

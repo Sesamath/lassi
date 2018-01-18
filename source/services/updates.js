@@ -275,7 +275,7 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
       })
     }
 
-    // MAIN
+    // MAIN de runPendingUpdates
     // runPendingUpdates peut être appelé sans callback quand on n'a pas besoin d'attendre la fin des updates
     if (!cb) cb = () => undefined
     if (updatesToRun && !updatesToRun.length) return cb()
