@@ -66,7 +66,7 @@ Options :
       if (error) printError(error)
       if (result) log.info(`Retour de la commande ${commandName}\n`, result)
       else log.info('Fin ' + commandName)
-      process.exit(error ? 2 : 0)
+      lassi.shutdown(error ? 2 : 0)
     }
 
     try {

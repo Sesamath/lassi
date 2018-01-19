@@ -216,10 +216,13 @@ class Lassi extends EventEmitter {
    * @private
    * @fires Lassi#shutdown
    */
-  shutdown () {
+  shutdown (exitCode = 0) {
     function thisIsTheEnd () {
-      log('shutdown completed')
-      process.exit()
+      log('shutdown completed (exit in 1s)')
+      // on ajoute quand même 1s pour passer après des process.nextTick lancés sur l'event shutdown
+      // et laisser les connexions se faire ou se terminer
+      // (envoi de mail de notif par ex)
+      setTimeout(() => process.exit(exitCode), 1000)
     }
 
     // normal d'être appelé 2× avec SIGINT puis exit
@@ -252,9 +255,13 @@ class Lassi extends EventEmitter {
           log('closing redis connection')
           this.service('$cache').quit()
 
-          // et pour finir $server
-          log('closing $server')
-          this.service('$server').stop(thisIsTheEnd)
+          // et pour finir $server, si on est pas en cli…
+          if (lassi.options.cli) {
+            thisIsTheEnd()
+          } else {
+            log('closing $server')
+            this.service('$server').stop(thisIsTheEnd)
+          }
         } else {
           log('server is already gone')
           thisIsTheEnd()
