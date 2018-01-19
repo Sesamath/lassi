@@ -11,14 +11,17 @@ let dbSettings = {
   name: 'testLassi',
   host: 'localhost',
   port: 27017,
-  user: 'mocha',
-  password: 'mocha',
   authMechanism: 'DEFAULT',
   authSource: '',
   options: {
     poolSize: 10
   }
 }
+
+if (!process.env.CIRCLE_CI) {
+  dbSettings.user = dbSettings.password = 'mocha'
+}
+
 let isInitDone = false
 let isVerbose = false
 
