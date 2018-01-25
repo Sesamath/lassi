@@ -136,6 +136,7 @@ function buildQuery (entityQuery, record) {
 
   // par défaut on prend pas les softDeleted
   if (!query['__deletedAt'] && !entityQuery._includeDeleted) query['__deletedAt'] = {$eq: null}
+  if (entityQuery.debug) log('mongoQuery', record)
 } // buildQuery
 
 /**
@@ -362,6 +363,17 @@ class EntityQuery {
         callback(null, groupes)
       })
       .catch(callback)
+  }
+
+  /**
+   * Ajoute (ou enlève) le mode debug qui log les params de la requêtes 
+   * (qui peuvent être passé tels quels dans un mongo-shell)
+   * @param {boolean} [status=true]
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  setDebug (status = true) {
+    this.debug = status
+    return this
   }
 
   /**
