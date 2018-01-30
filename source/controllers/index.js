@@ -84,25 +84,26 @@ class Controllers extends EventEmitter {
       // Sélection des actions déclenchables
       var params
       const actionnables = []
-      // vérifie le param et en cas de pb ajoute au contexte une 400 Bad request en text/plain
-      const isBadParam = (param) => {
-        if (['undefined', 'null'].includes(param)) {
-          context.error = 'Bad Request'
-          context.contentType = 'text/plain'
-          context.status = 400
-          return true
-        }
-        return false
-      }
+      let hasBadParam
+      const isBadParam = (param) => ['undefined', 'null'].includes(param)
       // on parse les actions pour affecter actionnables
       _.each(self.actions, function (action) {
         params = action.match(request.method, request.parsedUrl.pathname)
         if (params) {
           actionnables.push({action: action, params: params})
           // si on rencontre un param foireux on arrête là, pas la peine d'ajouter les actionnables suivants
-          if (_.some(params, isBadParam)) return false
+          if (_.some(params, isBadParam)) {
+            hasBadParam = true
+            return false
+          }
         }
       })
+      if (hasBadParam) {
+        const error = new Error('Bad request')
+        error.status = 400
+        // on skip tous les contrôleurs et laisse le ramasse miette gérer suivant accept (en fin de rail.js)
+        return next(error)
+      }
 
       // Espace de stockage des résultats
       var data = {}
