@@ -366,7 +366,7 @@ class EntityQuery {
   }
 
   /**
-   * Ajoute (ou enlève) le mode debug qui log les params de la requêtes 
+   * Ajoute (ou enlève) le mode debug qui log les params de la requête
    * (qui peuvent être passé tels quels dans un mongo-shell)
    * @param {boolean} [status=true]
    * @return {EntityQuery} La requête (pour chaînage)
