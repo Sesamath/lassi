@@ -84,10 +84,23 @@ class Controllers extends EventEmitter {
       // Sélection des actions déclenchables
       var params
       const actionnables = []
+      // vérifie le param et en cas de pb ajoute au contexte une 400 Bad request en text/plain
+      const isBadParam = (param) => {
+        if (['undefined', 'null'].includes(param)) {
+          context.error = 'Bad Request'
+          context.contentType = 'text/plain'
+          context.status = 400
+          return true
+        }
+        return false
+      }
+      // on parse les actions pour affecter actionnables
       _.each(self.actions, function (action) {
         params = action.match(request.method, request.parsedUrl.pathname)
         if (params) {
           actionnables.push({action: action, params: params})
+          // si on rencontre un param foireux on arrête là, pas la peine d'ajouter les actionnables suivants
+          if (_.some(params, isBadParam)) return false
         }
       })
 
@@ -103,6 +116,7 @@ class Controllers extends EventEmitter {
 
           var nextAction = this
           context.arguments = actionnable.params
+          // si un parametre vaut undefined ou null, on lance ici un Bad Request et shunt la suite
 
           // L'actionnable est un middleware
           if (actionnable.action.middleware) {
@@ -137,46 +151,44 @@ class Controllers extends EventEmitter {
         // le contrôleur a le droit de se débrouiller avec context.response et demander l'abandon du processing
           if (context.transport === 'done') return
           // Une redirection passe en fast-track
-          if (!context.error && context.location) {
-            this()
-          } else {
-            lassi.emit('beforeTransport', context, data)
+          if (!context.error && context.location) return this()
 
-            // Si une erreur s'est produite et que rien n'a été fait dans l'event, on envoie
-            // une erreur standard
-            if (context.error) {
-              var head = context.error.toString()
-              console.error(head.red, context.error.stack.toString().replace(head, ''))
-              context.contentType = 'text/plain'
-              context.status = 500
-              data.content = 'Server Error'
-            } else {
-            // Content type par défaut
-              context.contentType = context.contentType || 'text/plain'
+          lassi.emit('beforeTransport', context, data)
 
-              // Si on n'a pas reçu de contenu => 404
-              if (!context.status && _.isEmpty(data)) {
-                context.status = 404
-                data.content = 'not found ' + context.request.url
-                context.contentType = 'text/plain'
-              }
-            }
+          // contentType par défaut
+          if (!context.contentType) context.contentType = 'text/plain'
 
-            // Sélection du transport et processing
-            var transport
-            if (context.transport && lassi.transports[context.transport]) transport = lassi.transports[context.transport]
-            else if (!context.contentType) return this(new Error('No content type defined'))
-            else transport = lassi.transports[context.contentType]
-            if (!transport) return this(new Error('No renderer found for contentType:' + context.contentType))
-            transport.process(data, this)
+          // Si une erreur s'est produite et que rien n'a été fait dans le beforeTransport
+          // => envoie une erreur 500 standard
+          if (context.error) {
+            // sortie console
+            const message = context.error.toString()
+            console.error(message.red, context.error.stack.toString().replace(message, ''))
+            // valeurs par défaut si celui qui a déclaré l'erreur ne les a pas affectées
+            if (!context.status) context.status = 500
+            if (!data.content) data.content = 'Server Error'
+
+          // Ou bien si on n'a pas reçu de contenu => 404 en text/plain
+          } else if (!context.status && _.isEmpty(data)) {
+            context.status = 404
+            data.content = 'not found ' + context.request.url
+            context.contentType = 'text/plain'
           }
+
+          // Sélection du transport et processing
+          var transport
+          if (context.transport && lassi.transports[context.transport]) transport = lassi.transports[context.transport]
+          else if (!context.contentType) return this(new Error('No content type defined'))
+          else transport = lassi.transports[context.contentType]
+          if (!transport) return this(new Error('No renderer found for contentType:' + context.contentType))
+          transport.process(data, this)
         })
         .seq(function (content) {
           if (context.status) {
             context.response.status(context.status)
             if (context.status > 300 && context.status < 400) {
-              context.response.redirect(context.location)
-              return
+              if (context.location) return context.response.redirect(context.location)
+              else return this(new Error('Redirect code without location'))
             }
           }
           context.response.setHeader('Content-Type', context.contentType)
