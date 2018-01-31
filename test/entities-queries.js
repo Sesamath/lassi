@@ -828,6 +828,49 @@ describe('Test entities-queries', function () {
     })
   })
 
+  describe('.softPurge()', function () {
+    before(function (done) {
+      const entities = []
+      for (let i = 0; i < nbEntities; i++) {
+        entities.push({
+          i: i,
+          s: STRING_PREFIX + i
+        })
+      }
+      flow(entities)
+        .seqEach(function (entity) {
+          TestEntity.create(entity).store(this)
+        })
+        .done(done)
+    })
+
+    after((done) => TestEntity.match().includeDeleted().purge(done))
+
+    it('softDelete des entités', function (done) {
+      flow().seq(function () {
+        TestEntity.match().count(this)
+      }).seq(function (nb) {
+        assert.equal(nb, nbEntities)
+        TestEntity.match('i').lowerThan(8).softPurge(this)
+      }).seq(function (nbSoftDeleted) {
+        assert.equal(nbSoftDeleted, 8)
+        TestEntity.match('s').equals(STRING_PREFIX + 42).softPurge(this)
+      }).seq(function (nbSoftDeleted) {
+        assert.equal(nbSoftDeleted, 1)
+        TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).softPurge(this)
+      }).seq(function (nbSoftDeleted) {
+        assert.equal(nbSoftDeleted, 3) // 41, 43, 44
+        TestEntity.match().softPurge(this)
+      }).seq(function (nbSoftDeleted) {
+        assert.equal(nbSoftDeleted, nbEntities - 12)
+        TestEntity.match().count(this)
+      }).seq(function (count) {
+        assert.equal(count, 0)
+        this()
+      }).done(done)
+    })
+  })
+
   describe('sort', function () {
     before(function (done) {
       const entities = [

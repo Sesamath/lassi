@@ -655,7 +655,7 @@ class EntityQuery {
   /**
    * @callback purgeCallback
    * @param {Error} error
-   * @param {number} le nb d'objets effacés
+   * @param {number} nbDeleted le nb d'objets effacés
    */
   /**
    * Efface toutes les entités de la collection (qui matchent la requête si y'en a une qui précède)
@@ -674,6 +674,29 @@ class EntityQuery {
         }
         const deletedCount = (result && result.deletedCount) || (result && result.result && result.result.n) || 0
         callback(null, deletedCount)
+      })
+  }
+
+  /**
+   * @callback softPurgeCallback
+   * @param {Error} error
+   * @param {number} nbSoftDeleted le nb d'objets softDeleted
+   */
+  /**
+   * Efface toutes les entités de la collection (qui matchent la requête si y'en a une qui précède)
+   * @param {softPurgeCallback} callback
+   */
+  softPurge (callback) {
+    const record = prepareRecord(this)
+    const today = new Date()
+    this.entity.getCollection()
+      .updateMany(record.query, {$set: {__deletedAt: today}}, (error, updateWriteOpResult) => {
+        if (error) return callback(error)
+        const nbSoftDeleted = updateWriteOpResult && updateWriteOpResult.result && updateWriteOpResult.result.nModified
+        if (typeof nbSoftDeleted !== 'number') {
+          console.error(new Error('updateMany ne remonte pas l’objet attendu dans softPurge'), updateWriteOpResult, record.query)
+        }
+        callback(null, nbSoftDeleted)
       })
   }
 
