@@ -690,8 +690,10 @@ class EntityQuery {
     const record = prepareRecord(this)
     const today = new Date()
     this.entity.getCollection()
+      // @see http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html#updateMany
       .updateMany(record.query, {$set: {__deletedAt: today}}, (error, updateWriteOpResult) => {
         if (error) return callback(error)
+        // @see http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html#~updateWriteOpResult
         const nbSoftDeleted = updateWriteOpResult && updateWriteOpResult.result && updateWriteOpResult.result.nModified
         if (typeof nbSoftDeleted !== 'number') {
           console.error(new Error('updateMany ne remonte pas l’objet attendu dans softPurge'), updateWriteOpResult, record.query)
