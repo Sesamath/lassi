@@ -20,7 +20,7 @@
     "dustjs-linkedin": "^2.7.5",
     "express": "^4.16.2",
     "express-session": "^1.15.6",
-    "lodash": "^3.10.1",
+    "lodash": "^4.17.5",
     "moment": "^2.19.1",
     "mongodb": "^2.2.33",
     "morgan": "^1.9.0",
@@ -62,7 +62,10 @@
       "lassi": true
     }
   },
-  "pre-push": ["test", "lint"],
+  "pre-push": [
+    "test",
+    "lint"
+  ],
   "readmeFilename": "README.md",
   "readme": "",
   "description": "",
