@@ -30,7 +30,8 @@ describe('Entity', () => {
     entities.close()
     quit()
   })
-  describe('.onLoad', function () {
+
+  describe('EntityDefinition#onLoad', function () {
     let count
     beforeEach(function (done) {
       count = 0
@@ -100,7 +101,7 @@ describe('Entity', () => {
       })
     })
   })
-  describe('.store', function () {
+  describe('Entity#store', function () {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(() => {
@@ -139,7 +140,7 @@ describe('Entity', () => {
     })
   })
 
-  describe('.defineMethod', () => {
+  describe('EntityDefinition#defineMethod', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.defineMethod('who', function () {
@@ -187,7 +188,7 @@ describe('Entity', () => {
     })
   })
 
-  describe('create', () => {
+  describe('EntityDefinition#create', () => {
     beforeEach(function () {
       TestEntity = entities.define('TestEntity')
     })
@@ -199,6 +200,264 @@ describe('Entity', () => {
     it('creates an instance of EntityDefinition.entityConstructor', () => {
       const entity = TestEntity.create({a: 1})
       expect(entity instanceof TestEntity.entityConstructor).to.be.true // eslint-disable-line no-unused-expressions
+    })
+  })
+
+  describe('EntityDefinition#validateJsonSchema et Entity#isValid', function () {
+    beforeEach(function (done) {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.flush(() => {
+        TestEntity.initialize(done)
+      })
+    })
+    const testValidationError = (schema, data, expectedError, addKeywords = {}) => (done) => {
+      TestEntity.validateJsonSchema(schema, addKeywords)
+      const entity = TestEntity.create(data)
+
+      entity.isValid((err) => {
+        try {
+          expect(err.errors.length).to.equal(1)
+          expect(err.errors[0]).to.include(expectedError)
+
+          done()
+        } catch (e) {
+          done(e)
+        }
+      })
+    }
+
+    const testValidationSuccess = (schema, data, addKeywords = {}) => (done) => {
+      TestEntity.validateJsonSchema(schema, addKeywords)
+      const entity = TestEntity.create(data)
+
+      entity.isValid((err) => {
+        expect(err).to.be.null // eslint-disable-line no-unused-expressions
+        done(err)
+      })
+    }
+
+    describe('validation sans erreur', () => {
+      it('si absence de schema', (done) => {
+        const entity = TestEntity.create({test: 1})
+        entity.isValid((err) => {
+          expect(err).to.be.undefined // eslint-disable-line no-unused-expressions
+          done()
+        })
+      })
+
+      it('si schema conforme aux données', testValidationSuccess(
+        // Schema
+        {
+          properties: {
+            num: {type: 'number'},
+            text: {type: 'string'}
+          },
+          required: [ 'num', 'text' ]
+        },
+        // Data
+        {num: 1, text: 'hello'}
+      ))
+    })
+
+    describe(`erreur de validation`, () => {
+      // On teste quelques cas basiques
+      it('si champ requis manquant', testValidationError(
+        // Schema
+        {
+          properties: {num: {type: 'number'}},
+          required: [ 'num' ],
+          errorMessage: {
+            required: {
+              num: 'Paramètre num manquant' // on vérifie aussi la sucharge du message d'erreur
+            }
+          }
+        },
+        // Data
+        {},
+        // Expected error
+        {message: `Paramètre num manquant`, dataPath: ''}
+      ))
+
+      it('si un champ en trop', testValidationError(
+        // Schema
+        {
+          properties: {num: {type: 'number'}}
+        },
+        // Data
+        {other: 'Hey?'},
+        // Expected error
+        {message: `ne doit pas contenir de propriétés additionnelles`, dataPath: ''}
+      ))
+
+      it('si type number incorrect', testValidationError(
+        // Schema
+        {
+          properties: {num: {type: 'number'}},
+          required: [ 'num' ],
+          errorMessage: {
+            properties: { // on vérifie aussi la sucharge du message d'erreur
+              num: 'Num doit contenir un entier'
+            }
+          }
+        },
+        // Data
+        {num: 'not a number'},
+        // Expected error
+        {message: 'Num doit contenir un entier', dataPath: '/num'}
+      ))
+
+      it('si type string incorrect', testValidationError(
+        // Schema
+        {
+          properties: {text: {type: 'string'}}
+        },
+        // Data
+        {text: 1},
+        // Expected error
+        {message: `doit être de type string`, dataPath: '/text'} // message d'erreur par défaut avec i18n ajv
+      ))
+
+      it('si custom keyword incorrect', testValidationError(
+        // Schema
+        {
+          properties: {
+            custom: {
+              type: 'integer',
+              customType: { expectedValue: 1 } // on teste le passage de paramètre au type
+            }
+          },
+          errorMessage: {
+            properties: { // on vérifie aussi la sucharge du message d'erreur
+              custom: 'custom doit être égal à 1 !'
+            }
+          }
+        },
+        // Data
+        {
+          custom: 2
+        },
+        // Expected error
+        {message: 'custom doit être égal à 1 !', dataPath: '/custom'},
+        // Custom keyword validator
+        {
+          customType: {
+            async: true,
+            validate: (schema, data) => Promise.resolve(schema.expectedValue === data)
+          }
+        }
+      ))
+    })
+
+    describe('required conditionel, par exemple sur un utilisateur', () => {
+      const schemaUtilisateur = {
+        properties: {
+          nom: {type: 'string'},
+          type: { enum: ['prof', 'eleve'] },
+          classe: {type: 'number'}
+        },
+        required: ['type', 'nom'],
+        oneOf: [
+          // un élève doit avoir une classe mais pas un prof
+          {
+            properties: {
+              type: { enum: ['prof'] }
+            }
+          },
+          {
+            properties: {
+              type: { enum: ['eleve'] }
+            },
+            required: ['classe']
+          }
+        ]
+      }
+
+      it(`retourne une erreur si l'élève n'a pas de classe`, testValidationError(
+        // Par exemple, un élève a des champs requis que n'a pas un prof
+        // Schema
+        schemaUtilisateur,
+        // Data
+        {nom: 'Foo', type: 'eleve'},
+        // Expected error
+        // Le message vient du fail sur oneOf[1].
+        // Le fail sur oneOf[0] (le type 'eleve' n'appartient pas à l'enum) et le fail du oneOf lui-même (aucun des deux ne match)
+        // ont été enlevés par EntityDefinition#validate
+        {message: `requiert la propriété classe`, dataPath: ''} //
+      ))
+
+      it(`ne retourne pas d'erreur si le prof n'a pas de classe`, testValidationSuccess(
+        // Par exemple, un élève a des champs requis que n'a pas un prof
+        // Schema
+        schemaUtilisateur,
+        // Data
+        {nom: 'Foo', type: 'prof'}
+      ))
+
+      it(`valide quand même les autres champs`, testValidationError(
+        // Par exemple, un élève a des champs requis que n'a pas un prof
+        // Schema
+        schemaUtilisateur,
+        // Data
+        {type: 'prof'},
+        // Expected errors
+        {message: `requiert la propriété nom`, dataPath: ''}
+      ))
+    })
+
+    describe('validation au store', () => {
+      describe('sans schema', () => {
+        it('ne lance pas de validation', (done) => {
+          // On veut préserver ce comportement pour l'existant
+          const entity = TestEntity.create({num: 'not a number'})
+
+          entity.store((err) => {
+            expect(err).to.be.null // eslint-disable-line no-unused-expressions
+            done()
+          })
+        })
+      })
+
+      describe('avec un schema', () => {
+        beforeEach(() => {
+          TestEntity.validateJsonSchema({
+            properties: {
+              num: {type: 'number'}
+            },
+            required: [ 'num' ]
+          })
+        })
+
+        it(`lance une validation au store par défaut`, (done) => {
+          const entity = TestEntity.create({num: 'not a number'})
+          entity.store((err) => {
+            expect(err.errors.length).to.equal(1)
+            expect(err.errors[0].message).to.equal('doit être de type number')
+            done()
+          })
+        })
+
+        it('ne lance pas de validation si skipValidation est true sur la définition', (done) => {
+          // On pourra utiliser cette fonctionalité pour une migration progressive : d'abord
+          // vérifier que tout est correct avec isValid(), puis activer la validation au store
+          TestEntity.setSkipValidation(true)
+
+          const entity = TestEntity.create({num: 'not a number'})
+
+          entity.store((err) => {
+            expect(err).to.be.null // eslint-disable-line no-unused-expressions
+            done()
+          })
+        })
+
+        it('ne lance pas de validation si skipValidation est passé en option au store', (done) => {
+          const entity = TestEntity.create({num: 'not a number'})
+
+          entity.store({skipValidation: true}, (err) => {
+            expect(err).to.be.null // eslint-disable-line no-unused-expressions
+            done()
+          })
+        })
+      })
     })
   })
 })

@@ -24,6 +24,9 @@
 'use strict'
 
 const _ = require('lodash')
+const Ajv = require('ajv')
+const AjvErrors = require('ajv-errors')
+const AjvErrorsLocalize = require('ajv-i18n/localize/fr')
 const Entity = require('./Entity')
 const EntityQuery = require('./EntityQuery')
 const {isAllowedIndexType} = require('./internals')
@@ -53,8 +56,76 @@ class EntityDefinition {
     this.indexes = {}
     this.indexesByMongoIndexName = {}
     this._textSearchFields = null
+
+    /* Validation */
+    this.schema = null
+    this._ajvValidate = null // interne
+    this.skipValidation = false
   }
 
+  validate (entity, cb) {
+    if (!this._ajvValidate) return cb()
+
+    this._ajvValidate(entity.values())
+      .then((data) => cb(null, data))
+      .catch((err) => {
+        // Traduit les messages d'erreur en français
+        AjvErrorsLocalize(err.errors)
+
+        // (un peu hack-ish) On enlève certaines erreurs pour rendre le résultat plus exploitable
+        err.errors = _.filter(err.errors, ({schemaPath, keyword}) => {
+          // Si un oneOf échoue on n'est pas intéressé par l'erreur du oneOf lui-même ni par l'erreur
+          // issue du "property matching" d'un des éléments du oneOf.
+          // Par contre on conservera l'erreur de l'autre élément du oneOf dont les properties matchent, mais pas le
+          // required par exemple.
+
+          // Voir test/entities.js le test "retourne une erreur si l'élève n'a pas de classe" pour un use-case réel
+          if (keyword === 'oneOf') return false
+          if (schemaPath.match(/#\/oneOf\/\d*\/properties\//)) return false
+          return true
+        })
+
+        cb(err)
+      })
+  }
+
+  /**
+   * Définit un json schema pour l'entity, validé lors d'un appel à isValid() ou avant le store d'une entity
+   * Le deuxième argument permet d'ajouter des keywords personnalisés
+   *
+   * @param {Object} schema json schema à valider
+   * @param {Object} addKeywords "keywords" supplémentaires à définir sur ajv, cf. https://github.com/epoberezkin/ajv#api-addkeyword
+   */
+  validateJsonSchema (schema, addKeywords = {}) {
+    if (this.schema) throw new Error(`validateJsonSchema a déjà été appelé pour l'entity ${this.name}`)
+
+    const ajv = new Ajv({allErrors: true, jsonPointers: true})
+    // Ajv options allErrors and jsonPointers are required for AjxErrors
+    AjvErrors(ajv)
+
+    _.forEach(addKeywords, (definition, keyword) => {
+      ajv.addKeyword(keyword, definition)
+    })
+
+    this.schema = Object.assign(
+      {
+        $async: true, // pour avoir une validation uniforme, on considère tous les schémas asynchrones
+        additionalProperties: false, // par défaut, on n'autorise pas les champs non-déclarés dans les properties
+        type: 'object', // toutes les entities sont des objets
+        title: this.name
+      },
+      schema
+    )
+
+    this._ajvValidate = ajv.compile(this.schema)
+  }
+
+  /**
+   * @param {Boolean} skipValidation si true, on ne vérifie pas la validation avant le store
+   */
+  setSkipValidation (skipValidation) {
+    this.skipValidation = skipValidation
+  }
   /**
    * Retourne l'objet Collection de mongo de cette EntityDefinition
    * @return {Collection}

@@ -60,6 +60,23 @@ class Entity {
     return !!this.__deletedAt
   }
 
+  isValid (cb) {
+    this.definition.validate(this, cb)
+  }
+
+  values () {
+    // on vire les _, $ et méthodes, puis serialize et sauvegarde
+    // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
+    //
+    // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
+    // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
+    return _.pick(this, function (v, k) {
+      if (_.isFunction(v)) return false
+      if (k[0] === '_') return false
+      if (k[0] === '$') return false
+      return true
+    })
+  }
   /**
    * Construits les index d'après l'entity
    * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
@@ -98,11 +115,16 @@ class Entity {
       callback = options
       options = undefined
     }
-    options = options || {object: true, index: true}
+
+    options = Object.assign({}, options, {object: true, index: true})
     callback = callback || function () {}
 
     let document
     flow().seq(function () {
+      if (self.definition.skipValidation || options.skipValidation) return this()
+
+      return self.isValid(this)
+    }).seq(function () {
       if (entity._beforeStore) {
         entity._beforeStore.call(self, this)
       } else {
@@ -118,17 +140,7 @@ class Entity {
         document.__deletedAt = self.__deletedAt
       }
       document._id = self.oid
-      // on vire les _, $ et méthodes, puis serialize et sauvegarde
-      // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
-      //
-      // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
-      // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
-      document._data = JSON.stringify(_.pick(self, function (v, k) {
-        if (_.isFunction(v)) return false
-        if (k[0] === '_') return false
-        if (k[0] === '$') return false
-        return true
-      }))
+      document._data = JSON.stringify(self.values())
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/
