@@ -46,7 +46,7 @@ describe('Entity', () => {
 
     it('est appelée après un store de création', (done) => {
       const entity = TestEntity.create({})
-      expect(entity.$loaded).to.be.undefined // eslint-disable-line no-unused-expressions
+      expect(entity.$loaded).to.be.undefined
 
       entity.store(function (err, storedEntity) {
         if (err) return done(err)
@@ -120,7 +120,7 @@ describe('Entity', () => {
         })
         .seq(function (dbEntity) {
           expect(dbEntity.nonTemporaire).to.equal(1)
-          expect(dbEntity.$temporaire).to.be.undefined // eslint-disable-line no-unused-expressions
+          expect(dbEntity.$temporaire).to.be.undefined
           this()
         })
         .done(done)
@@ -132,7 +132,7 @@ describe('Entity', () => {
         // faire des opération sur l'oid à la fois pour la création et la mise à jour
         TestEntity.afterStore(function () {
           const entity = this
-          expect(entity.oid).to.not.be.undefined // eslint-disable-line no-unused-expressions
+          expect(entity.oid).to.not.be.undefined
           done()
         })
         TestEntity.create({}).store()
@@ -147,7 +147,7 @@ describe('Entity', () => {
         return `My name is ${this.name}`
       })
       TestEntity.defineMethod('toJSON', function () {
-        return _.omit(this, ['password'])
+        return _.omit(this.values(), ['password'])
       })
       TestEntity.flush(() => {
         entities.initialize(done)
@@ -183,8 +183,8 @@ describe('Entity', () => {
       const After = entities.define('After')
 
       expect(MonEntity.create().hello()).to.equal('hello')
-      expect(Before.create().hello).to.be.undefined // eslint-disable-line no-unused-expressions
-      expect(After.create().hello).to.be.undefined // eslint-disable-line no-unused-expressions
+      expect(Before.create().hello).to.be.undefined
+      expect(After.create().hello).to.be.undefined
     })
   })
 
@@ -194,12 +194,145 @@ describe('Entity', () => {
     })
     it('creates an instance of Entity', () => {
       const entity = TestEntity.create({a: 1})
-      expect(entity instanceof Entity).to.be.true // eslint-disable-line no-unused-expressions
+      expect(entity instanceof Entity).to.be.true
       expect(entity.a).to.equal(1)
     })
     it('creates an instance of EntityDefinition.entityConstructor', () => {
       const entity = TestEntity.create({a: 1})
-      expect(entity instanceof TestEntity.entityConstructor).to.be.true // eslint-disable-line no-unused-expressions
+      expect(entity instanceof TestEntity.entityConstructor).to.be.true
+    })
+  })
+  describe('EntityDefinition#trackAttribute', () => {
+    beforeEach(function () {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.trackAttribute('nom')
+    })
+
+    describe('à la création', () => {
+      it(`renvoie toujours has changed true et was null`, () => {
+        [
+          TestEntity.create({nom: 'foo'}),
+          // Ces cas sont important, car on s'appuiera souvent souvent sur attributeHasChanged
+          // pour vérifier un login par exemple. Et dans les cas où il est absent à la création
+          // on voudra particulièrement le vérifier
+          TestEntity.create(),
+          TestEntity.create({nom: null}),
+          TestEntity.create({nom: undefined})
+        ].forEach((entity) => {
+          expect(entity.attributeHasChanged('nom')).to.be.true
+          expect(entity.attributeWas('nom')).to.be.null
+        })
+      })
+    })
+
+    describe('à la mise à jour', () => {
+      let entity
+      beforeEach(function (done) {
+        TestEntity.create({nom: 'foobar'}).store((err, {oid}) => {
+          if (err) return done(err)
+
+          TestEntity.match('oid').equals(oid).grabOne((err, e) => {
+            entity = e
+            done(err)
+          })
+        })
+      })
+
+      it('permet de voir si le champ a changé', () => {
+        expect(entity.attributeHasChanged('nom')).to.be.false
+        entity.nom = 'foo'
+        expect(entity.attributeHasChanged('nom')).to.be.true
+        expect(entity.attributeWas('nom')).to.equal('foobar')
+      })
+    })
+  })
+
+  describe('EntityDefinition#validateOnChange', () => {
+    let validationCalled
+    let sharedValidatorCallCount
+    beforeEach(function () {
+      validationCalled = false
+      sharedValidatorCallCount = 0
+      TestEntity = entities.define('TestEntity')
+
+      TestEntity.validateOnChange('nom', function (cb) {
+        validationCalled = true
+        if (this.nom === 'foobar') return cb()
+        cb(new Error('name is not foobar!'))
+      })
+      // Parfois on voudra un même validateur sur plusieurs changement de valeur
+      // (ex: externalMesh ou externalId a changé)
+      const sharedValidator = function (cb) {
+        sharedValidatorCallCount++
+        cb()
+      }
+      TestEntity.validateOnChange('a', sharedValidator)
+      TestEntity.validateOnChange('b', sharedValidator)
+    })
+
+    describe('à la création', () => {
+      it('validate le champ', (done) => {
+        const entity = TestEntity.create({nom: 'foo'})
+        entity.store((err) => {
+          expect(err.message).to.equal('name is not foobar!')
+          done()
+        })
+      })
+      it(`appelle un validateur commun qu'une seule fois même si les deux attributs ont changé`, (done) => {
+        const entity = TestEntity.create({nom: 'foobar', a: 'a', b: 'b'})
+        entity.store((err) => {
+          expect(err).to.not.exist
+          expect(sharedValidatorCallCount).to.equal(1)
+          done()
+        })
+      })
+    })
+
+    describe('à la mise à jour', () => {
+      let entity
+      beforeEach(function (done) {
+        TestEntity.create({nom: 'foobar'}).store((err, {oid}) => {
+          if (err) return done(err)
+          validationCalled = false
+          sharedValidatorCallCount = 0
+          TestEntity.match('oid').equals(oid).grabOne((err, e) => {
+            entity = e
+            done(err)
+          })
+        })
+      })
+
+      it('validate si le champ a changé', (done) => {
+        entity.nom = 'foo'
+        entity.store((err) => {
+          expect(err.message).to.equal('name is not foobar!')
+          done()
+        })
+      })
+
+      it('ne validate pas si le champ ne change pas', (done) => {
+        entity.prenom = 'foo'
+        entity.store((err) => {
+          expect(err).to.not.exist
+          expect(validationCalled).to.be.false
+          done()
+        })
+      })
+
+      it(`appelle un validateur commun qu'une seule fois même si les deux attributs ont changé`, (done) => {
+        entity.a = 'a'
+        entity.b = 'b'
+        entity.store((err) => {
+          expect(err).to.not.exist
+          expect(sharedValidatorCallCount).to.equal(1)
+          done()
+        })
+      })
+    })
+
+    it('creates an instance of EntityDefinition.entityConstructor', () => {
+      const entity = TestEntity.create({a: 1})
+      expect(entity instanceof TestEntity.entityConstructor).to.be.true
     })
   })
 
@@ -231,7 +364,7 @@ describe('Entity', () => {
       const entity = TestEntity.create(data)
 
       entity.isValid((err) => {
-        expect(err).to.be.null // eslint-disable-line no-unused-expressions
+        expect(err).to.be.null
         done(err)
       })
     }
@@ -240,7 +373,7 @@ describe('Entity', () => {
       it('si absence de schema', (done) => {
         const entity = TestEntity.create({test: 1})
         entity.isValid((err) => {
-          expect(err).to.be.undefined // eslint-disable-line no-unused-expressions
+          expect(err).to.be.undefined
           done()
         })
       })
@@ -411,7 +544,7 @@ describe('Entity', () => {
           const entity = TestEntity.create({num: 'not a number'})
 
           entity.store((err) => {
-            expect(err).to.be.null // eslint-disable-line no-unused-expressions
+            expect(err).to.be.null
             done()
           })
         })
@@ -439,12 +572,12 @@ describe('Entity', () => {
         it('ne lance pas de validation si skipValidation est true sur la définition', (done) => {
           // On pourra utiliser cette fonctionalité pour une migration progressive : d'abord
           // vérifier que tout est correct avec isValid(), puis activer la validation au store
-          TestEntity.setSkipValidation(true)
+          TestEntity.setSkipValidation({schema: true})
 
           const entity = TestEntity.create({num: 'not a number'})
 
           entity.store((err) => {
-            expect(err).to.be.null // eslint-disable-line no-unused-expressions
+            expect(err).to.not.exist
             done()
           })
         })
@@ -452,8 +585,9 @@ describe('Entity', () => {
         it('ne lance pas de validation si skipValidation est passé en option au store', (done) => {
           const entity = TestEntity.create({num: 'not a number'})
 
-          entity.store({skipValidation: true}, (err) => {
-            expect(err).to.be.null // eslint-disable-line no-unused-expressions
+          entity.store({skipValidation: {schema: true}}, (err) => {
+            console.log(err)
+            expect(err).to.be.null
             done()
           })
         })

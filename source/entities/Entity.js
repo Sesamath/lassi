@@ -99,6 +99,65 @@ class Entity {
     return indexes
   }
 
+  getAttributeValue (att) {
+    if (att === 'isDeleted') return this.isDeleted()
+    return this[att]
+  }
+
+  onLoad () {
+    if (this.definition._onLoad) this.definition._onLoad.call(this)
+    // Keep track of the entity state when loaded, so that we can compare when storing
+    this.$loadState = {}
+
+    _.keys(this.definition._trackedAttributes).forEach((attribute) => {
+      this.$loadState[attribute] = this.getAttributeValue(attribute)
+    })
+  }
+
+  attributeHasChanged (attribute) {
+    // Une nouvelle entité non sauvegardée n'a pas de "loadState", mais
+    // on considère que tous ses attributs ont changés
+    if (!this.$loadState) return true
+    return this.attributeWas(attribute) !== this.getAttributeValue(attribute)
+  }
+
+  attributeWas (attribute) {
+    if (!this.definition._trackedAttributes[attribute]) {
+      throw new Error(`L'attribut ${attribute} n'est pas suivi`)
+    }
+    // Une nouvelle entité non sauvegardée n'a pas de "loadState"
+    if (!this.$loadState) return null
+
+    return this.$loadState[attribute]
+  }
+
+  beforeStore (cb, storeOptions) {
+    const self = this
+    flow()
+      .seq(function () {
+        if (self.definition._skipValidation.attributes || storeOptions.skipValidation.attributes) return this(null, [])
+
+        let validateFunctions = []
+        _.forEach(self.definition._toValidateOnChange, (validateFns, attribute) => {
+          if (self.attributeHasChanged(attribute)) {
+            validateFunctions = validateFunctions.concat(validateFns)
+          }
+        })
+        this(null, _.uniq(validateFunctions))
+      })
+      .seqEach(function (validateFunction) {
+        validateFunction.call(self, this)
+      })
+      .seq(function () {
+        if (self.definition._beforeStore) {
+          self.definition._beforeStore.call(self, this)
+        } else {
+          this()
+        }
+      })
+      .done(cb)
+  }
+
   db () {
     return this.definition.entities.db
   }
@@ -117,19 +176,17 @@ class Entity {
     }
 
     options = Object.assign({}, options, {object: true, index: true})
+    if (!options.skipValidation) options.skipValidation = {}
+
     callback = callback || function () {}
 
     let document
     flow().seq(function () {
-      if (self.definition.skipValidation || options.skipValidation) return this()
+      if (self.definition._skipValidation.schema || options.skipValidation.schema) return this()
 
       return self.isValid(this)
     }).seq(function () {
-      if (entity._beforeStore) {
-        entity._beforeStore.call(self, this)
-      } else {
-        this()
-      }
+      self.beforeStore(this, options)
     }).seq(function () {
       let isNew = !self.oid
       // on génère un oid sur les créations
@@ -159,7 +216,7 @@ class Entity {
     }).seq(function () {
       // On appelle le onLoad() car l'état de l'entité en BDD a changé,
       // comme si l'entity avait été "rechargée".
-      if (entity._onLoad) entity._onLoad.call(self)
+      self.onLoad()
       callback(null, self)
     }).catch(callback)
   }
@@ -188,9 +245,9 @@ class Entity {
         }, this)
       })
       .seq(function () {
-      // On appelle le onLoad() car l'état de l'entité en BDD a changé,
-      // comme si l'entity avait été "rechargée".
-        if (entity._onLoad) entity._onLoad.call(self)
+        // On appelle le onLoad() car l'état de l'entité en BDD a changé,
+        // comme si l'entity avait été "rechargée".
+        self.onLoad()
         callback(null, self)
       })
       .catch(callback)

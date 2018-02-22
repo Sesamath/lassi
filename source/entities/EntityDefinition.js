@@ -60,7 +60,9 @@ class EntityDefinition {
     /* Validation */
     this.schema = null
     this._ajvValidate = null // interne
-    this.skipValidation = false
+    this._skipValidation = {}
+    this._toValidateOnChange = {}
+    this._trackedAttributes = {}
   }
 
   validate (entity, cb) {
@@ -89,6 +91,26 @@ class EntityDefinition {
       })
   }
 
+  validateOnChange (attributeName, validateFn, skipDeleted = true) {
+    if (_.isArray(attributeName)) {
+      attributeName.forEach((att) => this.validateOnChange(att, validateFn))
+      return
+    }
+    if (!this._toValidateOnChange[attributeName]) {
+      this._toValidateOnChange[attributeName] = []
+    }
+    this._toValidateOnChange[attributeName].push(validateFn)
+    this.trackAttribute(attributeName)
+  }
+
+  // On suite la valeur de l'attribut, pour voir le changement entre le chargement depuis la base et le store
+  trackAttributes (attributeName) {
+    attributeName.forEach((att) => this.trackAttribute(attributeName))
+  }
+
+  trackAttribute (attributeName) {
+    this._trackedAttributes[attributeName] = true
+  }
   /**
    * Définit un json schema pour l'entity, validé lors d'un appel à isValid() ou avant le store d'une entity
    * Le deuxième argument permet d'ajouter des keywords personnalisés
@@ -124,7 +146,7 @@ class EntityDefinition {
    * @param {Boolean} skipValidation si true, on ne vérifie pas la validation avant le store
    */
   setSkipValidation (skipValidation) {
-    this.skipValidation = skipValidation
+    this._skipValidation = skipValidation
   }
   /**
    * Retourne l'objet Collection de mongo de cette EntityDefinition
@@ -430,8 +452,8 @@ class EntityDefinition {
       if (values) _.extend(instance, values)
     }
 
-    if (!instance.isNew() && this._onLoad) {
-      this._onLoad.call(instance)
+    if (!instance.isNew()) {
+      instance.onLoad()
     }
 
     return instance
