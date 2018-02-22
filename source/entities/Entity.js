@@ -60,8 +60,37 @@ class Entity {
     return !!this.__deletedAt
   }
 
-  isValid (cb) {
-    this.definition.validate(this, cb)
+  /**
+   * Lance une validation de l'entity. Par défaut on parcourt toutes les validations :
+   * validate(), validateJsonSchema() et validateOnChange()
+   * @param {} cb
+   * @param {*} param1
+   */
+  isValid (cb, {
+    schema = true,
+    onlyChangedAttributes = false
+  } = {}) {
+    let validators = [].concat(
+
+      // Json-sSchema validation
+      schema ? [function (cb) { this.definition._validateEntityWithSchema(this, cb) }] : [],
+
+      // validateOnChange() validation
+      _.uniq(_.flatten(_.values(onlyChangedAttributes
+        ? _.pick(this.definition._toValidateOnChange, this.changedAttributes())
+        : this.definition._toValidateOnChange
+      ))),
+
+      // validate() validation
+      this.definition._toValidate
+    )
+
+    const self = this
+    flow(validators)
+      .seqEach(function (fn) {
+        fn.call(self, this)
+      })
+      .done(cb)
   }
 
   values () {
@@ -114,6 +143,10 @@ class Entity {
     })
   }
 
+  changedAttributes () {
+    return _.filter(_.keys(this.definition._trackedAttributes), (att) => this.attributeHasChanged(att))
+  }
+
   attributeHasChanged (attribute) {
     // Une nouvelle entité non sauvegardée n'a pas de "loadState", mais
     // on considère que tous ses attributs ont changés
@@ -135,18 +168,10 @@ class Entity {
     const self = this
     flow()
       .seq(function () {
-        if (self.definition._skipValidation.attributes || storeOptions.skipValidation.attributes) return this(null, [])
-
-        let validateFunctions = []
-        _.forEach(self.definition._toValidateOnChange, (validateFns, attribute) => {
-          if (self.attributeHasChanged(attribute)) {
-            validateFunctions = validateFunctions.concat(validateFns)
-          }
+        return self.isValid(this, {
+          schema: !(self.definition._skipValidation.schema || storeOptions.skipValidation.schema),
+          onlyChangedAttributes: true
         })
-        this(null, _.uniq(validateFunctions))
-      })
-      .seqEach(function (validateFunction) {
-        validateFunction.call(self, this)
       })
       .seq(function () {
         if (self.definition._beforeStore) {
@@ -182,10 +207,6 @@ class Entity {
 
     let document
     flow().seq(function () {
-      if (self.definition._skipValidation.schema || options.skipValidation.schema) return this()
-
-      return self.isValid(this)
-    }).seq(function () {
       self.beforeStore(this, options)
     }).seq(function () {
       let isNew = !self.oid

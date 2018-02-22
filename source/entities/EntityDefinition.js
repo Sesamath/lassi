@@ -59,13 +59,15 @@ class EntityDefinition {
 
     /* Validation */
     this.schema = null
-    this._ajvValidate = null // interne
+    this._ajv = null
+    this._ajvValidate = null
     this._skipValidation = {}
     this._toValidateOnChange = {}
     this._trackedAttributes = {}
+    this._toValidate = []
   }
 
-  validate (entity, cb) {
+  _validateEntityWithSchema (entity, cb) {
     if (!this._ajvValidate) return cb()
 
     this._ajvValidate(entity.values())
@@ -74,21 +76,57 @@ class EntityDefinition {
         // Traduit les messages d'erreur en français
         AjvErrorsLocalize(err.errors)
 
-        // (un peu hack-ish) On enlève certaines erreurs pour rendre le résultat plus exploitable
-        err.errors = _.filter(err.errors, ({schemaPath, keyword}) => {
-          // Si un oneOf échoue on n'est pas intéressé par l'erreur du oneOf lui-même ni par l'erreur
-          // issue du "property matching" d'un des éléments du oneOf.
-          // Par contre on conservera l'erreur de l'autre élément du oneOf dont les properties matchent, mais pas le
-          // required par exemple.
+        // Horrible Hack, mais il est difficile de faire des "required" conditionnels avec AJV/Json-Schema
+        // et d'avoir des erreurs compréhensible.
+        // Si on utilise la technique du "oneOf" (cf. test/entities.js le test "retourne une erreur si l'élève n'a pas de classe")
+        // Cela génère 4 erreurs: une pour dire que le oneOf n'a pas marché, une pour dire que le matching de la propriété type n'a pas marché
+        // sur l'un des deux cas du oneOf et deux autres pour dire que le required n'a marché sur aucun des deux.
+        //
+        // Au final on est seulement interessé par l'erreur de champ "required" pour le oneOf dont le matching
+        // de propriété a fonctionné, ce que l'on essaie d'extraire ici.
+        if (_.find(err.errors, {keyword: 'oneOf'})) {
+          const oneOfErrors = {}
+          err.errors.forEach((error) => {
+            const match = error.schemaPath.match(/#\/oneOf\/(\d*)\/(properties|required)/)
+            // On construit un index pour trouver parmis les cas de oneOf, celui avec une erreur de required
+            // qui n'a pas d'erreur de property
+            // {
+            //  1: { //<- index du oneOf
+            //   property: Error,
+            //   required: Error,
+            //   }...
+            // }
+            if (match) {
+              if (!oneOfErrors[match[1]]) oneOfErrors[match[1]] = {}
+              oneOfErrors[match[1]][match[2]] = error
+            }
+          })
+          // On ne garde que l'erreur oneOf qui n'a pas d'erreur de properties
+          err.errors = []
+          _.forEach(oneOfErrors, ({properties, required}) => {
+            if (!properties && required) err.errors.push(required)
+          })
+        }
 
-          // Voir test/entities.js le test "retourne une erreur si l'élève n'a pas de classe" pour un use-case réel
-          if (keyword === 'oneOf') return false
-          if (schemaPath.match(/#\/oneOf\/\d*\/properties\//)) return false
-          return true
+        // On modifie quelques erreurs pour les rendres plus lisibles
+        err.errors = err.errors.map((error) => {
+          if (error.keyword === 'additionalProperties') {
+            return Object.assign({}, error, {
+              message: `${error.message} : "${error.params.additionalProperty}"`
+            })
+          }
+          return error
         })
+
+        // Génère un message d'erreur qui aggrège les erreurs de validations
+        err.message = this._ajv.errorsText(err.errors, {dataVar: this.name})
 
         cb(err)
       })
+  }
+
+  validate (validateFn) {
+    this._toValidate.push(validateFn)
   }
 
   validateOnChange (attributeName, validateFn, skipDeleted = true) {
@@ -121,12 +159,12 @@ class EntityDefinition {
   validateJsonSchema (schema, addKeywords = {}) {
     if (this.schema) throw new Error(`validateJsonSchema a déjà été appelé pour l'entity ${this.name}`)
 
-    const ajv = new Ajv({allErrors: true, jsonPointers: true})
+    this._ajv = new Ajv({allErrors: true, jsonPointers: true})
     // Ajv options allErrors and jsonPointers are required for AjxErrors
-    AjvErrors(ajv)
+    AjvErrors(this._ajv)
 
     _.forEach(addKeywords, (definition, keyword) => {
-      ajv.addKeyword(keyword, definition)
+      this._ajv.addKeyword(keyword, definition)
     })
 
     this.schema = Object.assign(
@@ -139,7 +177,7 @@ class EntityDefinition {
       schema
     )
 
-    this._ajvValidate = ajv.compile(this.schema)
+    this._ajvValidate = this._ajv.compile(this.schema)
   }
 
   /**

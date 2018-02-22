@@ -202,6 +202,7 @@ describe('Entity', () => {
       expect(entity instanceof TestEntity.entityConstructor).to.be.true
     })
   })
+
   describe('EntityDefinition#trackAttribute', () => {
     beforeEach(function () {
       TestEntity = entities.define('TestEntity')
@@ -243,6 +244,54 @@ describe('Entity', () => {
         entity.nom = 'foo'
         expect(entity.attributeHasChanged('nom')).to.be.true
         expect(entity.attributeWas('nom')).to.equal('foobar')
+      })
+    })
+  })
+
+  describe('EntityDefinition#validate', () => {
+    beforeEach(function () {
+      TestEntity = entities.define('TestEntity')
+
+      TestEntity.validate(function (cb) {
+        if (this.nom === 'foobar') return cb()
+        cb(new Error('name is not foobar!'))
+      })
+    })
+
+    describe('à la création', () => {
+      it('valide la fonction - fail', (done) => {
+        const entity = TestEntity.create({nom: 'foo'})
+        entity.store((err) => {
+          expect(err.message).to.equal('name is not foobar!')
+          done()
+        })
+      })
+      it('valide la fonction - success', (done) => {
+        const entity = TestEntity.create({nom: 'foobar'})
+        entity.store((err) => {
+          expect(err).to.not.exist
+          done()
+        })
+      })
+    })
+
+    describe('à la mise à jour', () => {
+      let entity
+      beforeEach(function (done) {
+        TestEntity.create({nom: 'foobar'}).store((err, {oid}) => {
+          if (err) return done(err)
+          TestEntity.match('oid').equals(oid).grabOne((err, e) => {
+            entity = e
+            done(err)
+          })
+        })
+      })
+      it('valide la fonction - fail', (done) => {
+        entity.nom = 'foo'
+        entity.store((err) => {
+          expect(err.message).to.equal('name is not foobar!')
+          done()
+        })
       })
     })
   })
@@ -329,11 +378,6 @@ describe('Entity', () => {
         })
       })
     })
-
-    it('creates an instance of EntityDefinition.entityConstructor', () => {
-      const entity = TestEntity.create({a: 1})
-      expect(entity instanceof TestEntity.entityConstructor).to.be.true
-    })
   })
 
   describe('EntityDefinition#validateJsonSchema et Entity#isValid', function () {
@@ -373,7 +417,7 @@ describe('Entity', () => {
       it('si absence de schema', (done) => {
         const entity = TestEntity.create({test: 1})
         entity.isValid((err) => {
-          expect(err).to.be.undefined
+          expect(err).to.not.exist
           done()
         })
       })
@@ -419,7 +463,7 @@ describe('Entity', () => {
         // Data
         {other: 'Hey?'},
         // Expected error
-        {message: `ne doit pas contenir de propriétés additionnelles`, dataPath: ''}
+        {message: `ne doit pas contenir de propriétés additionnelles : "other"`, dataPath: ''}
       ))
 
       it('si type number incorrect', testValidationError(
@@ -485,6 +529,7 @@ describe('Entity', () => {
       const schemaUtilisateur = {
         properties: {
           nom: {type: 'string'},
+          mail: {type: 'string'},
           type: { enum: ['prof', 'eleve'] },
           classe: {type: 'number'}
         },
@@ -494,7 +539,8 @@ describe('Entity', () => {
           {
             properties: {
               type: { enum: ['prof'] }
-            }
+            },
+            required: ['mail']
           },
           {
             properties: {
@@ -523,7 +569,7 @@ describe('Entity', () => {
         // Schema
         schemaUtilisateur,
         // Data
-        {nom: 'Foo', type: 'prof'}
+        {nom: 'Foo', type: 'prof', mail: 'aa@aa.com'}
       ))
 
       it(`valide quand même les autres champs`, testValidationError(
@@ -531,7 +577,7 @@ describe('Entity', () => {
         // Schema
         schemaUtilisateur,
         // Data
-        {type: 'prof'},
+        {type: 'prof', mail: 'aa@aa.com'},
         // Expected errors
         {message: `requiert la propriété nom`, dataPath: ''}
       ))
@@ -586,7 +632,6 @@ describe('Entity', () => {
           const entity = TestEntity.create({num: 'not a number'})
 
           entity.store({skipValidation: {schema: true}}, (err) => {
-            console.log(err)
             expect(err).to.be.null
             done()
           })
