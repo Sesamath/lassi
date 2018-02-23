@@ -168,17 +168,17 @@ class Entity {
     const self = this
     flow()
       .seq(function () {
-        return self.isValid(this, {
-          schema: !(self.definition._skipValidation.schema || storeOptions.skipValidation.schema),
-          onlyChangedAttributes: true
-        })
-      })
-      .seq(function () {
         if (self.definition._beforeStore) {
           self.definition._beforeStore.call(self, this)
         } else {
           this()
         }
+      })
+      .seq(function () {
+        return self.isValid(this, {
+          schema: !(self.definition._skipValidation.schema || storeOptions.skipValidation.schema),
+          onlyChangedAttributes: true
+        })
       })
       .done(cb)
   }
