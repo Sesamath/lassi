@@ -534,21 +534,9 @@ describe('Entity', () => {
           classe: {type: 'number'}
         },
         required: ['type', 'nom'],
-        oneOf: [
-          // un élève doit avoir une classe mais pas un prof
-          {
-            properties: {
-              type: { enum: ['prof'] }
-            },
-            required: ['mail']
-          },
-          {
-            properties: {
-              type: { enum: ['eleve'] }
-            },
-            required: ['classe']
-          }
-        ]
+        if: {properties: {type: { enum: ['prof'] }}},
+        then: {required: ['mail']},
+        else: {required: ['classe']}
       }
 
       it(`retourne une erreur si l'élève n'a pas de classe`, testValidationError(
@@ -557,11 +545,16 @@ describe('Entity', () => {
         schemaUtilisateur,
         // Data
         {nom: 'Foo', type: 'eleve'},
-        // Expected error
-        // Le message vient du fail sur oneOf[1].
-        // Le fail sur oneOf[0] (le type 'eleve' n'appartient pas à l'enum) et le fail du oneOf lui-même (aucun des deux ne match)
-        // ont été enlevés par EntityDefinition#validate
         {message: `requiert la propriété classe`, dataPath: ''} //
+      ))
+
+      it(`retourne une erreur si le prof n'a pas de mail`, testValidationError(
+        // Par exemple, un élève a des champs requis que n'a pas un prof
+        // Schema
+        schemaUtilisateur,
+        // Data
+        {nom: 'Foo', type: 'prof'},
+        {message: `requiert la propriété mail`, dataPath: ''} //
       ))
 
       it(`ne retourne pas d'erreur si le prof n'a pas de classe`, testValidationSuccess(

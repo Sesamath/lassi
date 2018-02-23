@@ -25,6 +25,7 @@
 
 const _ = require('lodash')
 const Ajv = require('ajv')
+const AjvKeywords = require('ajv-keywords')
 const AjvErrors = require('ajv-errors')
 const AjvErrorsLocalize = require('ajv-i18n/localize/fr')
 const Entity = require('./Entity')
@@ -76,37 +77,11 @@ class EntityDefinition {
         // Traduit les messages d'erreur en français
         AjvErrorsLocalize(err.errors)
 
-        // Horrible Hack, mais il est difficile de faire des "required" conditionnels avec AJV/Json-Schema
-        // et d'avoir des erreurs compréhensible.
-        // Si on utilise la technique du "oneOf" (cf. test/entities.js le test "retourne une erreur si l'élève n'a pas de classe")
-        // Cela génère 4 erreurs: une pour dire que le oneOf n'a pas marché, une pour dire que le matching de la propriété type n'a pas marché
-        // sur l'un des deux cas du oneOf et deux autres pour dire que le required n'a marché sur aucun des deux.
-        //
-        // Au final on est seulement interessé par l'erreur de champ "required" pour le oneOf dont le matching
-        // de propriété a fonctionné, ce que l'on essaie d'extraire ici.
-        if (_.find(err.errors, {keyword: 'oneOf'})) {
-          const oneOfErrors = {}
-          err.errors.forEach((error) => {
-            const match = error.schemaPath.match(/#\/oneOf\/(\d*)\/(properties|required)/)
-            // On construit un index pour trouver parmis les cas de oneOf, celui avec une erreur de required
-            // qui n'a pas d'erreur de property
-            // {
-            //  1: { //<- index du oneOf
-            //   property: Error,
-            //   required: Error,
-            //   }...
-            // }
-            if (match) {
-              if (!oneOfErrors[match[1]]) oneOfErrors[match[1]] = {}
-              oneOfErrors[match[1]][match[2]] = error
-            }
-          })
-          // On ne garde que l'erreur oneOf qui n'a pas d'erreur de properties
-          err.errors = []
-          _.forEach(oneOfErrors, ({properties, required}) => {
-            if (!properties && required) err.errors.push(required)
-          })
-        }
+        // On enlève les erreurs de certains mots clés qui ne nous interéssent pas particulièrement
+        err.errors = _.filter(err.errors, (error) => {
+          if (error.keyword === 'if') return false
+          return true
+        })
 
         // On modifie quelques erreurs pour les rendres plus lisibles
         err.errors = err.errors.map((error) => {
@@ -162,6 +137,7 @@ class EntityDefinition {
     this._ajv = new Ajv({allErrors: true, jsonPointers: true})
     // Ajv options allErrors and jsonPointers are required for AjxErrors
     AjvErrors(this._ajv)
+    AjvKeywords(this._ajv, 'instanceof')
 
     _.forEach(addKeywords, (definition, keyword) => {
       this._ajv.addKeyword(keyword, definition)
