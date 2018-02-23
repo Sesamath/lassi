@@ -175,8 +175,8 @@ class Entity {
         }
       })
       .seq(function () {
+        if (self.definition._skipValidation || storeOptions.skipValidation) return this()
         return self.isValid(this, {
-          schema: !(self.definition._skipValidation.schema || storeOptions.skipValidation.schema),
           onlyChangedAttributes: true
         })
       })
@@ -201,7 +201,6 @@ class Entity {
     }
 
     options = Object.assign({}, options, {object: true, index: true})
-    if (!options.skipValidation) options.skipValidation = {}
 
     callback = callback || function () {}
 

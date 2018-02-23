@@ -62,7 +62,7 @@ class EntityDefinition {
     this.schema = null
     this._ajv = null
     this._ajvValidate = null
-    this._skipValidation = {}
+    this._skipValidation = false
     this._toValidateOnChange = {}
     this._trackedAttributes = {}
     this._toValidate = []

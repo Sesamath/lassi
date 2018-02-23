@@ -611,7 +611,7 @@ describe('Entity', () => {
         it('ne lance pas de validation si skipValidation est true sur la définition', (done) => {
           // On pourra utiliser cette fonctionalité pour une migration progressive : d'abord
           // vérifier que tout est correct avec isValid(), puis activer la validation au store
-          TestEntity.setSkipValidation({schema: true})
+          TestEntity.setSkipValidation(true)
 
           const entity = TestEntity.create({num: 'not a number'})
 
@@ -624,7 +624,7 @@ describe('Entity', () => {
         it('ne lance pas de validation si skipValidation est passé en option au store', (done) => {
           const entity = TestEntity.create({num: 'not a number'})
 
-          entity.store({skipValidation: {schema: true}}, (err) => {
+          entity.store({skipValidation: true}, (err) => {
             expect(err).to.be.null
             done()
           })
