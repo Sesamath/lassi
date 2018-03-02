@@ -157,12 +157,14 @@ function initEntities (next) {
       this.s = undefined
       this.d = undefined
       this.t = undefined
+      this.uniqueString = undefined
     })
     TestEntity.defineIndex('b', 'boolean')
     TestEntity.defineIndex('d', 'date')
     TestEntity.defineIndex('i', 'integer')
     TestEntity.defineIndex('s', 'string')
     TestEntity.defineIndex('t', 'string')
+    TestEntity.defineIndex('uniqueString', 'string', {sparse: true, unique: true})
     TestEntity.defineIndex('iPair', 'integer', function () {
       return this.i % 2
     })
