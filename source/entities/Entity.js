@@ -75,10 +75,16 @@ class Entity {
       // Json-sSchema validation
       schema ? [function (cb) { this.definition._validateEntityWithSchema(this, cb) }] : [],
 
-      // validateOnChange() validation
-      _.uniq(_.flatten(_.values(onlyChangedAttributes
-        ? _.pick(this.definition._toValidateOnChange, this.changedAttributes())
-        : this.definition._toValidateOnChange
+      // validateOnChange() validation.
+      // this.definition._toValidateOnChange est de la forme: {
+      //   attributeName: [validateFunction1, validateFunction2]
+      // }
+      // On prend donc toutes les fonctions correspondant aux attributs ayant changés
+      // puis on applique uniq() car une fonction peut être déclarée sur plusieurs changements d'attributs.
+      _.uniq(_.flatten(_.values(
+        onlyChangedAttributes
+          ? _.pick(this.definition._toValidateOnChange, this.changedAttributes())
+          : this.definition._toValidateOnChange
       ))),
 
       // validate() validation
