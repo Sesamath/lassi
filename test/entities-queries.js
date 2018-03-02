@@ -264,7 +264,7 @@ describe('Test entities-queries', function () {
       // attention, mocha utilise la console donc on le rend muet le temps de cet appel
       sinon.stub(console, 'error')
       TestEntity.match('s').in([]).grab(function (error, result) {
-        expect(console.error).to.have.been.calledOnce // eslint-disable-line no-unused-expressions
+        expect(console.error).to.have.been.calledOnce
         console.error.restore()
         if (error) return done(error)
         assert.equal(result.length, 0)
@@ -364,7 +364,7 @@ describe('Test entities-queries', function () {
 
     it(`Sélection d'entités avec hard limit`, function (done) {
       function last (error) {
-        expect(console.error).to.have.been.calledThrice // eslint-disable-line no-unused-expressions
+        expect(console.error).to.have.been.calledThrice
         console.error.restore()
         done(error)
       }

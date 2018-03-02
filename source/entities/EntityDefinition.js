@@ -24,6 +24,10 @@
 'use strict'
 
 const _ = require('lodash')
+const Ajv = require('ajv')
+const AjvKeywords = require('ajv-keywords')
+const AjvErrors = require('ajv-errors')
+const AjvErrorsLocalize = require('ajv-i18n/localize/fr')
 const Entity = require('./Entity')
 const EntityQuery = require('./EntityQuery')
 const {isAllowedIndexType} = require('./internals')
@@ -53,8 +57,111 @@ class EntityDefinition {
     this.indexes = {}
     this.indexesByMongoIndexName = {}
     this._textSearchFields = null
+
+    /* Validation */
+    this.schema = null
+    this._ajv = null
+    this._ajvValidate = null
+    this._skipValidation = false
+    this._toValidateOnChange = {}
+    this._trackedAttributes = {}
+    this._toValidate = []
   }
 
+  _validateEntityWithSchema (entity, cb) {
+    if (!this._ajvValidate) return cb()
+
+    this._ajvValidate(entity.values())
+      .then((data) => cb(null, data))
+      .catch((err) => {
+        // Traduit les messages d'erreur en français
+        AjvErrorsLocalize(err.errors)
+
+        // On enlève les erreurs de certains mots clés qui ne nous interéssent pas particulièrement
+        err.errors = _.filter(err.errors, (error) => {
+          if (error.keyword === 'if') return false
+          return true
+        })
+
+        // On modifie quelques erreurs pour les rendres plus lisibles
+        err.errors = err.errors.map((error) => {
+          if (error.keyword === 'additionalProperties') {
+            return Object.assign({}, error, {
+              message: `${error.message} : "${error.params.additionalProperty}"`
+            })
+          }
+          return error
+        })
+
+        // Génère un message d'erreur qui aggrège les erreurs de validations
+        err.message = this._ajv.errorsText(err.errors, {dataVar: this.name})
+
+        cb(err)
+      })
+  }
+
+  validate (validateFn) {
+    this._toValidate.push(validateFn)
+  }
+
+  validateOnChange (attributeName, validateFn, skipDeleted = true) {
+    if (_.isArray(attributeName)) {
+      attributeName.forEach((att) => this.validateOnChange(att, validateFn))
+      return
+    }
+    if (!this._toValidateOnChange[attributeName]) {
+      this._toValidateOnChange[attributeName] = []
+    }
+    this._toValidateOnChange[attributeName].push(validateFn)
+    this.trackAttribute(attributeName)
+  }
+
+  // On suite la valeur de l'attribut, pour voir le changement entre le chargement depuis la base et le store
+  trackAttributes (attributeName) {
+    attributeName.forEach((att) => this.trackAttribute(attributeName))
+  }
+
+  trackAttribute (attributeName) {
+    this._trackedAttributes[attributeName] = true
+  }
+  /**
+   * Définit un json schema pour l'entity, validé lors d'un appel à isValid() ou avant le store d'une entity
+   * Le deuxième argument permet d'ajouter des keywords personnalisés
+   *
+   * @param {Object} schema json schema à valider
+   * @param {Object} addKeywords "keywords" supplémentaires à définir sur ajv, cf. https://github.com/epoberezkin/ajv#api-addkeyword
+   */
+  validateJsonSchema (schema, addKeywords = {}) {
+    if (this.schema) throw new Error(`validateJsonSchema a déjà été appelé pour l'entity ${this.name}`)
+
+    this._ajv = new Ajv({allErrors: true, jsonPointers: true})
+    // Ajv options allErrors and jsonPointers are required for AjxErrors
+    AjvErrors(this._ajv)
+    AjvKeywords(this._ajv, 'instanceof')
+
+    _.forEach(addKeywords, (definition, keyword) => {
+      this._ajv.addKeyword(keyword, definition)
+    })
+
+    this.schema = Object.assign(
+      {
+        $async: true, // pour avoir une validation uniforme, on considère tous les schémas asynchrones
+        additionalProperties: false, // par défaut, on n'autorise pas les champs non-déclarés dans les properties
+        type: 'object', // toutes les entities sont des objets
+        title: this.name
+      },
+      schema
+    )
+
+    this._ajvValidate = this._ajv.compile(this.schema)
+  }
+
+  /**
+   * @param {Boolean} skipValidation si true, on ne vérifie pas la validation avant le store
+   */
+  setSkipValidation (skipValidation) {
+    this._skipValidation = skipValidation
+  }
   /**
    * Retourne l'objet Collection de mongo de cette EntityDefinition
    * @return {Collection}
@@ -359,8 +466,8 @@ class EntityDefinition {
       if (values) _.extend(instance, values)
     }
 
-    if (!instance.isNew() && this._onLoad) {
-      this._onLoad.call(instance)
+    if (!instance.isNew()) {
+      instance.onLoad()
     }
 
     return instance

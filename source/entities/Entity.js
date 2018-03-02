@@ -61,6 +61,58 @@ class Entity {
   }
 
   /**
+   * Lance une validation de l'entity. Par défaut on parcourt toutes les validations :
+   * validate(), validateJsonSchema() et validateOnChange()
+   * @param {} cb
+   * @param {*} param1
+   */
+  isValid (cb, {
+    schema = true,
+    onlyChangedAttributes = false
+  } = {}) {
+    let validators = [].concat(
+
+      // Json-sSchema validation
+      schema ? [function (cb) { this.definition._validateEntityWithSchema(this, cb) }] : [],
+
+      // validateOnChange() validation.
+      // this.definition._toValidateOnChange est de la forme: {
+      //   attributeName: [validateFunction1, validateFunction2]
+      // }
+      // On prend donc toutes les fonctions correspondant aux attributs ayant changés
+      // puis on applique uniq() car une fonction peut être déclarée sur plusieurs changements d'attributs.
+      _.uniq(_.flatten(_.values(
+        onlyChangedAttributes
+          ? _.pick(this.definition._toValidateOnChange, this.changedAttributes())
+          : this.definition._toValidateOnChange
+      ))),
+
+      // validate() validation
+      this.definition._toValidate
+    )
+
+    const self = this
+    flow(validators)
+      .seqEach(function (fn) {
+        fn.call(self, this)
+      })
+      .done(cb)
+  }
+
+  values () {
+    // on vire les _, $ et méthodes, puis serialize et sauvegarde
+    // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
+    //
+    // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
+    // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
+    return _.pick(this, function (v, k) {
+      if (_.isFunction(v)) return false
+      if (k[0] === '_') return false
+      if (k[0] === '$') return false
+      return true
+    })
+  }
+  /**
    * Construits les index d'après l'entity
    * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
    */
@@ -82,6 +134,61 @@ class Entity {
     return indexes
   }
 
+  getAttributeValue (att) {
+    if (att === 'isDeleted') return this.isDeleted()
+    return this[att]
+  }
+
+  onLoad () {
+    if (this.definition._onLoad) this.definition._onLoad.call(this)
+    // Keep track of the entity state when loaded, so that we can compare when storing
+    this.$loadState = {}
+
+    _.keys(this.definition._trackedAttributes).forEach((attribute) => {
+      this.$loadState[attribute] = this.getAttributeValue(attribute)
+    })
+  }
+
+  changedAttributes () {
+    return _.filter(_.keys(this.definition._trackedAttributes), (att) => this.attributeHasChanged(att))
+  }
+
+  attributeHasChanged (attribute) {
+    // Une nouvelle entité non sauvegardée n'a pas de "loadState", mais
+    // on considère que tous ses attributs ont changés
+    if (!this.$loadState) return true
+    return this.attributeWas(attribute) !== this.getAttributeValue(attribute)
+  }
+
+  attributeWas (attribute) {
+    if (!this.definition._trackedAttributes[attribute]) {
+      throw new Error(`L'attribut ${attribute} n'est pas suivi`)
+    }
+    // Une nouvelle entité non sauvegardée n'a pas de "loadState"
+    if (!this.$loadState) return null
+
+    return this.$loadState[attribute]
+  }
+
+  beforeStore (cb, storeOptions) {
+    const self = this
+    flow()
+      .seq(function () {
+        if (self.definition._beforeStore) {
+          self.definition._beforeStore.call(self, this)
+        } else {
+          this()
+        }
+      })
+      .seq(function () {
+        if (self.definition._skipValidation || storeOptions.skipValidation) return this()
+        return self.isValid(this, {
+          onlyChangedAttributes: true
+        })
+      })
+      .done(cb)
+  }
+
   db () {
     return this.definition.entities.db
   }
@@ -98,16 +205,14 @@ class Entity {
       callback = options
       options = undefined
     }
-    options = options || {object: true, index: true}
+
+    options = Object.assign({}, options, {object: true, index: true})
+
     callback = callback || function () {}
 
     let document
     flow().seq(function () {
-      if (entity._beforeStore) {
-        entity._beforeStore.call(self, this)
-      } else {
-        this()
-      }
+      self.beforeStore(this, options)
     }).seq(function () {
       let isNew = !self.oid
       // on génère un oid sur les créations
@@ -118,17 +223,7 @@ class Entity {
         document.__deletedAt = self.__deletedAt
       }
       document._id = self.oid
-      // on vire les _, $ et méthodes, puis serialize et sauvegarde
-      // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
-      //
-      // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
-      // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
-      document._data = JSON.stringify(_.pick(self, function (v, k) {
-        if (_.isFunction(v)) return false
-        if (k[0] === '_') return false
-        if (k[0] === '$') return false
-        return true
-      }))
+      document._data = JSON.stringify(self.values())
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/
@@ -147,7 +242,7 @@ class Entity {
     }).seq(function () {
       // On appelle le onLoad() car l'état de l'entité en BDD a changé,
       // comme si l'entity avait été "rechargée".
-      if (entity._onLoad) entity._onLoad.call(self)
+      self.onLoad()
       callback(null, self)
     }).catch(callback)
   }
@@ -176,9 +271,9 @@ class Entity {
         }, this)
       })
       .seq(function () {
-      // On appelle le onLoad() car l'état de l'entité en BDD a changé,
-      // comme si l'entity avait été "rechargée".
-        if (entity._onLoad) entity._onLoad.call(self)
+        // On appelle le onLoad() car l'état de l'entité en BDD a changé,
+        // comme si l'entity avait été "rechargée".
+        self.onLoad()
         callback(null, self)
       })
       .catch(callback)

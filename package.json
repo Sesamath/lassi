@@ -10,6 +10,9 @@
     "posttest": "npm run lint"
   },
   "dependencies": {
+    "ajv": "^6.1.1",
+    "ajv-errors": "^1.0.0",
+    "ajv-i18n": "^3.0.0",
     "an-flow": "git://src.sesamath.net/an-flow#2.0.7",
     "an-log": "git://src.sesamath.net/an-log#3.1.4",
     "colors": "^1.1.2",
@@ -62,7 +65,10 @@
       "lassi": true
     }
   },
-  "pre-push": ["test", "lint"],
+  "pre-push": [
+    "test",
+    "lint"
+  ],
   "readmeFilename": "README.md",
   "readme": "",
   "description": "",
@@ -76,6 +82,14 @@
     ],
     "globals": {
       "lassi": true
-    }
+    },
+    "overrides": [
+      {
+        "files": "test/**/*.js",
+        "rules": {
+          "no-unused-expressions": "off"
+        }
+      }
+    ]
   }
 }
