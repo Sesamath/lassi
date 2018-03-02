@@ -5,6 +5,7 @@ const MongoClient = require('mongodb').MongoClient
 const anLog = require('an-log')
 const assert = require('assert')
 const flow = require('an-flow')
+const _ = require('lodash')
 const Entities = require('../source/entities')
 
 let dbSettings = {
@@ -157,12 +158,18 @@ function initEntities (next) {
       this.s = undefined
       this.d = undefined
       this.t = undefined
+      this.uniqueString = `this is unique ${_.uniqueId()}`
     })
     TestEntity.defineIndex('b', 'boolean')
     TestEntity.defineIndex('d', 'date')
     TestEntity.defineIndex('i', 'integer')
     TestEntity.defineIndex('s', 'string')
     TestEntity.defineIndex('t', 'string')
+    TestEntity.defineIndex('uniqueString', 'string', {unique: true})
+    // TODO: faire marcher le unique + sparse, pour une raison obscure on a cette erreur même quand l'index est sparse
+    // MongoError: E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueSparseString-unique-sparse dup key: { : null }
+
+    // TestEntity.defineIndex('uniqueSparseString', 'string', {unique: true, sparse: true})
     TestEntity.defineIndex('iPair', 'integer', function () {
       return this.i % 2
     })

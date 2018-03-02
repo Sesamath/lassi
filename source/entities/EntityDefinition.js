@@ -196,8 +196,16 @@ class EntityDefinition {
    * @param fieldName
    * @return {string}
    */
-  getMongoIndexName (fieldName) {
-    return `${INDEX_PREFIX}${fieldName}`
+  getMongoIndexName (fieldName, indexOptions = {}) {
+    let name = `${INDEX_PREFIX}${fieldName}`
+
+    // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
+    // si on ajoute ou enlève l'option
+    _.forEach(['unique', 'sparse'], (opt) => {
+      if (indexOptions[opt]) name = `${name}-${opt}`
+    })
+
+    return name
   }
 
   /**
@@ -226,9 +234,14 @@ class EntityDefinition {
    * @param {Function} callback Cette fonction permet de définir virtuellement la valeur d'un index.
    * @return {Entity} l'entité (chaînable)
    */
-  defineIndex (fieldName, fieldType, callback) {
+  defineIndex (fieldName, fieldType, indexOptions = {}, callback) {
+    if (typeof indexOptions === 'function') {
+      callback = indexOptions
+      indexOptions = {}
+    }
+
     if (!isAllowedIndexType(fieldType)) throw new Error(`Type d’index ${fieldType} non géré`)
-    const mongoIndexName = this.getMongoIndexName(fieldName)
+    const mongoIndexName = this.getMongoIndexName(fieldName, indexOptions)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
@@ -237,6 +250,7 @@ class EntityDefinition {
       fieldType,
       fieldName,
       mongoIndexName,
+      indexOptions,
       // Si on nous passe pas de callback, on retourne la valeur du champ
       // attention, pas de fat arrow ici car on fera du apply dessus
       callback: callback || function () { return this[fieldName] }
@@ -331,9 +345,9 @@ class EntityDefinition {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
-      _.forEach(def.indexes, ({fieldName, mongoIndexName}) => {
+      _.forEach(def.indexes, ({fieldName, mongoIndexName, indexOptions}) => {
         if (existingIndexes[mongoIndexName]) return
-        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
+        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName, ...indexOptions})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
       })
 
