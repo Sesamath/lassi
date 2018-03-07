@@ -123,7 +123,7 @@ class Entity {
       //
       // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
       // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
-      document._data = JSON.stringify(_.pick(self, function (v, k) {
+      document._data = JSON.stringify(_.pickBy(self, function (v, k) {
         if (_.isFunction(v)) return false
         if (k[0] === '_') return false
         if (k[0] === '$') return false
