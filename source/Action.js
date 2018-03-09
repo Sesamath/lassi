@@ -142,7 +142,7 @@ class Action {
     var val
 
     method = method.toLowerCase()
-    if (this.methods && !_.contains(this.methods, method)) return null
+    if (this.methods && !this.methods.includes(method)) return null
     var match = this.pathRegexp.exec(path)
     // console.log(path, this.pathRegexp, match);
     if (!match) return null
