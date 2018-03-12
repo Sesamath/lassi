@@ -30,7 +30,7 @@ var EventEmitter = require('events').EventEmitter
 var flow = require('an-flow')
 
 function merge (a, b) {
-  _.each(b, (v, k) => {
+  _.forEach(b, (v, k) => {
     if (_.isArray(a[k])) {
       a[k] = a[k].concat(v)
     } else if (typeof a[k] === 'object') {
@@ -66,9 +66,9 @@ class Controllers extends EventEmitter {
       // disponibles
       if (!self.actions) {
         self.actions = []
-        _.each(lassi.components, function (component) {
-          _.each(component.controllers, function (controller) {
-            _.each(controller.actions, function (action) {
+        _.forEach(lassi.components, function (component) {
+          _.forEach(component.controllers, function (controller) {
+            _.forEach(controller.actions, function (action) {
               self.actions.push(action)
             })
           })
@@ -87,7 +87,7 @@ class Controllers extends EventEmitter {
       let hasBadParam
       const isBadParam = (param) => ['undefined', 'null'].includes(param)
       // on parse les actions pour affecter actionnables
-      _.each(self.actions, function (action) {
+      _.forEach(self.actions, function (action) {
         params = action.match(request.method, request.parsedUrl.pathname)
         if (params) {
           actionnables.push({action: action, params: params})

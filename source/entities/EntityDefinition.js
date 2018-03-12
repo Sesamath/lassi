@@ -331,7 +331,7 @@ class EntityDefinition {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
-      _.each(def.indexes, ({fieldName, mongoIndexName}) => {
+      _.forEach(def.indexes, ({fieldName, mongoIndexName}) => {
         if (existingIndexes[mongoIndexName]) return
         indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)

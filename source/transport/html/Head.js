@@ -32,7 +32,7 @@ function Head () {
 Head.prototype.renderAttributes = function (attributes) {
   if (_.isUndefined(attributes) || _.isEmpty(attributes)) return ''
   var output = []
-  _.each(attributes, function (value, key) {
+  _.forEach(attributes, function (value, key) {
     output.push(key + '="' + value + '"')
   })
   return ' ' + output.join(' ')
