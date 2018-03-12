@@ -144,13 +144,13 @@ class Entity {
     // Keep track of the entity state when loaded, so that we can compare when storing
     this.$loadState = {}
 
-    _.keys(this.definition._trackedAttributes).forEach((attribute) => {
+    Object.keys(this.definition._trackedAttributes).forEach((attribute) => {
       this.$loadState[attribute] = this.getAttributeValue(attribute)
     })
   }
 
   changedAttributes () {
-    return _.filter(_.keys(this.definition._trackedAttributes), (att) => this.attributeHasChanged(att))
+    return Object.keys(this.definition._trackedAttributes).filter((att) => this.attributeHasChanged(att))
   }
 
   attributeHasChanged (attribute) {

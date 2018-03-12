@@ -22,13 +22,13 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var _ = require('lodash')
-var flow = require('an-flow')
-// var util = require('util');
-var Renderer = require('./Renderer')
-var Metas = require('./Metas')
-// var pathlib = require('path');
-var log = require('an-log')('LassiHtml')
+const _ = require('lodash')
+const flow = require('an-flow')
+// const util = require('util');
+const Renderer = require('./Renderer')
+const Metas = require('./Metas')
+// const pathlib = require('path');
+const log = require('an-log')('LassiHtml')
 
 /**
  * Gestion du transport HTML.
@@ -56,19 +56,19 @@ function HtmlTransport (lassi) {
 */
 HtmlTransport.prototype.process = function (data, next) {
   if (data.$layout === false) return next(null, data.content)
-  var self = this
-  var sections = _.filter(_.keys(data), function (i) { return i.charAt(0) !== '$' })
-  var metas = new Metas(data.$metas || {})
+  const self = this
+  const sections = Object.keys(data).filter((i) => i.charAt(0) !== '$')
+  const metas = new Metas(data.$metas || {})
   flow(sections)
     .seqEach(function (key) {
       // seul les objets sont traités comme des sections et rendus dans des vues dust,
       // les string|number sont passés directement au layout
       if (!_.isObject(data[key])) return this()
-      var next = this
+      const next = this
       // si $view n'existe pas on prendra le nom de la section
-      var view = data[key].$view || key
+      const view = data[key].$view || key
       // le dossier où chercher view
-      var viewsPath = data.$views || lassi.settings.application.defaultViewsPath
+      const viewsPath = data.$views || lassi.settings.application.defaultViewsPath
       // et on remplace chaque section par son rendu
       if (!_.isString(viewsPath)) {
         log.error('Il semble que le $views de ce data ne soit pas correctement renseigné', data)
@@ -81,7 +81,7 @@ HtmlTransport.prototype.process = function (data, next) {
       })
     })
     .seq(function () {
-      var next = this
+      const next = this
       data.head = metas.head().render()
       data.breadcrumbs = metas.breadcrumbs
       data.pageTitle = metas.pageTitle
@@ -94,7 +94,10 @@ HtmlTransport.prototype.process = function (data, next) {
         next(new Error('render impossible sans $layout'))
       }
     })
-    .seq(function (output) { next(null, output) }).catch(next)
+    .seq(function (output) {
+      next(null, output)
+    })
+    .catch(next)
 }
 
 module.exports = HtmlTransport

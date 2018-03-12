@@ -97,7 +97,7 @@ class Lassi extends EventEmitter {
     // et les composants par défaut qui seront mis en premier (seulement lassi lui-même
     // mis par le lassi.component ci-dessus, mais on laisse ça au cas où qqun ajouterait
     // des components dans ce constructeur)
-    this.defaultDependencies = _.keys(lassi.components)
+    this.defaultDependencies = Object.keys(lassi.components)
   }
 
   startup (component, cb) {

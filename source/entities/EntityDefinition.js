@@ -78,10 +78,7 @@ class EntityDefinition {
         AjvErrorsLocalize(err.errors)
 
         // On enlève les erreurs de certains mots clés qui ne nous interéssent pas particulièrement
-        err.errors = _.filter(err.errors, (error) => {
-          if (error.keyword === 'if') return false
-          return true
-        })
+        err.errors = err.errors.filter((error) => error.keyword !== 'if')
 
         // On modifie quelques erreurs pour les rendres plus lisibles
         err.errors = err.errors.map((error) => {
