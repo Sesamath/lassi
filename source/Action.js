@@ -136,7 +136,7 @@ class Action {
   /**
    * Vérifie si une route est gérée par le contrôleur
    * @param path La route à tester
-   * @returns {array} Les paramètres de la route qui correspondent au pattern du contrôleur
+   * @returns {Object} Les paramètres de la route qui correspondent au pattern du contrôleur
    */
   match (method, path) {
     var params = {}
