@@ -38,7 +38,7 @@ lassi.component('example-html')
       if (context.contentType === 'text/html') {
         data.$metas = data.$metas || {}
         data.$views = path.join(__dirname, '/views')
-        _.extend(data.$metas, {
+        Object.assign(data.$metas, {
           title: $appSettings.title(),
           css: ['/styles/main.css'],
           js: ['/vendors/jquery.min.js']

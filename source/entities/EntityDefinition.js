@@ -441,7 +441,7 @@ class EntityDefinition {
 
   /**
    * Retourne une instance {@link Entity} à partir de la définition
-   * (appelera defaults s'il existe, puis construct s'il existe et _.extend sinon)
+   * (appelera defaults s'il existe, puis construct s'il existe et Object.assign sinon)
    * Attention, si la fonction passée à construct n'attend pas d'argument,
    * toutes les propriétés de values seront affectée à l'entité !
    * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
@@ -460,10 +460,10 @@ class EntityDefinition {
       // on ajoute d'office les values passées au create dans l'entity
       // (si le constructeur ne les a pas créées)
       if (values && this._construct.length === 0) {
-        _.extend(instance, values)
+        Object.assign(instance, values)
       }
     } else {
-      if (values) _.extend(instance, values)
+      if (values) Object.assign(instance, values)
     }
 
     if (!instance.isNew()) {

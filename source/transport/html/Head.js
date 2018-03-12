@@ -50,7 +50,7 @@ Head.prototype.add = function (tag, attributes, content) {
 
 Head.prototype.addLink = function (rel, href, attributes) {
   attributes = attributes || {}
-  _.extend(attributes, {rel: rel, href: href})
+  Object.assign(attributes, {rel: rel, href: href})
   this.add('link', attributes)
 }
 

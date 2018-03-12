@@ -49,7 +49,7 @@ function AssertError (message) {
   Error.captureStackTrace(this, stack[1].fun)
   this.name = 'Assertion Error'.yellow
   if (is.object(message)) {
-    _.extend(this, message)
+    Object.assign(this, message)
   } else {
     this.message = message
   }

@@ -29,7 +29,7 @@ function Metas (metas) {
   this.breadcrumbs = []
   this.css = []
   this.js = []
-  _.extend(this, metas)
+  Object.assign(this, metas)
 }
 
 function stripTags (source) {

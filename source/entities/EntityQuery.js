@@ -38,7 +38,7 @@ const HARD_LIMIT_GRAB = 1000
  * @private
  */
 function alterLastMatch (entityQuery, data) {
-  _.extend(entityQuery.clauses[entityQuery.clauses.length - 1], data)
+  Object.assign(entityQuery.clauses[entityQuery.clauses.length - 1], data)
   return entityQuery
 }
 

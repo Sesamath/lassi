@@ -76,16 +76,18 @@ function pathtoRegexp (path, keys, options) {
  */
 class Action {
   constructor (controller, methods, path, cb) {
-    this.path = path
-    this.methods = methods
     if (!_.isFunction(cb)) {
-      _.extend(this, cb)
+      if (!_.isObject(cb)) throw new Error('invalid cb passed to Action constructor')
+      // c'est un objet, on l'ajoute
+      Object.assign(this, cb)
       this.callback = undefined
       this.middleware = true
     } else {
       this.callback = cb
       this.middleware = undefined
     }
+    this.path = path
+    this.methods = methods
     if (this.path && this.path.trim() === '') this.path = undefined
 
     if (typeof this.path === 'undefined') {
@@ -102,7 +104,7 @@ class Action {
       var express = require('express')
       var options = {}
       if (lassi.settings && lassi.settings.pathProperties && lassi.settings.pathProperties[this.path]) {
-        _.extend(options, lassi.settings.pathProperties[this.path])
+        Object.assign(options, lassi.settings.pathProperties[this.path])
       }
       // par défaut, express met un max-age à 0 (cf http://expressjs.com/en/4x/api.html#express.static)
       // si l'appli ne précise rien on le met à 1h sur le statique
