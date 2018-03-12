@@ -25,7 +25,6 @@ const path = require('path')
 lassi.component('example-html')
 
   .config(function ($appSettings) {
-    var _ = require('lodash')
     lassi.on('beforeTransport', function (context, data) {
       if (context.status >= 400 && context.status < 500) {
         context.contentType = 'text/html'
