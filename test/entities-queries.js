@@ -458,7 +458,7 @@ describe('Test entities-queries', function () {
           groupedEntities = _.countBy(_entities, 't')
           TestEntity.match().countBy('t', this)
         }).seq(function (data) {
-          _.each(groupedEntities, (value, key) => {
+          _.forEach(groupedEntities, (value, key) => {
             assert.equal(data[key], value)
           })
           // on teste que ça remonte aussi le nb de non indexés (index undefined ou null)

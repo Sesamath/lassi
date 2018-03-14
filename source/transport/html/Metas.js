@@ -29,7 +29,7 @@ function Metas (metas) {
   this.breadcrumbs = []
   this.css = []
   this.js = []
-  _.extend(this, metas)
+  Object.assign(this, metas)
 }
 
 function stripTags (source) {
@@ -55,7 +55,7 @@ Metas.prototype.head = function () {
 
   // Flux RSS
   if (this.feeds) {
-    _.each(this.feeds, function (title, url) {
+    _.forEach(this.feeds, function (title, url) {
       head.addLink('alternate', url, {type: 'application/rss+xml', title: title})
     })
   }
@@ -131,12 +131,12 @@ Metas.prototype.head = function () {
   }, this)
 
   var settings
-  _.each(this.js, function (path) {
+  _.forEach(this.js, function (path) {
     if (typeof path === 'string') {
       head.add('script', {type: 'text/javascript', src: path}, '')
     } else {
       if (!settings) settings = {}
-      _.each(path, function (v, k) {
+      _.forEach(path, function (v, k) {
         settings[k] = v
       })
     }

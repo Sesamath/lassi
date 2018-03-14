@@ -38,7 +38,7 @@ const HARD_LIMIT_GRAB = 1000
  * @private
  */
 function alterLastMatch (entityQuery, data) {
-  _.extend(entityQuery.clauses[entityQuery.clauses.length - 1], data)
+  Object.assign(entityQuery.clauses[entityQuery.clauses.length - 1], data)
   return entityQuery
 }
 
@@ -357,7 +357,7 @@ class EntityQuery {
       })
       .seq(function (_groupes) {
         const groupes = {}
-        _.each(_groupes, (groupe) => {
+        _.forEach(_groupes, (groupe) => {
           groupes[groupe._id] = groupe.count
         })
         callback(null, groupes)
@@ -443,7 +443,7 @@ class EntityQuery {
 
     if (this.search) {
       let sorts = {}
-      _.each(record.options.sort, (sort) => {
+      _.forEach(record.options.sort, (sort) => {
         sorts[sort[0]] = sort[1] === 'asc' ? 1 : -1
       })
       // Le sort sur le score doit être fait avant les sorts "classiques"

@@ -32,7 +32,7 @@ function Head () {
 Head.prototype.renderAttributes = function (attributes) {
   if (_.isUndefined(attributes) || _.isEmpty(attributes)) return ''
   var output = []
-  _.each(attributes, function (value, key) {
+  _.forEach(attributes, function (value, key) {
     output.push(key + '="' + value + '"')
   })
   return ' ' + output.join(' ')
@@ -50,7 +50,7 @@ Head.prototype.add = function (tag, attributes, content) {
 
 Head.prototype.addLink = function (rel, href, attributes) {
   attributes = attributes || {}
-  _.extend(attributes, {rel: rel, href: href})
+  Object.assign(attributes, {rel: rel, href: href})
   this.add('link', attributes)
 }
 

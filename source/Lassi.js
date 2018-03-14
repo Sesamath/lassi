@@ -27,7 +27,7 @@
 const flow = require('an-flow')
 const _ = require('lodash')
 const Component = require('./Component')
-const Services = require('./tools/Services')
+const Services = require('./Services')
 const EventEmitter = require('events').EventEmitter
 const fs = require('fs')
 const log = require('an-log')('lassi')
@@ -97,7 +97,7 @@ class Lassi extends EventEmitter {
     // et les composants par défaut qui seront mis en premier (seulement lassi lui-même
     // mis par le lassi.component ci-dessus, mais on laisse ça au cas où qqun ajouterait
     // des components dans ce constructeur)
-    this.defaultDependencies = _.keys(lassi.components)
+    this.defaultDependencies = Object.keys(lassi.components)
   }
 
   startup (component, cb) {

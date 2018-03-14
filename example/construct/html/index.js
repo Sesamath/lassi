@@ -25,7 +25,6 @@ const path = require('path')
 lassi.component('example-html')
 
   .config(function ($appSettings) {
-    var _ = require('lodash')
     lassi.on('beforeTransport', function (context, data) {
       if (context.status >= 400 && context.status < 500) {
         context.contentType = 'text/html'
@@ -38,7 +37,7 @@ lassi.component('example-html')
       if (context.contentType === 'text/html') {
         data.$metas = data.$metas || {}
         data.$views = path.join(__dirname, '/views')
-        _.extend(data.$metas, {
+        Object.assign(data.$metas, {
           title: $appSettings.title(),
           css: ['/styles/main.css'],
           js: ['/vendors/jquery.min.js']

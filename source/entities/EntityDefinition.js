@@ -78,10 +78,7 @@ class EntityDefinition {
         AjvErrorsLocalize(err.errors)
 
         // On enlève les erreurs de certains mots clés qui ne nous interéssent pas particulièrement
-        err.errors = _.filter(err.errors, (error) => {
-          if (error.keyword === 'if') return false
-          return true
-        })
+        err.errors = err.errors.filter((error) => error.keyword !== 'if')
 
         // On modifie quelques erreurs pour les rendres plus lisibles
         err.errors = err.errors.map((error) => {
@@ -334,7 +331,7 @@ class EntityDefinition {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
-      _.each(def.indexes, ({fieldName, mongoIndexName}) => {
+      _.forEach(def.indexes, ({fieldName, mongoIndexName}) => {
         if (existingIndexes[mongoIndexName]) return
         indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
@@ -441,7 +438,7 @@ class EntityDefinition {
 
   /**
    * Retourne une instance {@link Entity} à partir de la définition
-   * (appelera defaults s'il existe, puis construct s'il existe et _.extend sinon)
+   * (appelera defaults s'il existe, puis construct s'il existe et Object.assign sinon)
    * Attention, si la fonction passée à construct n'attend pas d'argument,
    * toutes les propriétés de values seront affectée à l'entité !
    * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
@@ -460,10 +457,10 @@ class EntityDefinition {
       // on ajoute d'office les values passées au create dans l'entity
       // (si le constructeur ne les a pas créées)
       if (values && this._construct.length === 0) {
-        _.extend(instance, values)
+        Object.assign(instance, values)
       }
     } else {
-      if (values) _.extend(instance, values)
+      if (values) Object.assign(instance, values)
     }
 
     if (!instance.isNew()) {

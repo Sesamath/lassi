@@ -105,7 +105,7 @@ class Entity {
     //
     // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
     // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
-    return _.pick(this, function (v, k) {
+    return _.pickBy(this, function (v, k) {
       if (_.isFunction(v)) return false
       if (k[0] === '_') return false
       if (k[0] === '$') return false
@@ -144,13 +144,13 @@ class Entity {
     // Keep track of the entity state when loaded, so that we can compare when storing
     this.$loadState = {}
 
-    _.keys(this.definition._trackedAttributes).forEach((attribute) => {
+    Object.keys(this.definition._trackedAttributes).forEach((attribute) => {
       this.$loadState[attribute] = this.getAttributeValue(attribute)
     })
   }
 
   changedAttributes () {
-    return _.filter(_.keys(this.definition._trackedAttributes), (att) => this.attributeHasChanged(att))
+    return Object.keys(this.definition._trackedAttributes).filter((att) => this.attributeHasChanged(att))
   }
 
   attributeHasChanged (attribute) {

@@ -65,9 +65,9 @@ class Component {
 
     log('configure', this.name)
     var self = this
-    _.each(self.dependencies, dependency => lassi.components[dependency].configure())
-    _.each(self.services, (service, name) => lassi.services.register(name, service))
-    _.each(self.entities, function (entity, name) {
+    _.forEach(self.dependencies, dependency => lassi.components[dependency].configure())
+    _.forEach(self.services, (service, name) => lassi.services.register(name, service))
+    _.forEach(self.entities, function (entity, name) {
       // on est dans un each, faut une iife pour préserver le (entity, name) courant
       const serviceConstructor = (function (name, entity) {
         return function ($entities) {
@@ -79,14 +79,14 @@ class Component {
       lassi.services.register(name, serviceConstructor)
     })
     if (!lassi.options.cli) {
-      _.each(self.controllers, function (fn, name) {
+      _.forEach(self.controllers, function (fn, name) {
         var controller = new Controller(fn.$$path)
         lassi.services.parseInjections(fn, controller)
         self.controllers[name] = controller
       })
     }
 
-    _.each(self.userConfig, function (userConfig) {
+    _.forEach(self.userConfig, function (userConfig) {
       lassi.services.parseInjections(userConfig, self)
     })
     this.configured = true
