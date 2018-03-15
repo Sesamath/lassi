@@ -1,6 +1,6 @@
 {
   "name": "lassi",
-  "version": "2.2.16",
+  "version": "2.2.17",
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
@@ -13,6 +13,7 @@
     "ajv": "^6.1.1",
     "ajv-errors": "^1.0.0",
     "ajv-i18n": "^3.0.0",
+    "ajv-keywords": "^3.1.0",
     "an-flow": "git://src.sesamath.net/an-flow#2.0.8",
     "an-log": "git://src.sesamath.net/an-log#3.1.4",
     "colors": "^1.1.2",
