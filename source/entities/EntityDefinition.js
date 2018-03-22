@@ -201,7 +201,7 @@ class EntityDefinition {
 
     // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
     // si on ajoute ou enlève l'option
-    _.forEach(['unique', 'sparse'], (opt) => {
+    ;['unique', 'sparse'].forEach((opt) => {
       if (indexOptions[opt]) name = `${name}-${opt}`
     })
 

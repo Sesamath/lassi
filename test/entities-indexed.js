@@ -32,7 +32,7 @@ describe('Test entities-queries', function () {
     }).seq(function (indexes) {
       // Pour visualiser les index rapidement
       // console.log('index de la collection', indexes)
-      expect(indexes).to.have.lengthOf(12) // nos indexes + _id_ toujours mis par mongo
+      expect(indexes).to.have.lengthOf(13) // nos indexes + _id_ toujours mis par mongo
       this(null, indexes.filter(i => i.name !== '_id_'))
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
@@ -276,33 +276,39 @@ describe('Test entities-queries', function () {
           .catch(done)
       })
     })
-    describe.skip('unique and sparse', () => {
-      it('prevents having twice the same value but accepts null many times', (done) => {
+    describe('unique and sparse', () => {
+      it('prevents having twice the same value but accepts null or undefined many times', (done) => {
         flow()
           .seq(function () {
             TestEntity.create({
-              uniqueString: 'b',
               uniqueSparseString: null
             }).store(this)
           })
           .seq(function () {
             TestEntity.create({
-              uniqueString: 'c',
               uniqueSparseString: null
             }).store(this)
           })
           .seq(function () {
             TestEntity.create({
-              uniqueString: 'd',
+              uniqueSparseString: undefined
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: undefined
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
               uniqueSparseString: 'a'
             }).store(this)
           })
           .seq(function () {
             TestEntity.create({
-              uniqueString: 'e',
               uniqueSparseString: 'a'
             }).store((err) => {
-              if (!err) return done('expecting an error')
+              if (!err) return done(new Error('expecting an error'))
               expect(err.message).to.equal('E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueSparseString-unique-sparse dup key: { : "a" }')
               done()
             })

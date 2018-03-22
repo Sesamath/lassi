@@ -166,10 +166,7 @@ function initEntities (next) {
     TestEntity.defineIndex('s', 'string')
     TestEntity.defineIndex('t', 'string')
     TestEntity.defineIndex('uniqueString', 'string', {unique: true})
-    // TODO: faire marcher le unique + sparse, pour une raison obscure on a cette erreur même quand l'index est sparse
-    // MongoError: E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueSparseString-unique-sparse dup key: { : null }
-
-    // TestEntity.defineIndex('uniqueSparseString', 'string', {unique: true, sparse: true})
+    TestEntity.defineIndex('uniqueSparseString', 'string', {sparse: true, unique: true})
     TestEntity.defineIndex('iPair', 'integer', function () {
       return this.i % 2
     })

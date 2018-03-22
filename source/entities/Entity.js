@@ -128,7 +128,15 @@ class Entity {
       if (Array.isArray(values)) {
         indexes[field] = values.map(x => castToType(x, index.fieldType))
       } else {
-        indexes[field] = castToType(values, index.fieldType)
+        const value = castToType(values, index.fieldType)
+        if (index.indexOptions && index.indexOptions.sparse && (value === null || value === undefined)) {
+          // Pour un index sparse, on n'ajoute pas d'attribut pour les valeurs null/undefined, sinon
+          // elles ne sont pas ignorées par le sparse
+          // https://docs.mongodb.com/manual/core/index-sparse/:
+          // "Sparse indexes only contain entries for documents that have the indexed field, even if the index field contains a null value"
+        } else {
+          indexes[field] = value
+        }
       }
     }
     return indexes
