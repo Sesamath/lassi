@@ -38,6 +38,8 @@ const log = require('an-log')('EntityDefinition')
 // internes à mongo par ex, genre _id_…)
 const INDEX_PREFIX = 'entity_index_'
 
+// ces index sont particuliers, ils ne sont pas construits par Entity::buildIndexes
+// mais affectés au store => pas besoin de callback
 const BUILT_IN_INDEXES = {
   oid: {
     fieldType: 'string',
@@ -355,10 +357,11 @@ class EntityDefinition {
       coll.dropIndex(mongoIndexName, this)
     }).seq(function () {
       // et on regarde ce qui manque
-      // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
       _.forEach(def.indexes, ({fieldName, mongoIndexName, indexOptions}) => {
         if (existingIndexes[mongoIndexName]) return
+        // directement au format attendu par mongo
+        // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
         indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName, ...indexOptions})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
       })

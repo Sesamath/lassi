@@ -158,7 +158,6 @@ function initEntities (next) {
       this.s = undefined
       this.d = undefined
       this.t = undefined
-      this.uniqueString = undefined
       this.uniqueString = `this is unique ${_.uniqueId()}`
     })
     TestEntity.defineIndex('b', 'boolean')

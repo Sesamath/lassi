@@ -120,6 +120,7 @@ class Entity {
     const entityDefinition = this.definition
     const indexes = {}
 
+    // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
     _.forEach(entityDefinition.indexes, ({callback, fieldType, fieldName}) => {
       // valeurs retournées par la fct d'indexation
       const value = callback.apply(this)
