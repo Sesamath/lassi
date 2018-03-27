@@ -75,7 +75,9 @@ module.exports = function ($maintenance, $settings) {
       }
 
       // bodyParser sauf si on demande de pas le faire
-      if (!railConfig.noBodyParser) {
+      if (railConfig.noBodyParser) {
+        log('bodyParser skipped as asked in config (noBodyParser)')
+      } else {
         const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
         const bodyParserSettings = railConfig.bodyParser || {
           reviver: (key, value) => (typeof value === 'string' && dateRegExp.exec(value)) ? new Date(value) : value
@@ -123,7 +125,9 @@ module.exports = function ($maintenance, $settings) {
       }
 
       // session sauf si on demande de pas le faire
-      if (!railConfig.noSession) {
+      if (railConfig.noSession) {
+        log('session management skipped as asked in config (noSession)')
+      } else {
         const sessionSettings = $settings.get('$rail.session', {})
         const {secret} = sessionSettings
         if (secret) {

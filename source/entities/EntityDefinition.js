@@ -38,6 +38,19 @@ const log = require('an-log')('EntityDefinition')
 // internes à mongo par ex, genre _id_…)
 const INDEX_PREFIX = 'entity_index_'
 
+const BUILT_IN_INDEXES = {
+  oid: {
+    fieldType: 'string',
+    fieldName: '_id',
+    indexOptions: {}
+  },
+  __deletedAt: {
+    fieldType: 'date',
+    fieldName: '__deletedAt',
+    indexOptions: {}
+  }
+
+}
 /**
  * @callback simpleCallback
  * @param {Error} [error]
@@ -78,10 +91,7 @@ class EntityDefinition {
         AjvErrorsLocalize(err.errors)
 
         // On enlève les erreurs de certains mots clés qui ne nous interéssent pas particulièrement
-        err.errors = _.filter(err.errors, (error) => {
-          if (error.keyword === 'if') return false
-          return true
-        })
+        err.errors = err.errors.filter((error) => error.keyword !== 'if')
 
         // On modifie quelques erreurs pour les rendres plus lisibles
         err.errors = err.errors.map((error) => {
@@ -182,16 +192,15 @@ class EntityDefinition {
   }
 
   /**
-   * Retourne le type de l'index demandé, throw si c'est pas un index connu
+   * Retourne la définition de l'index demandé
    * @param {string} indexName
-   * @return {string} boolean|date|integer|string
    * @throws {Error} si index n'est pas un index défini
    */
-  getIndexType (indexName) {
-    if (indexName === '_id') return 'string'
-    if (indexName === '__deletedAt') return 'date'
+  getIndex (indexName) {
+    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName]
+
     if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
-    return this.indexes[indexName].fieldType
+    return this.indexes[indexName]
   }
 
   /**
@@ -204,7 +213,7 @@ class EntityDefinition {
 
     // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
     // si on ajoute ou enlève l'option
-    _.forEach(['unique', 'sparse'], (opt) => {
+    ;['unique', 'sparse'].forEach((opt) => {
       if (indexOptions[opt]) name = `${name}-${opt}`
     })
 
@@ -348,7 +357,7 @@ class EntityDefinition {
       // et on regarde ce qui manque
       // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
-      _.each(def.indexes, ({fieldName, mongoIndexName, indexOptions}) => {
+      _.forEach(def.indexes, ({fieldName, mongoIndexName, indexOptions}) => {
         if (existingIndexes[mongoIndexName]) return
         indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName, ...indexOptions})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
@@ -455,7 +464,7 @@ class EntityDefinition {
 
   /**
    * Retourne une instance {@link Entity} à partir de la définition
-   * (appelera defaults s'il existe, puis construct s'il existe et _.extend sinon)
+   * (appelera defaults s'il existe, puis construct s'il existe et Object.assign sinon)
    * Attention, si la fonction passée à construct n'attend pas d'argument,
    * toutes les propriétés de values seront affectée à l'entité !
    * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
@@ -474,10 +483,10 @@ class EntityDefinition {
       // on ajoute d'office les values passées au create dans l'entity
       // (si le constructeur ne les a pas créées)
       if (values && this._construct.length === 0) {
-        _.extend(instance, values)
+        Object.assign(instance, values)
       }
     } else {
-      if (values) _.extend(instance, values)
+      if (values) Object.assign(instance, values)
     }
 
     if (!instance.isNew()) {

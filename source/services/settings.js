@@ -1,6 +1,5 @@
 'use strict'
 const _ = require('lodash')
-const should = require('../tools/Asserts')
 
 let isInitialized = false
 /**
@@ -12,10 +11,10 @@ module.exports = function () {
   if (isInitialized) {
     console.error(new Error('$settings already initialized'))
   } else {
-    should.object(lassi.settings, 'La configuration doit être un objet')
-    should.object(lassi.settings.application, "Le champ 'application' n'est pas présent dans la configuration")
-    should.string(lassi.settings.application.name, "Le réglage 'application.name' doit être défini")
-    should.string(lassi.settings.application.mail, "Le réglage 'application.mail' doit être défini")
+    if (!lassi.settings) throw new Error('La configuration doit être un objet')
+    if (!lassi.settings.application) throw new Error('Le champ "application" n’est pas présent dans la configuration')
+    if (!lassi.settings.application.name) throw new Error('Le réglage "application.name" doit être défini en configuration')
+    if (!lassi.settings.application.mail) throw new Error('Le réglage "application.mail" doit être défini en configuration')
 
     // Paramétrage des slots de config par défaut
     _.defaults(lassi.settings, {

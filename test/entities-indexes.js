@@ -129,6 +129,33 @@ describe('Test entities-indexes', function () {
         })
       })
     })
+
+    describe(`on change les options d'un index`, function () {
+      before(function (done) {
+        // Plus d'index
+        SimpleEntity = entities.define('SimpleEntity')
+        SimpleEntity.defineIndex('index1', 'integer', {unique: true})
+        SimpleEntity.defineIndex('index2', 'string', {sparse: true, unique: true})
+        // On ne flush() pas pour conserver la collection pre-existante
+        SimpleEntity.initialize(done)
+      })
+
+      it(`supprime l'ancien et crée un nouvel index mongo`, function (done) {
+        SimpleEntity.getMongoIndexes(function (error, indexes) {
+          if (error) return done(error)
+          const oldIndex1 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
+          const oldIndex2 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index2')})
+          const newIndex1 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1-unique')})
+          const newIndex2 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index2-unique-sparse')})
+          assert(!oldIndex1)
+          assert(!oldIndex2)
+          assert(!!newIndex1)
+          assert(!!newIndex2)
+
+          done()
+        })
+      })
+    })
   })
 
   it('créer un index d’un type inconnu throw une erreur', () => {
