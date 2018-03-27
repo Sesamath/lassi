@@ -468,6 +468,7 @@ describe('Test entities-queries', function () {
           // on teste aussi que le groupBy sur un index qui n'existe pas remonte une erreur
           try {
             TestEntity.match().countBy('y', () => {})
+            done(new Error('countBy sur un index inexistant n’a pas planté'))
           } catch (e) {
             expect(e.message).to.equal(`L’entity TestEntity n’a pas d’index y`)
             done()
