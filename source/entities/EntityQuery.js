@@ -351,8 +351,7 @@ class EntityQuery {
    * @param {EntityQuery~CountByCallback} callback
    */
   countBy (index, callback) {
-    const indexDefinition = this.getIndex(index)
-    const {fieldName} = indexDefinition
+    const {fieldName} = this.getIndex(index)
 
     var self = this
     var record = {query: {}, options: {}}
