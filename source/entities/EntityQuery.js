@@ -32,16 +32,25 @@ const {castToType} = require('./internals')
 const HARD_LIMIT_GRAB = 1000
 
 /**
+ * Retourne le "matcher" en cours
+ * @param {Object} entityQuery
+ * @private
+ */
+function lastMatch (entityQuery) {
+  return _.last(entityQuery.clauses)
+}
+
+/**
  * Helper permettant d'altérer la dernière clause.
+ * @param {Object} entityQuery
  * @param {Object} data les données à injecter.
  * @return {EntityQuery} La requête (pour chaînage)
  * @private
  */
 function alterLastMatch (entityQuery, data) {
-  Object.assign(entityQuery.clauses[entityQuery.clauses.length - 1], data)
+  Object.assign(lastMatch(entityQuery), data)
   return entityQuery
 }
-
 /**
  * Applique les clauses pendantes à la requête courante
  * @param {EntityQuery} entityQuery
@@ -53,25 +62,17 @@ function buildQuery (entityQuery, record) {
 
   entityQuery.clauses.forEach((clause) => {
     if (!clause) throw new Error('Erreur interne, requête invalide')
+    const {fieldName, fieldType} = clause.index
+
     if (clause.type === 'sort') {
       record.options.sort = record.options.sort || []
-      record.options.sort.push([clause.index, clause.order])
+      record.options.sort.push([fieldName, clause.order])
       return
     }
 
     if (clause.type !== 'match') return
 
-    var index = clause.index
-    var type
-
-    if (index === 'oid') {
-      index = '_id'
-      type = 'string'
-    } else {
-      type = entityQuery.entity.getIndexType(index)
-    }
-
-    const cast = x => castToType(x, type)
+    const cast = x => castToType(x, fieldType)
 
     if (!clause.operator) return
 
@@ -130,8 +131,8 @@ function buildQuery (entityQuery, record) {
     }
 
     // On ajoute la condition
-    if (!query[index]) query[index] = {}
-    Object.assign(query[index], condition)
+    if (!query[fieldName]) query[fieldName] = {}
+    Object.assign(query[fieldName], condition)
   })
 
   // par défaut on prend pas les softDeleted
@@ -273,6 +274,14 @@ class EntityQuery {
   }
 
   /**
+   * Racourci vers Entity#getIndex
+   * @param {String} indexName
+   */
+  getIndex (indexName) {
+    return this.entity.getIndex(indexName)
+  }
+
+  /**
    * Fait correspondre les enregistrement dont la valeur d'index supérieure à une date donnée
    * @alias greaterThan
    * @param {Date} value La valeur à faire correspondre.
@@ -342,7 +351,9 @@ class EntityQuery {
    * @param {EntityQuery~CountByCallback} callback
    */
   countBy (index, callback) {
-    if (!this.entity.hasIndex(index)) return callback(new Error(`L’entity ${this.entity.name} n’a pas d’index ${index}`))
+    const indexDefinition = this.getIndex(index)
+    const {fieldName} = indexDefinition
+
     var self = this
     var record = {query: {}, options: {}}
 
@@ -351,7 +362,7 @@ class EntityQuery {
         buildQuery(self, record)
         const query = [
           {$match: record.query},
-          {$group: {_id: `$${index}`, count: {$sum: 1}}}
+          {$group: {_id: `$${fieldName}`, count: {$sum: 1}}}
         ]
         self.entity.getCollection().aggregate(query, this)
       })
@@ -383,7 +394,7 @@ class EntityQuery {
    */
   deletedAfter (when) {
     checkDate(when)
-    this.clauses.push({type: 'match', index: '__deletedAt', operator: '>', value: when})
+    this.clauses.push({type: 'match', index: this.getIndex('__deletedAt'), operator: '>', value: when})
     return this
   }
 
@@ -394,7 +405,7 @@ class EntityQuery {
    */
   deletedBefore (when) {
     checkDate(when)
-    this.clauses.push({type: 'match', index: '__deletedAt', operator: '<', value: when})
+    this.clauses.push({type: 'match', index: this.getIndex('__deletedAt'), operator: '<', value: when})
     return this
   }
 
@@ -551,6 +562,9 @@ class EntityQuery {
    * @return {EntityQuery} La requête (pour chaînage)
    */
   isNull () {
+    if (lastMatch(this).index.indexOptions.sparse) {
+      throw new Error('isNull() ne peut pas être appelé sur un index sparse')
+    }
     return alterLastMatch(this, {operator: 'ISNULL'})
   }
 
@@ -610,12 +624,12 @@ class EntityQuery {
    * lassi.entity.Person.match('age').greaterThan(30);
    * ```
    *
-   * @param {String} index L'index tel que déclaré via {@link Entity#addIndex} ou
+   * @param {String} indexName L'index tel que déclaré via {@link Entity#addIndex} ou
    * `oid` pour l'identifiant de l'objet.
    * @return {EntityQuery} La requête (pour chaînage)
    */
-  match (index) {
-    this.clauses.push({type: 'match', index: index})
+  match (indexName) {
+    this.clauses.push({type: 'match', index: this.getIndex(indexName)})
     return this
   }
 
@@ -648,7 +662,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (pour chaînage)
    */
   onlyDeleted () {
-    this.clauses.push({type: 'match', index: '__deletedAt', operator: 'ISNOTNULL'})
+    this.clauses.push({type: 'match', index: this.getIndex('__deletedAt'), operator: 'ISNOTNULL'})
     return this
   }
 
@@ -704,14 +718,13 @@ class EntityQuery {
 
   /**
    * Tri le résultat de la requête.
-   * @param {String} index L'index sur lequel trier
+   * @param {String} indexName L'index sur lequel trier
    * @param {String=} [order=asc] Comme en SQL, asc ou desc.
    * @return {EntityQuery} La requête (pour chaînage)
    */
-  sort (index, order) {
+  sort (indexName, order) {
     order = order || 'asc'
-    if (index === 'oid') index = '_id'
-    this.clauses.push({type: 'sort', index: index, order: order})
+    this.clauses.push({type: 'sort', index: this.getIndex(indexName), order: order})
     return this
   }
 

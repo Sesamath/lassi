@@ -268,7 +268,7 @@ describe('Test entities-queries', function () {
             TestEntity.create({
               uniqueString: 'a'
             }).store((err) => {
-              if (!err) return done('expecting an error')
+              if (!err) return done(new Error('expecting an error'))
               expect(err.message).to.equal('E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueString-unique dup key: { : "a" }')
               done()
             })
@@ -314,6 +314,10 @@ describe('Test entities-queries', function () {
             })
           })
           .catch(done)
+      })
+
+      it('throws an exception when calling isNull', () => {
+        expect(() => TestEntity.match('uniqueSparseString').isNull()).to.throw('isNull() ne peut pas être appelé sur un index sparse')
       })
     })
   })

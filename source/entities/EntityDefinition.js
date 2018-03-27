@@ -38,6 +38,19 @@ const log = require('an-log')('EntityDefinition')
 // internes à mongo par ex, genre _id_…)
 const INDEX_PREFIX = 'entity_index_'
 
+const BUILT_IN_INDEXES = {
+  oid: {
+    fieldType: 'string',
+    fieldName: '_id',
+    indexOptions: {}
+  },
+  __deletedAt: {
+    fieldType: 'date',
+    fieldName: '__deletedAt',
+    indexOptions: {}
+  }
+
+}
 /**
  * @callback simpleCallback
  * @param {Error} [error]
@@ -179,16 +192,15 @@ class EntityDefinition {
   }
 
   /**
-   * Retourne le type de l'index demandé, throw si c'est pas un index connu
+   * Retourne la définition de l'index demandé
    * @param {string} indexName
-   * @return {string} boolean|date|integer|string
    * @throws {Error} si index n'est pas un index défini
    */
-  getIndexType (indexName) {
-    if (indexName === '_id') return 'string'
-    if (indexName === '__deletedAt') return 'date'
+  getIndex (indexName) {
+    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName]
+
     if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
-    return this.indexes[indexName].fieldType
+    return this.indexes[indexName]
   }
 
   /**

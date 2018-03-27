@@ -119,26 +119,27 @@ class Entity {
   buildIndexes () {
     const entityDefinition = this.definition
     const indexes = {}
-    let field, index, values
-    for (field in entityDefinition.indexes) {
-      index = entityDefinition.indexes[field]
+
+    _.forEach(entityDefinition.indexes, ({callback, fieldType, fieldName}) => {
       // valeurs retournées par la fct d'indexation
-      values = index.callback.apply(this)
-      // affectation après cast dans le type indiqué
-      if (Array.isArray(values)) {
-        indexes[field] = values.map(x => castToType(x, index.fieldType))
-      } else {
-        const value = castToType(values, index.fieldType)
-        if (index.indexOptions && index.indexOptions.sparse && (value === null || value === undefined)) {
-          // Pour un index sparse, on n'ajoute pas d'attribut pour les valeurs null/undefined, sinon
-          // elles ne sont pas ignorées par le sparse
-          // https://docs.mongodb.com/manual/core/index-sparse/:
-          // "Sparse indexes only contain entries for documents that have the indexed field, even if the index field contains a null value"
-        } else {
-          indexes[field] = value
-        }
+      const value = callback.apply(this)
+      if (value === undefined || value === null) {
+        // https://docs.mongodb.com/manual/core/index-sparse/
+        // Pour un index sparse, on n'ajoute pas d'attribut pour les valeurs null/undefined, sinon elles ne sont pas ignorées par le sparse "Sparse indexes only contain entries for documents that have the indexed field, even if the index field contains a null value"
+        // pour un non-sparse, ne pas mettre l'index ou lui coller null|undefined revient au même :
+        // "By contrast, non-sparse indexes contain all documents in a collection, storing null values for those documents that do not contain the indexed field."
+        // isNull ne pourra donc pas fonctionner sur les index sparse
+        return
       }
-    }
+
+      // affectation après cast dans le type indiqué
+      if (Array.isArray(value)) {
+        indexes[fieldName] = value.map(x => castToType(x, fieldType))
+      } else {
+        indexes[fieldName] = castToType(value, fieldType)
+      }
+    })
+
     return indexes
   }
 
