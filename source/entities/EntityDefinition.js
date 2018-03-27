@@ -38,6 +38,21 @@ const log = require('an-log')('EntityDefinition')
 // internes à mongo par ex, genre _id_…)
 const INDEX_PREFIX = 'entity_index_'
 
+// ces index sont particuliers, ils ne sont pas construits par Entity::buildIndexes
+// mais affectés au store => pas besoin de callback
+const BUILT_IN_INDEXES = {
+  oid: {
+    fieldType: 'string',
+    fieldName: '_id',
+    indexOptions: {}
+  },
+  __deletedAt: {
+    fieldType: 'date',
+    fieldName: '__deletedAt',
+    indexOptions: {}
+  }
+
+}
 /**
  * @callback simpleCallback
  * @param {Error} [error]
@@ -179,16 +194,15 @@ class EntityDefinition {
   }
 
   /**
-   * Retourne le type de l'index demandé, throw si c'est pas un index connu
+   * Retourne la définition de l'index demandé
    * @param {string} indexName
-   * @return {string} boolean|date|integer|string
    * @throws {Error} si index n'est pas un index défini
    */
-  getIndexType (indexName) {
-    if (indexName === '_id') return 'string'
-    if (indexName === '__deletedAt') return 'date'
+  getIndex (indexName) {
+    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName]
+
     if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
-    return this.indexes[indexName].fieldType
+    return this.indexes[indexName]
   }
 
   /**
@@ -196,8 +210,16 @@ class EntityDefinition {
    * @param fieldName
    * @return {string}
    */
-  getMongoIndexName (fieldName) {
-    return `${INDEX_PREFIX}${fieldName}`
+  getMongoIndexName (fieldName, indexOptions = {}) {
+    let name = `${INDEX_PREFIX}${fieldName}`
+
+    // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
+    // si on ajoute ou enlève l'option
+    ;['unique', 'sparse'].forEach((opt) => {
+      if (indexOptions[opt]) name = `${name}-${opt}`
+    })
+
+    return name
   }
 
   /**
@@ -226,9 +248,14 @@ class EntityDefinition {
    * @param {Function} callback Cette fonction permet de définir virtuellement la valeur d'un index.
    * @return {Entity} l'entité (chaînable)
    */
-  defineIndex (fieldName, fieldType, callback) {
+  defineIndex (fieldName, fieldType, indexOptions = {}, callback) {
+    if (typeof indexOptions === 'function') {
+      callback = indexOptions
+      indexOptions = {}
+    }
+
     if (!isAllowedIndexType(fieldType)) throw new Error(`Type d’index ${fieldType} non géré`)
-    const mongoIndexName = this.getMongoIndexName(fieldName)
+    const mongoIndexName = this.getMongoIndexName(fieldName, indexOptions)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
@@ -237,6 +264,7 @@ class EntityDefinition {
       fieldType,
       fieldName,
       mongoIndexName,
+      indexOptions,
       // Si on nous passe pas de callback, on retourne la valeur du champ
       // attention, pas de fat arrow ici car on fera du apply dessus
       callback: callback || function () { return this[fieldName] }
@@ -329,11 +357,12 @@ class EntityDefinition {
       coll.dropIndex(mongoIndexName, this)
     }).seq(function () {
       // et on regarde ce qui manque
-      // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
       let indexesToAdd = []
-      _.forEach(def.indexes, ({fieldName, mongoIndexName}) => {
+      _.forEach(def.indexes, ({fieldName, mongoIndexName, indexOptions}) => {
         if (existingIndexes[mongoIndexName]) return
-        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName})
+        // directement au format attendu par mongo
+        // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
+        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName, ...indexOptions})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
       })
 

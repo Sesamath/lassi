@@ -32,7 +32,7 @@ describe('Test entities-queries', function () {
     }).seq(function (indexes) {
       // Pour visualiser les index rapidement
       // console.log('index de la collection', indexes)
-      expect(indexes).to.have.lengthOf(11) // nos 10 indexes + _id_ toujours mis par mongo
+      expect(indexes).to.have.lengthOf(13) // nos indexes + _id_ toujours mis par mongo
       this(null, indexes.filter(i => i.name !== '_id_'))
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
@@ -253,6 +253,73 @@ describe('Test entities-queries', function () {
       assert.equal(entities.map(e => e.i).join(','), '1,4')
       TestEntity.match().purge(this)
     }).done(done)
+  })
+
+  describe('index options', () => {
+    describe('unique', () => {
+      it('prevents having twice the same value', (done) => {
+        flow()
+          .seq(function () {
+            TestEntity.create({
+              uniqueString: 'a'
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueString: 'a'
+            }).store((err) => {
+              if (!err) return done(new Error('expecting an error'))
+              expect(err.message).to.equal('E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueString-unique dup key: { : "a" }')
+              done()
+            })
+          })
+          .catch(done)
+      })
+    })
+    describe('unique and sparse', () => {
+      it('prevents having twice the same value but accepts null or undefined many times', (done) => {
+        flow()
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: null
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: null
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: undefined
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: undefined
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: 'a'
+            }).store(this)
+          })
+          .seq(function () {
+            TestEntity.create({
+              uniqueSparseString: 'a'
+            }).store((err) => {
+              if (!err) return done(new Error('expecting an error'))
+              expect(err.message).to.equal('E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueSparseString-unique-sparse dup key: { : "a" }')
+              done()
+            })
+          })
+          .catch(done)
+      })
+
+      it('throws an exception when calling isNull', () => {
+        expect(() => TestEntity.match('uniqueSparseString').isNull()).to.throw('isNull() ne peut pas être appelé sur un index sparse')
+      })
+    })
   })
   // @todo array de date/int/string
 })
