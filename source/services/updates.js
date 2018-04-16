@@ -35,8 +35,9 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
       msg += `${updatesToRun.length} mises à jour à traiter`
       lockUpdates()
 
-      // Si aucune MAJ bloquantes, pas besoin d'activer la maintenance
-      if (_.every(updatesToRun, (u) => u.isNotBlocking)) {
+      // Si aucune MAJ bloquantes, pas besoin d'activer la maintenance,
+      // sauf en test (où on veut pas de boot avant la fin des updates)
+      if (process.env.NODE_ENV !== 'test' && _.every(updatesToRun, (u) => u.isNotBlocking)) {
         log(msg)
         return cb()
       }
