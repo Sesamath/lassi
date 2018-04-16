@@ -36,8 +36,7 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
       lockUpdates()
 
       // Si aucune MAJ bloquantes, pas besoin d'activer la maintenance,
-      // sauf en test (où on veut pas de boot avant la fin des updates)
-      if (process.env.NODE_ENV !== 'test' && _.every(updatesToRun, (u) => u.isNotBlocking)) {
+      if (_.every(updatesToRun, (u) => u.isNotBlocking)) {
         log(msg)
         return cb()
       }
@@ -318,7 +317,8 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
   function postSetup (cb) {
     // On applique automatiquement les mises à jour au démarrage
     // (hors cli, mais runPendingUpdates peut être appelé en cli quand même)
-    if (lassi.options.cli) {
+    // (et hors test)
+    if (lassi.options.cli || process.env.NODE_ENV === 'test') {
       return cb()
     }
     // si on est en mode cluster avec pm2, on ne se lance que sur la 1re instance (0)
