@@ -297,9 +297,6 @@ function startLassi (options) {
     log('ERROR'.red, ' : lassi already exists')
     return global.lassi
   }
-  const lassi = new Lassi(options)
-  lassi.Context = require('./Context')
-  lassi.require = () => require.apply(requireContext, arguments)
 
   // Un écouteur pour tout ce qui pourrait passer au travers de la raquette
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
@@ -335,7 +332,18 @@ function startLassi (options) {
     }
   })
 
-  return lassi
+  try {
+    const lassi = new Lassi(options)
+    lassi.Context = require('./Context')
+    // à quoi ça peut servir de dupliquer require ?
+    lassi.require = function () {
+      require.apply(requireContext, arguments)
+    }
+    return lassi
+  } catch (error) {
+    console.error(error)
+    process.exit()
+  }
 }
 
 module.exports = startLassi
