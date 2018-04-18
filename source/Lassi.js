@@ -23,17 +23,20 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the fs. site: http://www.fs..org.
  */
+const EventEmitter = require('events').EventEmitter
+const fs = require('fs')
 
 const flow = require('an-flow')
 const _ = require('lodash')
+const log = require('an-log')('lassi')
+
+const Context = require('./Context')
 const Component = require('./Component')
 const Services = require('./Services')
-const EventEmitter = require('events').EventEmitter
-const fs = require('fs')
-const log = require('an-log')('lassi')
+// les ≠ services sont requis dans le constructeur
+
 // ajoute les propriétés de couleur sur les string ('toto'.blue pour l'afficher bleu si y'a un tty)
 require('colors')
-const requireContext = this
 
 let shutdownRequested = false
 
@@ -334,11 +337,7 @@ function startLassi (options) {
 
   try {
     const lassi = new Lassi(options)
-    lassi.Context = require('./Context')
-    // à quoi ça peut servir de dupliquer require ?
-    lassi.require = function () {
-      require.apply(requireContext, arguments)
-    }
+    lassi.Context = Context
     return lassi
   } catch (error) {
     console.error(error)
