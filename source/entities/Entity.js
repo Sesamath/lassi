@@ -121,7 +121,9 @@ class Entity {
     const indexes = {}
 
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
-    _.forEach(entityDefinition.indexes, ({callback, fieldType, fieldName}) => {
+    _.forEach(entityDefinition.indexes, ({callback, fieldType, useData, fieldName}) => {
+      if (useData) return // on utilise directement un index sur _data
+
       // valeurs retournées par la fct d'indexation
       const value = callback.apply(this)
       if (value === undefined || value === null) {
@@ -233,7 +235,7 @@ class Entity {
         document.__deletedAt = self.__deletedAt
       }
       document._id = self.oid
-      document._data = JSON.stringify(self.values())
+      document._data = self.values()
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/

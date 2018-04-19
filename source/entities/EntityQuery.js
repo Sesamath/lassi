@@ -62,11 +62,10 @@ function buildQuery (entityQuery, record) {
 
   entityQuery.clauses.forEach((clause) => {
     if (!clause) throw new Error('Erreur interne, requête invalide')
-    const {fieldName, fieldType} = clause.index
-
+    const {path, fieldType} = clause.index
     if (clause.type === 'sort') {
       record.options.sort = record.options.sort || []
-      record.options.sort.push([fieldName, clause.order])
+      record.options.sort.push([path, clause.order])
       return
     }
 
@@ -131,8 +130,8 @@ function buildQuery (entityQuery, record) {
     }
 
     // On ajoute la condition
-    if (!query[fieldName]) query[fieldName] = {}
-    Object.assign(query[fieldName], condition)
+    if (!query[path]) query[path] = {}
+    Object.assign(query[path], condition)
   })
 
   // par défaut on prend pas les softDeleted
@@ -184,20 +183,21 @@ function createEntitiesFromRows (entityQuery, rows) {
   // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
   const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
   const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
-
   return rows.map((row) => {
-    let data
-    if (row._data) {
+    let data = row._data
+
+    // TODO DATA: enlever ce if-bloc une fois que toutes les entités auront été ré-indexées
+    //            avec un _data en objet mongo plutôt qu'un json
+    if (typeof data === 'string') {
       try {
-        data = JSON.parse(row._data, jsonReviver)
+        data = JSON.parse(data, jsonReviver)
       } catch (error) {
         console.error(error, `avec les _data :\n${row._data}`)
         // on renvoie un message plus compréhensible
         throw new Error(`Données corrompues pour ${entityQuery.entity.name}/${row._id}`)
       }
-    } else {
-      throw new Error(`Données corrompues pour ${entityQuery.entity.name}/${row._id}`)
     }
+
     data.oid = row._id.toString()
     // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
     if (row.__deletedAt) {
@@ -351,7 +351,7 @@ class EntityQuery {
    * @param {EntityQuery~CountByCallback} callback
    */
   countBy (index, callback) {
-    const {fieldName} = this.getIndex(index)
+    const {path} = this.getIndex(index)
 
     var self = this
     var record = {query: {}, options: {}}
@@ -361,7 +361,7 @@ class EntityQuery {
         buildQuery(self, record)
         const query = [
           {$match: record.query},
-          {$group: {_id: `$${fieldName}`, count: {$sum: 1}}}
+          {$group: {_id: `$${path}`, count: {$sum: 1}}}
         ]
         self.entity.getCollection().aggregate(query, this)
       })
