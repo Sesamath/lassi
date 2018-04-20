@@ -909,4 +909,105 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
   })
+
+  describe('.forEach', () => {
+    beforeEach((done) => {
+      // 415 pour avoir plus que 2 batch
+      const oids = _.times(415, (i) => 'oid-' + i)
+      flow(oids)
+        .seqEach(function (oid) {
+          TestEntity.create({ oid, s: 'forEach' }).store(this)
+        })
+        .empty()
+        .done(done)
+    })
+    afterEach((done) => {
+      TestEntity.match('s').equals('forEach').purge(done)
+    })
+
+    it(`traite toutes les entités d'une requête`, (done) => {
+      let count = 0
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').forEach(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').grab(this)
+        })
+        .seqEach(function (entity) {
+          expect(entity.treated).to.equal(true)
+          count++
+          this()
+        })
+        .seq(function () {
+          expect(count).to.equal(415)
+          this()
+        })
+        .done(done)
+    })
+
+    it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').forEach(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this,
+            { limit: 10 }
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').grab(this)
+        })
+        .seq(function (entities) {
+          _.forEach(entities, (groupe, index) => {
+            if (index < 10) {
+              expect(groupe.treated).to.equal(true)
+            } else {
+              expect(groupe.treated).to.equal(undefined)
+            }
+            this()
+          })
+        })
+        .empty()
+        .done(done)
+    })
+
+    it(`traite un grand (> 200, le batch size) sous-ensemble des entités d'une requête`, (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').forEach(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this,
+            { limit: 210 }
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').grab(this)
+        })
+        .seq(function (entities) {
+          _.forEach(entities, (groupe, index) => {
+            if (index < 210) {
+              expect(groupe.treated).to.equal(true)
+            } else {
+              expect(groupe.treated).to.equal(undefined)
+            }
+            this()
+          })
+        })
+        .empty()
+        .done(done)
+    })
+  })
 })

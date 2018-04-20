@@ -28,6 +28,7 @@
     "moment": "^2.19.1",
     "mongodb": "^2.2.33",
     "morgan": "^1.9.0",
+    "progress": "^2.0.0",
     "redis": "^2.8.0",
     "serve-static": "^1.13.1",
     "sesajstools": "git://src.sesamath.net/sesajstools"
