@@ -253,17 +253,17 @@ class EntityDefinition {
    * ```
    *
    * @param {String} indexName Nom du champ à indexer ou de l'index virtuel
-   * @param {String} fieldType (optionel) Type du champ à indexer ('integer', 'string', 'date')
+   * @param {String} fieldType (optionnel) Type du champ à indexer ('integer', 'string', 'date')
    *                                      ce qui va entrainer du cast à l'indexation et à la query (cf. castToType)
-   * @param {Object} indexOptions (optionel) Options d'index mongo ex: {unique: true, sparse: true}
-   * @param {Function} callback (optionel) Cette fonction permet de définir virtuellement la valeur d'un index.
+   * @param {Object} indexOptions (optionnel) Options d'index mongo ex: {unique: true, sparse: true}
+   * @param {Function} callback (optionnel) Cette fonction permet de définir virtuellement la valeur d'un index.
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (fieldName, ...params) {
     let callback
     let indexOptions = {}
     let fieldType
-    // On récupère les paramètres optionels: fieldType, indexOptions, callback
+    // On récupère les paramètres optionnels: fieldType, indexOptions, callback
     // en partant de la fin. Heureusement ils ont des types différents!
     let param = params.pop()
     if (typeof param === 'function') {
