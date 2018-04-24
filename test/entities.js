@@ -101,6 +101,7 @@ describe('Entity', () => {
       })
     })
   })
+
   describe('Entity#store', function () {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
@@ -126,7 +127,7 @@ describe('Entity', () => {
         .done(done)
     })
 
-    describe('.beforeStore', () => {
+    describe('.afterStore', () => {
       it(`est appelée avec un oid lors d'une création`, (done) => {
         // Cas d'utilisation principale du afterStore :
         // faire des opération sur l'oid à la fois pour la création et la mise à jour
@@ -599,33 +600,46 @@ describe('Entity', () => {
           })
         })
 
-        it(`lance une validation au store par défaut`, (done) => {
+        it(`lance une validation au store par défaut (et ne store pas si ça passe pas)`, (done) => {
           const entity = TestEntity.create({num: 'not a number'})
-          entity.store((err) => {
+          entity.store((err, entityStored) => {
             expect(err.errors.length).to.equal(1)
             expect(err.errors[0].message).to.equal('doit être de type number')
+            expect(entityStored).to.equal(undefined)
+            done()
+          })
+        })
+        it(`store si ça valide`, (done) => {
+          const entity = TestEntity.create({num: 42})
+          entity.store((err, entityStored) => {
+            expect(err).to.not.exist
+            expect(entityStored).to.have.property('num')
+            expect(entityStored.num).to.equals(42)
             done()
           })
         })
 
-        it('ne lance pas de validation si skipValidation est true sur la définition', (done) => {
+        it('ne lance pas de validation si skipValidation est true sur la définition (et store)', (done) => {
           // On pourra utiliser cette fonctionalité pour une migration progressive : d'abord
           // vérifier que tout est correct avec isValid(), puis activer la validation au store
           TestEntity.setSkipValidation(true)
 
           const entity = TestEntity.create({num: 'not a number'})
 
-          entity.store((err) => {
+          entity.store((err, entityStored) => {
             expect(err).to.not.exist
+            expect(entityStored).to.have.property('num')
+            expect(entityStored.num).to.equals('not a number')
             done()
           })
         })
 
-        it('ne lance pas de validation si skipValidation est passé en option au store', (done) => {
+        it('ne lance pas de validation si skipValidation est passé en option au store (et store)', (done) => {
           const entity = TestEntity.create({num: 'not a number'})
 
-          entity.store({skipValidation: true}, (err) => {
+          entity.store({skipValidation: true}, (err, entityStored) => {
             expect(err).to.be.null
+            expect(entityStored.num).to.equals('not a number')
             done()
           })
         })
