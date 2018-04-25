@@ -319,7 +319,7 @@ function startLassi (options) {
     ['beforeExit', 'SIGHUP', 'SIGINT', 'SIGTERM', 'exit'].forEach((signal) => {
       process.on(signal, () => {
         log('pid ' + process.pid + ' received signal ' + signal)
-        lassi.shutdown()
+        if (global.lassi) lassi.shutdown()
       })
     })
   }
@@ -331,7 +331,7 @@ function startLassi (options) {
     if (message === 'shutdown') {
       // Mais on n'arrive jamais là, le process meurt visiblement avant
       log('launching shutdown')
-      lassi.shutdown()
+      if (global.lassi) lassi.shutdown()
     }
   })
 
@@ -340,8 +340,8 @@ function startLassi (options) {
     lassi.Context = Context
     return lassi
   } catch (error) {
-    console.error(error)
-    process.exit()
+    console.error('Plantage au start de lassi', error)
+    throw error
   }
 }
 
