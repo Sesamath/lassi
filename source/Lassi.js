@@ -341,6 +341,7 @@ function startLassi (options) {
     return lassi
   } catch (error) {
     console.error('Plantage au start de lassi', error)
+    if (global.lassi) lassi.shutdown()
     throw error
   }
 }
