@@ -1009,5 +1009,33 @@ describe('Test entities-queries', function () {
         .empty()
         .done(done)
     })
+    it.only(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').forEach(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this,
+            { limit: 200 }
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEach').grab(this)
+        })
+        .seq(function (entities) {
+          _.forEach(entities, (groupe, index) => {
+            if (index < 200) {
+              expect(groupe.treated).to.equal(true, `l'entité index=${index} devrait être traitée`)
+            } else {
+              expect(groupe.treated).to.equal(undefined, `l'entité index=${index} ne devrait pas   être traitée`)
+            }
+            this()
+          })
+        })
+        .empty()
+        .done(done)
+    })
   })
 })

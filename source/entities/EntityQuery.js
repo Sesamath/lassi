@@ -535,7 +535,7 @@ class EntityQuery {
     let progressBar
 
     const nextBatch = () => {
-      if (globalLimit && globalLimit < skip) return done(null, nb)
+      if (globalLimit && globalLimit <= skip) return done(null, nb)
       const limit = globalLimit ? Math.min(FOREACH_BATCH_SIZE, globalLimit - skip) : FOREACH_BATCH_SIZE
 
       query.grab({limit, skip}, (err, entities) => {
