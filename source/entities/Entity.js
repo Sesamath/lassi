@@ -128,10 +128,19 @@ class Entity {
       const value = callback.apply(this)
       if (value === undefined || value === null) {
         // https://docs.mongodb.com/manual/core/index-sparse/
-        // Pour un index sparse, on n'ajoute pas d'attribut pour les valeurs null/undefined, sinon elles ne sont pas ignorées par le sparse "Sparse indexes only contain entries for documents that have the indexed field, even if the index field contains a null value"
-        // pour un non-sparse, ne pas mettre l'index ou lui coller null|undefined revient au même :
-        // "By contrast, non-sparse indexes contain all documents in a collection, storing null values for those documents that do not contain the indexed field."
-        // isNull ne pourra donc pas fonctionner sur les index sparse
+        // En résumé
+        // - non-sparse : tous les documents sont indexés :
+        //   => si la propriété n'existe pas dans l'objet elle sera indexée quand même avec une valeur null
+        //   => si la propriété vaut undefined elle sera indexée avec null
+        // - sparse : seulement les documents ayant la propriété (même null|undefined) sont indexés (undefined indexé avec la valeur null)
+        // Afin d'avoir un comportement homogène, buildIndexes va harmoniser les 3 cas
+        // - prop absente
+        // - prop avec valeur undefined
+        // - prop avec valeur null
+        // 1) si index non-sparse, on laisse faire mongo, les 3 se retrouvent avec un index valant null
+        // 2) si index sparse, buildIndexes supprime l'index pour null|undefined
+        //    => dans les 3 cas le doc mongo n'est pas indexé
+        //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
         return
       }
 

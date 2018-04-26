@@ -283,10 +283,21 @@ class EntityDefinition {
 
     // Pour l'instant le seul cas où on peut se permettre d'indexer directement l'attribute dans _data
     // est le cas où ces conditions sont remplies :
-    // - l'index n'est pas sparse, car buildIndexes() opére une transformation sur les null/undefined
-    // - l'index n'a pas de fieldType car buildIndexes() et buildQuery() font du cast sur la valeur indexer
-    // TODO: peut-être se débarrasser de fieldType, mais vu ce que l'on fait dans castToType, ça peut
-    //       avoir des répercutions
+    // - l'index n'est pas sparse, car dans ce cas si sa valeur est null|undefined buildIndexes()
+    //   ne met pas la propriété d'index dans le doc mongo (cf commentaire dans cette fonction)
+    //   (le risque serait qu'un bout de code qui fait du `if (entity.prop === null)` ou
+    //    `if (entity.hasOwnProperty('prop'))` ne fonctionne plus lorsque l'index prop prend
+    //    l'attribut sparse)
+    // - l'index n'a pas de fieldType car buildIndexes() et buildQuery() font du cast sur la valeur indexée
+    //
+    // On pourrait se débarrasser de fieldType, mais vu ce que l'on fait dans castToType
+    // ça peut avoir des répercussions fâcheuses (par ex `.match(42)` remonte les valeurs string '42'
+    // si y'a un type string, et ça ne fonctionnerait plus si on enlevait le type sur l'index).
+    // Il faudrait donc d'abord supprimer le type dans toutes les définitions d'index des applis
+    // qui utilisent lassi avant de le supprimer de lassi
+    // Avant de faire cela, cela serait sécurisant de
+    // - vérifier le type de l'argument passé à match, qui devra être le même que le jsonShema
+    // - vérifier dans defineIndex que le champ a un type dans le shema
     const useData = !callback && !indexOptions.sparse && !fieldType
 
     const mongoIndexName = this.getMongoIndexName(fieldName, useData, indexOptions)
