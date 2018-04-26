@@ -56,7 +56,7 @@ module.exports = function ($maintenance, $settings) {
    */
   function setup (next) {
     try {
-      const railConfig = $settings.get('$rail')
+      const railConfig = $settings.get('$rail', {})
 
       // maintenance (qui coupera tout le reste si elle est active)
       railUse('maintenance', {}, () => $maintenance.middleware())
@@ -162,8 +162,11 @@ module.exports = function ($maintenance, $settings) {
           lassi.on('shutdown', () => writeStream.end())
           // cf https://www.npmjs.com/package/morgan
           const morgan = require('morgan')
-          // on met pas la forme réduite "combined", car si on ajoute le :post plus loin ça marche plus
-          // et de toute façon on ajoute :response-time (en ms, un seul chiffre après la virgule)
+          // on met pas la forme réduite "combined", car on veut
+          // - pouvoir ajouter des infos
+          // - gérer correctement le x-real-ip
+          // - avoir un :response-time à notre format (ms avec un seul chiffre après la virgule)
+          // Cf https://github.com/expressjs/morgan
           let format = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time[1] :start'
           // on réécrit le token remote-addr pour prendre x-real-ip en premier s'il existe
           morgan.token('remote-addr', (req) => {
@@ -174,7 +177,25 @@ module.exports = function ($maintenance, $settings) {
             if (req.connection) return req.connection.remoteAddress
             return undefined
           })
+          // préciser qui met cette propriété start qui n'a pas l'air d'être une prop express
+          // cf http://expressjs.com/en/4x/api.html#req
           morgan.token('start', (req) => req.start)
+          if (conf.withSessionTracking) {
+            format += ' :sessionId'
+            const sessionCookieName = (railConfig.session && railConfig.session.name) || 'connect.sid'
+            // on veut logguer un id pour tracer la navigation d'une session, mais on le prend pas en entier
+            // pour que la lecture du log ne permette pas d'usurper une session
+            morgan.token('sessionId', (req) => {
+              if (req.headers && req.headers.cookie) {
+                const re = new RegExp(`${sessionCookieName}=([^; $]+)`)
+                const result = re.exec(req.headers.cookie)
+                if (result && result[1] && result[1].length > 8) return decodeURIComponent(result[1]).substr(-8)
+              }
+              return '-'
+            })
+          } else {
+            morgan.token('sessionId', () => '-')
+          }
           /** Les options morgan */
           const morganOptions = conf.morgan || {}
           morganOptions.stream = writeStream
