@@ -166,6 +166,7 @@ module.exports = function ($maintenance, $settings) {
           // - pouvoir ajouter des infos
           // - gérer correctement le x-real-ip
           // - avoir un :response-time à notre format (ms avec un seul chiffre après la virgule)
+          // Cf https://github.com/expressjs/morgan
           let format = ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time[1] :start'
           // on réécrit le token remote-addr pour prendre x-real-ip en premier s'il existe
           morgan.token('remote-addr', (req) => {
@@ -176,6 +177,8 @@ module.exports = function ($maintenance, $settings) {
             if (req.connection) return req.connection.remoteAddress
             return undefined
           })
+          // préciser qui met cette propriété start qui n'a pas l'air d'être une prop express
+          // cf http://expressjs.com/en/4x/api.html#req
           morgan.token('start', (req) => req.start)
           if (conf.withSessionTracking) {
             format += ' :sessionId'
