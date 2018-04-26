@@ -182,19 +182,9 @@ module.exports = function ($maintenance, $settings) {
           morgan.token('start', (req) => req.start)
           if (conf.withSessionTracking) {
             format += ' :sessionId'
-            const sessionCookieName = (railConfig.session && railConfig.session.name) || 'connect.sid'
             // on veut logguer un id pour tracer la navigation d'une session, mais on le prend pas en entier
             // pour que la lecture du log ne permette pas d'usurper une session
-            morgan.token('sessionId', (req) => {
-              if (req.headers && req.headers.cookie) {
-                const re = new RegExp(`${sessionCookieName}=([^; $]+)`)
-                const result = re.exec(req.headers.cookie)
-                if (result && result[1] && result[1].length > 8) return decodeURIComponent(result[1]).substr(-8)
-              }
-              return '-'
-            })
-          } else {
-            morgan.token('sessionId', () => '-')
+            morgan.token('sessionId', (req) => (req.session && req.session.id && req.session.id.substr(-8)) || '-')
           }
           /** Les options morgan */
           const morganOptions = conf.morgan || {}
