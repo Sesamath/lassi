@@ -536,6 +536,10 @@ class EntityQuery {
 
     let progressBar
 
+    const finalCb = (err) => {
+      done(err, nbTreated)
+    }
+
     const processEntities = (entities, cb) => {
       if (!entities.length) return cb()
 
@@ -552,9 +556,9 @@ class EntityQuery {
           if (err) return cb(err)
 
           nbTreated++
-          // Sortie immédiate via le done() global si on a atteint une limite arbitraire
-          if (globalLimit && globalLimit <= nbTreated) return done(null, nbTreated)
-          processEntities(_.tail(entities) /* tout sauf le premier élèment */, cb)
+          // Sortie immédiate via le finalCb() global si on a atteint une limite arbitraire
+          if (globalLimit && globalLimit <= nbTreated) return finalCb()
+          processEntities(entities.slice(1), cb)
         })
       } catch (e) {
         return cb(e)
@@ -563,11 +567,11 @@ class EntityQuery {
 
     const nextBatch = () => {
       query.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
-        if (err) return done(err, nbTreated)
+        if (err) return finalCb(err)
 
         processEntities(entities, (e) => {
-          if (e) return done(e, nbTreated)
-          if (entities.length < FOREACH_BATCH_SIZE) return done(null, nbTreated) // dernier batch
+          if (e) return finalCb(e)
+          if (entities.length < FOREACH_BATCH_SIZE) return finalCb() // dernier batch
 
           if (progressBar) progressBar.tick(entities.length)
           skip += FOREACH_BATCH_SIZE
@@ -577,7 +581,7 @@ class EntityQuery {
     }
 
     query.count((err, count) => {
-      if (err) return done(err)
+      if (err) return finalCb(err)
       if (options.progressBar) {
         const format = 'progress: :percent [:bar] :current/:total (~:etas left)'
         const options = {
