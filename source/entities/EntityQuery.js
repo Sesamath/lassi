@@ -26,10 +26,12 @@
 const log = require('an-log')('EntityQuery')
 const _ = require('lodash')
 const flow = require('an-flow')
+const ProgressBar = require('progress')
 const {castToType} = require('./internals')
 
 // une limite hard pour grab
 const HARD_LIMIT_GRAB = 1000
+const FOREACH_BATCH_SIZE = 200
 
 /**
  * Retourne le "matcher" en cours
@@ -237,8 +239,8 @@ function prepareRecord (entityQuery, options) {
   const skip = options.offset || options.skip
   if (skip > 0) record.options.skip = skip
   // set limit
-  if (options.limit) {
-    if (options.limit > 0 && options.limit <= HARD_LIMIT_GRAB) {
+  if (typeof options.limit === 'number') {
+    if (options.limit >= 0 && options.limit <= HARD_LIMIT_GRAB) {
       record.limit = options.limit
     } else {
       log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)
@@ -449,6 +451,8 @@ class EntityQuery {
       options = {}
     }
     const record = prepareRecord(this, options)
+    // mongo n'a pas l'air de gérer query.limit(0) correctement, donc on le fait manuellement
+    if (record.limit === 0) return callback(null, [])
     let query
 
     if (this.search) {
@@ -501,7 +505,95 @@ class EntityQuery {
       callback(null, entities[0])
     })
   }
+  /**
+   * Callback d'exécution d'une requête forEachEntity, appelé sur chaque résultat de la requête
+   * @callback EntityQuery~ForEachEntityOnEachEntityCallback
+   * @param {Entity} entity Un des résultats de la requête
+   * @param {function} next Callback a appeler quand ce résultat est traité
+   */
+  /**
+   * Callback final d'une requête forEachEntity, appelé quand tous les résultats ont été traités
+   * @callback EntityQuery~ForEachEntityDoneCallback
+   * @param {Error} error Une erreur est survenue.
+   * @param {number} count Nombre total d'entités traitées
+   */
+  /**
+   * Applique un traitement (onEachEntity) sur chaque entité correspondant à la EntityQuery en cours
+   * Si une occurence lève une erreur, l'ensemble de la boucle est arrétée.
+   * @param {EntityQuery~ForEachEntityOnEachEntityCallback} onEachEntity appelée avec (entity, next), next devra être rappelé après traitement avec une erreur éventuelle
+   * @param {EntityQuery~ForEachEntityDoneCallback} done appelée à la fin avec (error, nbProcessedOk)
+   * @param {object} [options]
+   * @param {number} [options.limit] Le max du nb d'entity à traiter
+   * @param {boolean} [options.progressBar] Passer true pour afficher la progression en console (donc si l'on a un tty, i.e. en cli sans redirection de stdout)
+   */
+  forEachEntity (onEachEntity, done, options = {}) {
+    const query = this
+    const globalLimit = options.limit
 
+    let skip = 0
+    // le nb d'entités traitées sans erreur
+    let nbTreated = 0
+
+    let progressBar
+
+    const finalCb = (err) => {
+      done(err, nbTreated)
+    }
+
+    const processEntities = (entities, cb) => {
+      if (!entities.length) return cb()
+
+      // On traite les entités au début du tableau jusqu'à ce qu'il soit vide
+      try { // si 'onEachEntity' throw une erreur
+        let called = false // garde-fou pour éviter que la définition de onEachEntity appelle plusieurs fois son callback (ce qui aurait un drôle d'effet!)
+        onEachEntity(entities[0], (err) => {
+          if (called) {
+            console.error(new Error('ERROR: forEachEntity onEntity callback function called many times'))
+            return
+          }
+          called = true
+
+          if (err) return cb(err)
+
+          nbTreated++
+          // Sortie immédiate via le finalCb() global si on a atteint une limite arbitraire
+          if (globalLimit && globalLimit <= nbTreated) return finalCb()
+          processEntities(entities.slice(1), cb)
+        })
+      } catch (e) {
+        return cb(e)
+      }
+    }
+
+    const nextBatch = () => {
+      query.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
+        if (err) return finalCb(err)
+
+        processEntities(entities, (e) => {
+          if (e) return finalCb(e)
+          if (entities.length < FOREACH_BATCH_SIZE) return finalCb() // dernier batch
+
+          if (progressBar) progressBar.tick(entities.length)
+          skip += FOREACH_BATCH_SIZE
+          process.nextTick(nextBatch)
+        })
+      })
+    }
+
+    query.count((err, count) => {
+      if (err) return finalCb(err)
+      if (options.progressBar) {
+        const format = 'progress: :percent [:bar] :current/:total (~:etas left)'
+        const options = {
+          total: globalLimit ? Math.min(count, globalLimit) : count
+        }
+        progressBar = new ProgressBar(format, options)
+      }
+
+      // Start batching
+      nextBatch()
+    })
+  }
   /**
    * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est supérieure à une
    * valeur donnée.

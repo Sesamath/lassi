@@ -362,6 +362,16 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
 
+    it(`Sélection d'entités avec limit 0`, function (done) {
+      this.timeout(10000)
+      flow().seq(function () {
+        TestEntity.match().grab({offset: 100, limit: 0}, this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 0)
+        this()
+      }).done(done)
+    })
+
     it(`Sélection d'entités avec hard limit`, function (done) {
       function last (error) {
         expect(console.error).to.have.been.calledThrice
@@ -907,6 +917,195 @@ describe('Test entities-queries', function () {
         assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par sArray
         this()
       }).done(done)
+    })
+  })
+
+  describe('.forEachEntity', () => {
+    // 415 pour avoir plus que 2 batch
+    const ENTITY_COUNT = 415
+    beforeEach((done) => {
+      const oids = _.times(ENTITY_COUNT, (i) => 'oid-' + i)
+      flow(oids)
+        .seqEach(function (oid) {
+          TestEntity.create({ oid, s: 'forEachEntity' }).store(this)
+        })
+        .empty()
+        .done(done)
+    })
+    afterEach((done) => {
+      TestEntity.match('s').equals('forEachEntity').purge(done)
+    })
+
+    it(`traite toutes les entités d'une requête`, (done) => {
+      let count = 0
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').grab(this)
+        })
+        .seqEach(function (entity) {
+          expect(entity.treated).to.equal(true)
+          count++
+          this()
+        })
+        .seq(function () {
+          expect(count).to.equal(ENTITY_COUNT)
+          this()
+        })
+        .done(done)
+    })
+
+    it(`empêche onEachEntity d'appeller plusieurs fois son callback`, (done) => {
+      let treated = 0
+      sinon.stub(console, 'error')
+
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              treated++
+
+              cb()
+              cb()
+            },
+            this
+          )
+        })
+        .seq(function () {
+          // Le traitement du deuxième appel cb() passe dans le loop suivante, on fait un setTimeout
+          // pour attraper les console error
+          setTimeout(() => {
+            // Sans le garde-fou on aurait eu beaucoup plus de passages dans onEachEntity
+            // vu que chaque deuxième appel de cb déclenche un onEachEntity supplémentaire
+            // sur les éléments qui suivent, récursivement !
+            expect(treated).to.equal(ENTITY_COUNT)
+
+            sinon.assert.callCount(console.error, ENTITY_COUNT)
+            _.times(ENTITY_COUNT, (i) => {
+              expect(console.error.getCall(i).args[0].message).to.equal('ERROR: forEachEntity onEntity callback function called many times')
+            })
+            console.error.restore()
+
+            this()
+          }, 1)
+        })
+        .done(done)
+    })
+
+    it(`remonte l'erreur est arrête le traitement si une entité échoue`, (done) => {
+      let treated = 0
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              if (treated === 2) return cb(new Error('Ooops la 3ème entité échoue!'))
+              entity.treated = true
+              treated++
+              entity.store(cb)
+            },
+            this
+          )
+        })
+        .catch((err) => {
+          expect(treated).to.equal(2) // on n'est pas allé plus loin
+          expect(err.message).to.equal('Ooops la 3ème entité échoue!')
+          done()
+        })
+    })
+
+    it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this,
+            { limit: 10 }
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').grab(this)
+        })
+        .seq(function (entities) {
+          _.forEach(entities, (groupe, index) => {
+            if (index < 10) {
+              expect(groupe.treated).to.equal(true)
+            } else {
+              expect(groupe.treated).to.equal(undefined)
+            }
+            this()
+          })
+        })
+        .empty()
+        .done(done)
+    })
+
+    it(`traite un grand (> 200, le batch size) sous-ensemble des entités d'une requête`, (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this,
+            { limit: 210 }
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').grab(this)
+        })
+        .seq(function (entities) {
+          _.forEach(entities, (groupe, index) => {
+            if (index < 210) {
+              expect(groupe.treated).to.equal(true)
+            } else {
+              expect(groupe.treated).to.equal(undefined)
+            }
+            this()
+          })
+        })
+        .empty()
+        .done(done)
+    })
+
+    it(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              entity.treated = true
+              entity.store(cb)
+            },
+            this,
+            { limit: 200 }
+          )
+        })
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').grab(this)
+        })
+        .seq(function (entities) {
+          _.forEach(entities, (groupe, index) => {
+            if (index < 200) {
+              expect(groupe.treated).to.equal(true, `l'entité index=${index} devrait être traitée`)
+            } else {
+              expect(groupe.treated).to.equal(undefined, `l'entité index=${index} ne devrait pas   être traitée`)
+            }
+            this()
+          })
+        })
+        .empty()
+        .done(done)
     })
   })
 })
