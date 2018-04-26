@@ -121,7 +121,7 @@ class Entity {
     const indexes = {}
 
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
-    _.forEach(entityDefinition.indexes, ({callback, fieldType, useData, fieldName}) => {
+    _.forEach(entityDefinition.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
 
       // valeurs retournées par la fct d'indexation
@@ -146,9 +146,9 @@ class Entity {
 
       // affectation après cast dans le type indiqué
       if (Array.isArray(value)) {
-        indexes[fieldName] = value.map(x => castToType(x, fieldType))
+        indexes[indexName] = value.map(x => castToType(x, fieldType))
       } else {
-        indexes[fieldName] = castToType(value, fieldType)
+        indexes[indexName] = castToType(value, fieldType)
       }
     })
 

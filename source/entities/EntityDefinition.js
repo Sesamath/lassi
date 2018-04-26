@@ -43,14 +43,14 @@ const INDEX_PREFIX = 'entity_index_'
 const BUILT_IN_INDEXES = {
   oid: {
     fieldType: 'string',
-    fieldName: '_id',
+    indexName: '_id',
     useData: false,
     path: '_id',
     indexOptions: {}
   },
   __deletedAt: {
     fieldType: 'date',
-    fieldName: '__deletedAt',
+    indexName: '__deletedAt',
     useData: false,
     path: '__deletedAt',
     indexOptions: {}
@@ -211,11 +211,11 @@ class EntityDefinition {
 
   /**
    * Retourne le nom de l'index mongo associé à un champ
-   * @param fieldName
+   * @param indexName
    * @return {string}
    */
-  getMongoIndexName (path, useData, indexOptions = {}) {
-    let name = `${INDEX_PREFIX}${path}`
+  getMongoIndexName (indexName, useData, indexOptions = {}) {
+    let name = `${INDEX_PREFIX}${indexName}`
 
     if (useData) {
       // quand un index passe de calculé à non calculé, on veut le regéner donc on change son nom
@@ -259,7 +259,7 @@ class EntityDefinition {
    * @param {Function} callback (optionnel) Cette fonction permet de définir virtuellement la valeur d'un index.
    * @return {Entity} l'entité (chaînable)
    */
-  defineIndex (fieldName, ...params) {
+  defineIndex (indexName, ...params) {
     let callback
     let indexOptions = {}
     let fieldType
@@ -300,24 +300,24 @@ class EntityDefinition {
     // - vérifier dans defineIndex que le champ a un type dans le shema
     const useData = !callback && !indexOptions.sparse && !fieldType
 
-    const mongoIndexName = this.getMongoIndexName(fieldName, useData, indexOptions)
+    const mongoIndexName = this.getMongoIndexName(indexName, useData, indexOptions)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
 
     const index = {
       fieldType,
-      fieldName,
+      indexName,
       useData,
-      path: useData ? `_data.${fieldName}` : fieldName,
+      path: useData ? `_data.${indexName}` : indexName,
       mongoIndexName,
       indexOptions,
       // Si on nous passe pas de callback, on retourne la valeur du champ
       // attention, pas de fat arrow ici car on fera du apply dessus
-      callback: callback || function () { return this[fieldName] }
+      callback: callback || function () { return this[indexName] }
     }
 
-    this.indexes[fieldName] = index
+    this.indexes[indexName] = index
     this.indexesByMongoIndexName[mongoIndexName] = index
     return this
   }
