@@ -362,6 +362,16 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
 
+    it(`Sélection d'entités avec limit 0`, function (done) {
+      this.timeout(10000)
+      flow().seq(function () {
+        TestEntity.match().grab({offset: 100, limit: 0}, this)
+      }).seq(function (entities) {
+        assert.equal(entities.length, 0)
+        this()
+      }).done(done)
+    })
+
     it(`Sélection d'entités avec hard limit`, function (done) {
       function last (error) {
         expect(console.error).to.have.been.calledThrice
@@ -1009,7 +1019,7 @@ describe('Test entities-queries', function () {
         .empty()
         .done(done)
     })
-    it.only(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
+    it(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
       flow()
         .seq(function () {
           TestEntity.match('s').equals('forEach').forEach(
