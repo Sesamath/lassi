@@ -506,27 +506,27 @@ class EntityQuery {
     })
   }
   /**
-   * Callback d'exécution d'une requête forEach, appelé sur chaque résultat de la requête
-   * @callback EntityQuery~ForEachOnEachEntityCallback
+   * Callback d'exécution d'une requête forEachEntity, appelé sur chaque résultat de la requête
+   * @callback EntityQuery~ForEachEntityOnEachEntityCallback
    * @param {Entity} entity Un des résultats de la requête
    * @param {function} next Callback a appeler quand ce résultat est traité
    */
   /**
-   * Callback final d'une requête forEach, appelé quand tous les résultats ont été traités
-   * @callback EntityQuery~ForEachDoneCallback
+   * Callback final d'une requête forEachEntity, appelé quand tous les résultats ont été traités
+   * @callback EntityQuery~ForEachEntityDoneCallback
    * @param {Error} error Une erreur est survenue.
    * @param {number} count Nombre total d'entités traitées
    */
   /**
    * Applique un traitement (onEachEntity) sur chaque entité correspondant à la EntityQuery en cours
    * Si une occurence lève une erreur, l'ensemble de la boucle est arrétée.
-   * @param {EntityQuery~ForEachOnEachEntityCallback} onEachEntity appelée avec (entity, next), next devra être rappelé après traitement avec une erreur éventuelle
-   * @param {EntityQuery~ForEachDoneCallback} done appelée à la fin avec (error, nbProcessedOk)
+   * @param {EntityQuery~ForEachEntityOnEachEntityCallback} onEachEntity appelée avec (entity, next), next devra être rappelé après traitement avec une erreur éventuelle
+   * @param {EntityQuery~ForEachEntityDoneCallback} done appelée à la fin avec (error, nbProcessedOk)
    * @param {object} [options]
    * @param {number} [options.limit] Le max du nb d'entity à traiter
    * @param {boolean} [options.progressBar] Passer true pour afficher la progression en console (donc si l'on a un tty, i.e. en cli sans redirection de stdout)
    */
-  forEach (onEachEntity, done, options = {}) {
+  forEachEntity (onEachEntity, done, options = {}) {
     const query = this
     const globalLimit = options.limit
 

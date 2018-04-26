@@ -920,26 +920,26 @@ describe('Test entities-queries', function () {
     })
   })
 
-  describe('.forEach', () => {
+  describe('.forEachEntity', () => {
     beforeEach((done) => {
       // 415 pour avoir plus que 2 batch
       const oids = _.times(415, (i) => 'oid-' + i)
       flow(oids)
         .seqEach(function (oid) {
-          TestEntity.create({ oid, s: 'forEach' }).store(this)
+          TestEntity.create({ oid, s: 'forEachEntity' }).store(this)
         })
         .empty()
         .done(done)
     })
     afterEach((done) => {
-      TestEntity.match('s').equals('forEach').purge(done)
+      TestEntity.match('s').equals('forEachEntity').purge(done)
     })
 
     it(`traite toutes les entités d'une requête`, (done) => {
       let count = 0
       flow()
         .seq(function () {
-          TestEntity.match('s').equals('forEach').forEach(
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
             (entity, cb) => {
               entity.treated = true
               entity.store(cb)
@@ -948,7 +948,7 @@ describe('Test entities-queries', function () {
           )
         })
         .seq(function () {
-          TestEntity.match('s').equals('forEach').grab(this)
+          TestEntity.match('s').equals('forEachEntity').grab(this)
         })
         .seqEach(function (entity) {
           expect(entity.treated).to.equal(true)
@@ -965,7 +965,7 @@ describe('Test entities-queries', function () {
     it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {
       flow()
         .seq(function () {
-          TestEntity.match('s').equals('forEach').forEach(
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
             (entity, cb) => {
               entity.treated = true
               entity.store(cb)
@@ -975,7 +975,7 @@ describe('Test entities-queries', function () {
           )
         })
         .seq(function () {
-          TestEntity.match('s').equals('forEach').grab(this)
+          TestEntity.match('s').equals('forEachEntity').grab(this)
         })
         .seq(function (entities) {
           _.forEach(entities, (groupe, index) => {
@@ -994,7 +994,7 @@ describe('Test entities-queries', function () {
     it(`traite un grand (> 200, le batch size) sous-ensemble des entités d'une requête`, (done) => {
       flow()
         .seq(function () {
-          TestEntity.match('s').equals('forEach').forEach(
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
             (entity, cb) => {
               entity.treated = true
               entity.store(cb)
@@ -1004,7 +1004,7 @@ describe('Test entities-queries', function () {
           )
         })
         .seq(function () {
-          TestEntity.match('s').equals('forEach').grab(this)
+          TestEntity.match('s').equals('forEachEntity').grab(this)
         })
         .seq(function (entities) {
           _.forEach(entities, (groupe, index) => {
@@ -1022,7 +1022,7 @@ describe('Test entities-queries', function () {
     it(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
       flow()
         .seq(function () {
-          TestEntity.match('s').equals('forEach').forEach(
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
             (entity, cb) => {
               entity.treated = true
               entity.store(cb)
@@ -1032,7 +1032,7 @@ describe('Test entities-queries', function () {
           )
         })
         .seq(function () {
-          TestEntity.match('s').equals('forEach').grab(this)
+          TestEntity.match('s').equals('forEachEntity').grab(this)
         })
         .seq(function (entities) {
           _.forEach(entities, (groupe, index) => {
