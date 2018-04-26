@@ -23,17 +23,20 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the fs. site: http://www.fs..org.
  */
+const EventEmitter = require('events').EventEmitter
+const fs = require('fs')
 
 const flow = require('an-flow')
 const _ = require('lodash')
+const log = require('an-log')('lassi')
+
+const Context = require('./Context')
 const Component = require('./Component')
 const Services = require('./Services')
-const EventEmitter = require('events').EventEmitter
-const fs = require('fs')
-const log = require('an-log')('lassi')
+// les ≠ services sont requis dans le constructeur
+
 // ajoute les propriétés de couleur sur les string ('toto'.blue pour l'afficher bleu si y'a un tty)
 require('colors')
-const requireContext = this
 
 let shutdownRequested = false
 
@@ -297,9 +300,6 @@ function startLassi (options) {
     log('ERROR'.red, ' : lassi already exists')
     return global.lassi
   }
-  const lassi = new Lassi(options)
-  lassi.Context = require('./Context')
-  lassi.require = () => require.apply(requireContext, arguments)
 
   // Un écouteur pour tout ce qui pourrait passer au travers de la raquette
   // @see https://nodejs.org/api/process.html#process_event_uncaughtexception
@@ -319,7 +319,7 @@ function startLassi (options) {
     ['beforeExit', 'SIGHUP', 'SIGINT', 'SIGTERM', 'exit'].forEach((signal) => {
       process.on(signal, () => {
         log('pid ' + process.pid + ' received signal ' + signal)
-        lassi.shutdown()
+        if (global.lassi) lassi.shutdown()
       })
     })
   }
@@ -331,11 +331,19 @@ function startLassi (options) {
     if (message === 'shutdown') {
       // Mais on n'arrive jamais là, le process meurt visiblement avant
       log('launching shutdown')
-      lassi.shutdown()
+      if (global.lassi) lassi.shutdown()
     }
   })
 
-  return lassi
+  try {
+    const lassi = new Lassi(options)
+    lassi.Context = Context
+    return lassi
+  } catch (error) {
+    console.error('Plantage au start de lassi', error)
+    if (global.lassi) lassi.shutdown()
+    throw error
+  }
 }
 
 module.exports = startLassi
