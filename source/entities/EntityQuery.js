@@ -532,50 +532,47 @@ class EntityQuery {
 
     let skip = 0
     // le nb d'entités traitées sans erreur
-    let nb = 0
+    let nbTreated = 0
 
     let progressBar
 
+    const processEntities = (entities, cb) => {
+      if (!entities.length) return cb()
+
+      // On traite les entités au début du tableau jusqu'à ce qu'il soit vide
+      try { // si 'onEachEntity' throw une erreur
+        let called = false // garde-fou pour éviter que la définition de onEachEntity appelle plusieurs fois son callback (ce qui aurait un drôle d'effet!)
+        onEachEntity(entities[0], (err) => {
+          if (called) {
+            console.error(new Error('ERROR: forEachEntity onEntity callback function called many times'))
+            return
+          }
+          called = true
+
+          if (err) return cb(err)
+
+          nbTreated++
+          // Sortie immédiate via le done() global si on a atteint une limite arbitraire
+          if (globalLimit && globalLimit <= nbTreated) return done(null, nbTreated)
+          processEntities(_.tail(entities) /* tout sauf le premier élèment */, cb)
+        })
+      } catch (e) {
+        return cb(e)
+      }
+    }
+
     const nextBatch = () => {
-      if (globalLimit && globalLimit <= skip) return done(null, nb)
-      const limit = globalLimit ? Math.min(FOREACH_BATCH_SIZE, globalLimit - skip) : FOREACH_BATCH_SIZE
+      query.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
+        if (err) return done(err, nbTreated)
 
-      query.grab({limit, skip}, (err, entities) => {
-        if (err) return done(err, nb)
+        processEntities(entities, (e) => {
+          if (e) return done(e, nbTreated)
+          if (entities.length < FOREACH_BATCH_SIZE) return done(null, nbTreated) // dernier batch
 
-        // On capture la taille de 'entities' avant de le modifier plus bas
-        const entitiesLength = entities.length
-        const doneBatch = () => {
-          if (entitiesLength < FOREACH_BATCH_SIZE) {
-            done(null, nb)
-          } else {
-            skip += FOREACH_BATCH_SIZE
-            process.nextTick(nextBatch)
-          }
-        }
-
-        const processNextEntity = () => {
-          // On traite les entités au début du tableau jusqu'à ce qu'il soit vide
-          if (entities.length) {
-            try { // si 'onEachEntity' throw une erreur
-              let called = false
-              onEachEntity(entities.shift(), (err) => {
-                if (called) return done(new Error('ERROR: forEachEntity onEntity callback function called many times'), nb)
-                called = true
-                if (err) return done(err, nb)
-                nb++
-                processNextEntity()
-              })
-            } catch (e) {
-              return done(e, nb)
-            }
-          } else {
-            if (progressBar) progressBar.tick(entitiesLength)
-            doneBatch()
-          }
-        }
-
-        processNextEntity()
+          if (progressBar) progressBar.tick(entities.length)
+          skip += FOREACH_BATCH_SIZE
+          process.nextTick(nextBatch)
+        })
       })
     }
 

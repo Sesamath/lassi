@@ -921,9 +921,10 @@ describe('Test entities-queries', function () {
   })
 
   describe('.forEachEntity', () => {
+    // 415 pour avoir plus que 2 batch
+    const ENTITY_COUNT = 415
     beforeEach((done) => {
-      // 415 pour avoir plus que 2 batch
-      const oids = _.times(415, (i) => 'oid-' + i)
+      const oids = _.times(ENTITY_COUNT, (i) => 'oid-' + i)
       flow(oids)
         .seqEach(function (oid) {
           TestEntity.create({ oid, s: 'forEachEntity' }).store(this)
@@ -956,10 +957,68 @@ describe('Test entities-queries', function () {
           this()
         })
         .seq(function () {
-          expect(count).to.equal(415)
+          expect(count).to.equal(ENTITY_COUNT)
           this()
         })
         .done(done)
+    })
+
+    it(`empêche onEachEntity d'appeller plusieurs fois son callback`, (done) => {
+      let treated = 0
+      sinon.stub(console, 'error')
+
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              treated++
+
+              cb()
+              cb()
+            },
+            this
+          )
+        })
+        .seq(function () {
+          // Le traitement du deuxième appel cb() passe dans le loop suivante, on fait un setTimeout
+          // pour attraper les console error
+          setTimeout(() => {
+            // Sans le garde-fou on aurait eu beaucoup plus de passages dans onEachEntity
+            // vu que chaque deuxième appel de cb déclenche un onEachEntity supplémentaire
+            // sur les éléments qui suivent, récursivement !
+            expect(treated).to.equal(ENTITY_COUNT)
+
+            sinon.assert.callCount(console.error, ENTITY_COUNT)
+            _.times(ENTITY_COUNT, (i) => {
+              expect(console.error.getCall(i).args[0].message).to.equal('ERROR: forEachEntity onEntity callback function called many times')
+            })
+            console.error.restore()
+
+            this()
+          }, 1)
+        })
+        .done(done)
+    })
+
+    it(`remonte l'erreur est arrête le traitement si une entité échoue`, (done) => {
+      let treated = 0
+      flow()
+        .seq(function () {
+          TestEntity.match('s').equals('forEachEntity').forEachEntity(
+            (entity, cb) => {
+              if (treated === 2) return cb(new Error('Ooops la 3ème entité échoue!'))
+              entity.treated = true
+              treated++
+              entity.store(cb)
+            },
+            this
+          )
+        })
+        .catch((err) => {
+          expect(treated).to.equal(2) // on n'est pas allé plus loin
+          expect(err.message).to.equal('Ooops la 3ème entité échoue!')
+          done()
+        })
     })
 
     it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {
@@ -1019,6 +1078,7 @@ describe('Test entities-queries', function () {
         .empty()
         .done(done)
     })
+
     it(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
       flow()
         .seq(function () {
