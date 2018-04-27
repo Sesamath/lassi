@@ -294,6 +294,15 @@ class Context {
   }
 
   /**
+   * Fixe le status (code http de la réponse)
+   * @param {number} status
+   */
+  setStatus (status) {
+    if (typeof status !== 'number' || status < 100 || status > 599) return console.error(new Error('invalid status'))
+    this.status = status
+  }
+
+  /**
    * Retourne un header de la requete
    * @param {string} name Le header que l'on cherche
    * @param {string} [defaultValue=undefined] Valeur à retourner si le header name n'existe pas
