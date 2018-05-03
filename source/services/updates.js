@@ -71,7 +71,8 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
     // si y'a un lock on arrête là
     if (isUpdateLocked()) return warn(`${lockFile} présent, on ignore les updates automatiques`)
     // on regarde si y'a un n° de départ en conf (appli avec anciens updates virés du code)
-    const defaultVersion = $settings.get('application.updates.defaultVersion', 0)
+    const minVersion = getMinUpdate() - 1
+    const defaultVersion = $settings.get('application.updates.defaultVersion', minVersion)
     flow().seq(function () {
       // version actuelle
       LassiUpdate.match('num').sort('num', 'desc').grabOne(this)
@@ -181,6 +182,17 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
     fs.access(fileToRequire, fs.R_OK, function (err) {
       cb(null, !err)
     })
+  }
+
+  /**
+   * Récupère la version minimum disponible dans le dossier d'updates en se basant sur le nom de fichier
+   * @return {Number}
+   */
+  function getMinUpdate () {
+    const folder = $settings.get('application.updates.folder')
+    const files = fs.readdirSync(folder).map(filename => Number(filename.match(/\d/g).join('')))
+
+    return files.length === 0 ? 0 : Math.min(...files)
   }
 
   /**
