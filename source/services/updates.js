@@ -192,7 +192,7 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
     const folder = $settings.get('application.updates.folder')
     const files = fs.readdirSync(folder).map(filename => Number(filename.match(/\d/g).join('')))
 
-    return files.length === 0 ? 0 : Math.min(...files)
+    return Math.min(...files)
   }
 
   /**
