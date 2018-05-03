@@ -70,13 +70,11 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
     lockFile = lock
     // si y'a un lock on arrête là
     if (isUpdateLocked()) return warn(`${lockFile} présent, on ignore les updates automatiques`)
-    // on regarde si y'a un n° de départ en conf (appli avec anciens updates virés du code)
-    const minVersion = getMinUpdate() - 1
-    const defaultVersion = $settings.get('application.updates.defaultVersion', minVersion)
     flow().seq(function () {
       // version actuelle
       LassiUpdate.match('num').sort('num', 'desc').grabOne(this)
     }).seq(function (lastUpdate) {
+      const defaultVersion = lastUpdate && lastUpdate.num ? 0 : getMinUpdate() - 1
       dbVersion = (lastUpdate && lastUpdate.num) || 0
       if (dbVersion < defaultVersion) {
         // init avec la version de départ mise en config
