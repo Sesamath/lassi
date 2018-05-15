@@ -38,12 +38,16 @@ const log = require('an-log')('EntityDefinition')
 // internes à mongo par ex, genre _id_…)
 const INDEX_PREFIX = 'entity_index_'
 
-// ces index sont particuliers, ils ne sont pas construits par Entity::buildIndexes
-// mais affectés au store => pas besoin de callback
+// Ces index sont particuliers :
+// - ils sont imposés sur chaque entity
+// - oid n'en est pas vraiment un car c'est une propriété de data mais mappé sur le _id du document au store
+// - __deletedAt est mis par softDelete ou enlevé par restore, stocké dans le document mais pas dans _data
+// - ils sont affectés au store => pas besoin de callback
 const BUILT_IN_INDEXES = {
   oid: {
     fieldType: 'string',
     indexName: '_id',
+    mongoIndexName: '_id_',
     useData: false,
     path: '_id',
     indexOptions: {}
@@ -51,6 +55,7 @@ const BUILT_IN_INDEXES = {
   __deletedAt: {
     fieldType: 'date',
     indexName: '__deletedAt',
+    mongoIndexName: '__deletedAt',
     useData: false,
     path: '__deletedAt',
     indexOptions: {}
@@ -232,6 +237,7 @@ class EntityDefinition {
    * @return {string}
    */
   getMongoIndexName (indexName, useData, indexOptions = {}) {
+    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName].mongoIndexName
     let name = `${INDEX_PREFIX}${indexName}`
 
     // quand un index passe de calculé à non calculé, on veut le regénérer donc on change son nom
@@ -275,6 +281,7 @@ class EntityDefinition {
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (indexName, ...params) {
+    if (BUILT_IN_INDEXES[indexName]) throw new Error(`${indexName} est un index imposé par lassi, il ne peut pas être redéfini`)
     let callback
     let indexOptions = {}
     let fieldType
@@ -420,6 +427,8 @@ class EntityDefinition {
     }).seq(function () {
       // et on regarde ce qui manque
       let indexesToAdd = []
+      // par commodité, on ajoute __deletedAt aux index ici et l'enlève juste après le forEach
+      def.indexes.__deletedAt = BUILT_IN_INDEXES.__deletedAt
       _.forEach(def.indexes, ({path, mongoIndexName, indexOptions}) => {
         if (existingIndexes[mongoIndexName]) return
         // directement au format attendu par mongo
@@ -427,6 +436,7 @@ class EntityDefinition {
         indexesToAdd.push({key: {[path]: 1}, name: mongoIndexName, ...indexOptions})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
       })
+      delete def.indexes.__deletedAt
 
       if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
       else cb()
