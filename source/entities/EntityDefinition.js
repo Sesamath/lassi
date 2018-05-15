@@ -401,10 +401,8 @@ class EntityDefinition {
     // on parse l'existant
     }).seqEach(function (existingIndex) {
       const mongoIndexName = existingIndex.name
-      // _id_ est un index mis d'office par mongo
-      if (mongoIndexName === '_id_') return this()
 
-      if (def.indexesByMongoIndexName[mongoIndexName]) {
+      if (def.indexesByMongoIndexName[mongoIndexName] || _.some(BUILT_IN_INDEXES, (index) => index.mongoIndexName === mongoIndexName)) {
         // la notion de type de valeur à indexer n'existe pas dans mongo.
         // seulement des type d'index champ unique / composé / texte / etc.
         // https://docs.mongodb.com/manual/indexes/#index-types
