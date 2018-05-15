@@ -599,7 +599,7 @@ class EntityDefinition {
    * @param {EntityQuery~CountCallback} cb
    */
   count (cb) {
-    this.getCollection().count({}, {__deletedAt: {$eq: null}}, cb)
+    this.getCollection().count({__deletedAt: {$eq: null}}, cb)
   }
 
   /**
