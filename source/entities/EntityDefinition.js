@@ -43,12 +43,16 @@ const INDEX_PREFIX = 'entity_index_'
 const BUILT_IN_INDEXES = {
   oid: {
     fieldType: 'string',
-    fieldName: '_id',
+    indexName: '_id',
+    useData: false,
+    path: '_id',
     indexOptions: {}
   },
   __deletedAt: {
     fieldType: 'date',
-    fieldName: '__deletedAt',
+    indexName: '__deletedAt',
+    useData: false,
+    path: '__deletedAt',
     indexOptions: {}
   }
 
@@ -207,11 +211,16 @@ class EntityDefinition {
 
   /**
    * Retourne le nom de l'index mongo associé à un champ
-   * @param fieldName
+   * @param indexName
    * @return {string}
    */
-  getMongoIndexName (fieldName, indexOptions = {}) {
-    let name = `${INDEX_PREFIX}${fieldName}`
+  getMongoIndexName (indexName, useData, indexOptions = {}) {
+    let name = `${INDEX_PREFIX}${indexName}`
+
+    if (useData) {
+      // quand un index passe de calculé à non calculé, on veut le regéner donc on change son nom
+      name = `${name}-data`
+    }
 
     // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
     // si on ajoute ou enlève l'option
@@ -243,34 +252,72 @@ class EntityDefinition {
    *  });
    * ```
    *
-   * @param {String} fieldName Nom du champ à indexer
-   * @param {String} fieldType Type du champ à indexer ('integer', 'string', 'date')
-   * @param {Function} callback Cette fonction permet de définir virtuellement la valeur d'un index.
+   * @param {String} indexName Nom du champ à indexer ou de l'index virtuel
+   * @param {String} fieldType (optionnel) Type du champ à indexer ('integer', 'string', 'date')
+   *                                      ce qui va entrainer du cast à l'indexation et à la query (cf. castToType)
+   * @param {Object} indexOptions (optionnel) Options d'index mongo ex: {unique: true, sparse: true}
+   * @param {Function} callback (optionnel) Cette fonction permet de définir virtuellement la valeur d'un index.
    * @return {Entity} l'entité (chaînable)
    */
-  defineIndex (fieldName, fieldType, indexOptions = {}, callback) {
-    if (typeof indexOptions === 'function') {
-      callback = indexOptions
-      indexOptions = {}
+  defineIndex (indexName, ...params) {
+    let callback
+    let indexOptions = {}
+    let fieldType
+    // On récupère les paramètres optionnels: fieldType, indexOptions, callback
+    // en partant de la fin. Heureusement ils ont des types différents!
+    let param = params.pop()
+    if (typeof param === 'function') {
+      callback = param
+      param = params.pop()
     }
 
-    if (!isAllowedIndexType(fieldType)) throw new Error(`Type d’index ${fieldType} non géré`)
-    const mongoIndexName = this.getMongoIndexName(fieldName, indexOptions)
+    if (typeof param === 'object') {
+      indexOptions = param
+      param = params.pop()
+    }
+
+    if (typeof param === 'string') {
+      fieldType = param
+      if (!isAllowedIndexType(fieldType)) throw new Error(`Type d’index ${fieldType} non géré`)
+    }
+
+    // Pour l'instant le seul cas où on peut se permettre d'indexer directement l'attribute dans _data
+    // est le cas où ces conditions sont remplies :
+    // - l'index n'est pas sparse, car dans ce cas si sa valeur est null|undefined buildIndexes()
+    //   ne met pas la propriété d'index dans le doc mongo (cf commentaire dans cette fonction)
+    //   (le risque serait qu'un bout de code qui fait du `if (entity.prop === null)` ou
+    //    `if (entity.hasOwnProperty('prop'))` ne fonctionne plus lorsque l'index prop prend
+    //    l'attribut sparse)
+    // - l'index n'a pas de fieldType car buildIndexes() et buildQuery() font du cast sur la valeur indexée
+    //
+    // On pourrait se débarrasser de fieldType, mais vu ce que l'on fait dans castToType
+    // ça peut avoir des répercussions fâcheuses (par ex `.match(42)` remonte les valeurs string '42'
+    // si y'a un type string, et ça ne fonctionnerait plus si on enlevait le type sur l'index).
+    // Il faudrait donc d'abord supprimer le type dans toutes les définitions d'index des applis
+    // qui utilisent lassi avant de le supprimer de lassi
+    // Avant de faire cela, cela serait sécurisant de
+    // - vérifier le type de l'argument passé à match, qui devra être le même que le jsonShema
+    // - vérifier dans defineIndex que le champ a un type dans le shema
+    const useData = !callback && !indexOptions.sparse && !fieldType
+
+    const mongoIndexName = this.getMongoIndexName(indexName, useData, indexOptions)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
     if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
 
     const index = {
       fieldType,
-      fieldName,
+      indexName,
+      useData,
+      path: useData ? `_data.${indexName}` : indexName,
       mongoIndexName,
       indexOptions,
       // Si on nous passe pas de callback, on retourne la valeur du champ
       // attention, pas de fat arrow ici car on fera du apply dessus
-      callback: callback || function () { return this[fieldName] }
+      callback: callback || function () { return this[indexName] }
     }
 
-    this.indexes[fieldName] = index
+    this.indexes[indexName] = index
     this.indexesByMongoIndexName[mongoIndexName] = index
     return this
   }
@@ -358,11 +405,11 @@ class EntityDefinition {
     }).seq(function () {
       // et on regarde ce qui manque
       let indexesToAdd = []
-      _.forEach(def.indexes, ({fieldName, mongoIndexName, indexOptions}) => {
+      _.forEach(def.indexes, ({path, mongoIndexName, indexOptions}) => {
         if (existingIndexes[mongoIndexName]) return
         // directement au format attendu par mongo
         // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
-        indexesToAdd.push({key: {[fieldName]: 1}, name: mongoIndexName, ...indexOptions})
+        indexesToAdd.push({key: {[path]: 1}, name: mongoIndexName, ...indexOptions})
         log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
       })
 
@@ -374,13 +421,7 @@ class EntityDefinition {
   defineTextSearchFields (fields) {
     var self = this
 
-    fields.forEach(function (field) {
-      if (!self.indexes[field]) {
-        throw new Error(`defineTextSearchFields ne s'applique qu'à des index. Non indexé: ${field}`)
-      }
-    })
-
-    self._textSearchFields = fields
+    self._textSearchFields = fields.map(this.getIndex.bind(this))
   }
 
   initializeTextSearchFieldsIndex (callback) {
@@ -394,8 +435,8 @@ class EntityDefinition {
       if (!self._textSearchFields) { return cb() }
 
       const indexParams = {}
-      self._textSearchFields.forEach(function (field) {
-        indexParams[field] = 'text'
+      self._textSearchFields.forEach(function ({path}) {
+        indexParams[path] = 'text'
       })
       dbCollection.createIndex(indexParams, {name: indexName}, cb)
     }

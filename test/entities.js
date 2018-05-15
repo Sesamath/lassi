@@ -31,6 +31,67 @@ describe('Entity', () => {
     quit()
   })
 
+  describe('_data', () => {
+    beforeEach(function (done) {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.flush((err) => {
+        if (err) return done(err)
+        TestEntity.initialize(done)
+      })
+    })
+
+    it('contient un objet mongo', (done) => {
+      flow()
+        .seq(function () {
+          TestEntity.create({oid: '1', test: 'a'}).store(this)
+        })
+        .seq(function () {
+          TestEntity.getCollection().findOne({_id: '1'}, this)
+        })
+        .seq(function (result) {
+          expect(result._data).to.be.an('object')
+          expect(result._data.test).to.equal('a')
+          this()
+        })
+        .done(done)
+    })
+
+    it('peut contenir un JSON pour la rétro-compatibilité', (done) => {
+      // En version 2.2.17, _data contenait un JSON
+      flow()
+        .seq(function () {
+          TestEntity.getCollection().insert({
+            _id: '1',
+            _data: JSON.stringify({ test: 'a', oid: '1' })
+          }, this)
+        })
+        .seq(function () {
+          TestEntity.getCollection().findOne({_id: '1'}, this)
+        })
+        .seq(function (result) {
+          // Objet mongo AVANT store...
+          expect(result._data).to.equal('{"test":"a","oid":"1"}')
+
+          TestEntity.match().grabOne(this)
+        })
+        .seq(function (entity) {
+          // ...que l'on peut lire correctement comme entity
+          expect(entity.test).to.equal('a')
+          entity.store(this)
+        })
+        .seq(function () {
+          TestEntity.getCollection().findOne({_id: '1'}, this)
+        })
+        .seq(function (result) {
+          // Objet mongo APRES store, le json a été remplacé par un objet
+          expect(result._data).to.be.an('object')
+          expect(result._data.test).to.equal('a')
+          this()
+        })
+        .done(done)
+    })
+  })
+
   describe('EntityDefinition#onLoad', function () {
     let count
     beforeEach(function (done) {

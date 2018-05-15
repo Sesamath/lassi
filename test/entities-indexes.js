@@ -26,6 +26,11 @@ function initEntities (dbSettings, next) {
   }).seq(function () {
     SimpleEntity.defineIndex('index1', 'integer')
     SimpleEntity.defineIndex('index2', 'string')
+    SimpleEntity.defineIndex('indexTypeless')
+    SimpleEntity.defineIndex('indexUnique', {unique: true})
+    SimpleEntity.defineIndex('indexSparse', {sparse: true})
+    SimpleEntity.defineIndex('indexUniqueSparse', {unique: true, sparse: true})
+
     SimpleEntity.initialize(this)
   }).done(next)
 }
@@ -63,18 +68,33 @@ describe('Test entities-indexes', function () {
       const coll = db.collection('SimpleEntity')
       coll.listIndexes().toArray((error, indexes) => {
         if (error) return done(error)
-        // on vérifie juste que l'on a nos deux index et aucun autre
-        // (pas les préfixes de nom défini dans lassi, c'est fait plus loin)
-        expect(indexes).to.have.length(3)
-        let idIndex, index1, index2
-        indexes.forEach(i => {
-          if (i.name === '_id_') idIndex = i
-          else if (i.key && i.key.index1) index1 = i
-          else if (i.key && i.key.index2) index2 = i
-        })
-        expect(idIndex).to.have.property('name')
-        expect(index1).to.have.property('name')
-        expect(index2).to.have.property('name')
+        // on vérifie juste que l'on a nos 7 index positionnés sur les bons attributs
+        expect(indexes).to.have.length(7)
+        const [idIndex, index1, index2, indexTypeless, indexUnique, indexSparse, indexUniqueSparse] = indexes
+
+        expect(idIndex.key).to.deep.equal({ _id: 1 })
+        expect(idIndex.name).to.equal('_id_')
+
+        expect(index1.key).to.deep.equal({ index1: 1 })
+        expect(index1.name).to.equal('entity_index_index1')
+
+        expect(index2.key).to.deep.equal({ index2: 1 })
+        expect(index2.name).to.equal('entity_index_index2')
+
+        // Un index sans type ni option sparse peut être indexé sur _data
+        expect(indexTypeless.key).to.deep.equal({ '_data.indexTypeless': 1 })
+        expect(indexTypeless.name).to.equal('entity_index_indexTypeless-data')
+
+        // Un index unique sans type, idem
+        expect(indexUnique.key).to.deep.equal({ '_data.indexUnique': 1 })
+        expect(indexUnique.name).to.equal('entity_index_indexUnique-data-unique')
+
+        // Par contre l'index sparse passe par un index dédié
+        expect(indexSparse.key).to.deep.equal({ 'indexSparse': 1 })
+        expect(indexSparse.name).to.equal('entity_index_indexSparse-sparse')
+
+        expect(indexUniqueSparse.key).to.deep.equal({ 'indexUniqueSparse': 1 })
+        expect(indexUniqueSparse.name).to.equal('entity_index_indexUniqueSparse-unique-sparse')
         done()
       })
     })
