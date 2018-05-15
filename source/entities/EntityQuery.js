@@ -137,7 +137,7 @@ function buildQuery (entityQuery, record) {
   })
 
   // par défaut on prend pas les softDeleted
-  if (!query['__deletedAt'] && !entityQuery._includeDeleted) query['__deletedAt'] = {$eq: null}
+  if (!query.__deletedAt && !entityQuery._includeDeleted) query.__deletedAt = {$eq: null}
   if (entityQuery.debug) log('mongoQuery', record)
 } // buildQuery
 
@@ -202,9 +202,7 @@ function createEntitiesFromRows (entityQuery, rows) {
 
     data.oid = row._id.toString()
     // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
-    if (row.__deletedAt) {
-      data.__deletedAt = row.__deletedAt
-    }
+    if (row.__deletedAt) data.__deletedAt = row.__deletedAt
 
     return entityQuery.entity.create(data)
   })
@@ -326,8 +324,9 @@ class EntityQuery {
    * @param {Integer} count le nb de résultat
    */
   /**
-   * Compte le nombre d'objet correpondants.
+   * Compte le nombre d'objets que la requête courante remonterait (non chaînable)
    * @param {EntityQuery~CountCallback} callback
+   * @return {undefined}
    */
   count (callback) {
     var self = this

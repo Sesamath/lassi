@@ -62,7 +62,7 @@ describe('Entity', () => {
         .seq(function () {
           TestEntity.getCollection().insert({
             _id: '1',
-            _data: JSON.stringify({ test: 'a', oid: '1' })
+            _data: JSON.stringify({test: 'a', oid: '1'})
           }, this)
         })
         .seq(function () {
@@ -191,13 +191,19 @@ describe('Entity', () => {
     describe('.afterStore', () => {
       it(`est appelée avec un oid lors d'une création`, (done) => {
         // Cas d'utilisation principale du afterStore :
-        // faire des opération sur l'oid à la fois pour la création et la mise à jour
+        // faire des opérations qui ont besoin de l'oid, identiques pour la création et la mise à jour
+        const testEntity = TestEntity.create({})
         TestEntity.afterStore(function () {
           const entity = this
-          expect(entity.oid).to.not.be.undefined
+          expect(entity.oid).not.to.be.undefined
+          Object.keys(testEntity).forEach(prop => {
+            if ([].includes(prop.substr(0, 1))) return
+            if (typeof testEntity[prop] === 'function') return
+            expect(entity[prop]).to.deep.equals(testEntity[prop])
+          })
           done()
         })
-        TestEntity.create({}).store()
+        testEntity.store()
       })
     })
   })
@@ -265,6 +271,74 @@ describe('Entity', () => {
     })
   })
 
+  describe('EntityDefinition#count et countBy', () => {
+    const saveOne = (data) => new Promise((resolve, reject) => {
+      TestEntity.create(data).store((error, entity) => {
+        if (error) return reject(error)
+        resolve(entity)
+      })
+    })
+
+    beforeEach(() => {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.defineIndex('nom', 'string')
+      const init = () => new Promise((resolve, reject) => {
+        TestEntity.flush((err) => {
+          if (err) return reject(err)
+          TestEntity.initialize((err) => {
+            if (err) return reject(err)
+            resolve()
+          })
+        })
+      })
+
+      return init().then(() => Promise.all([{nom: 'foo'}, {nom: 'bar'}, {nom: 'foo'}].map(saveOne)))
+    })
+
+    it('count compte le nb d’entities', (done) => {
+      TestEntity.count((error, nb) => {
+        if (error) return done(error)
+        expect(nb).to.equals(3)
+        done()
+      })
+    })
+    it('sans les softDeleted', (done) => {
+      TestEntity.match().grabOne((error, entity) => {
+        if (error) return done(error)
+        entity.softDelete((error) => {
+          if (error) return done(error)
+          TestEntity.count((error, nb) => {
+            if (error) return done(error)
+            expect(nb).to.equals(2)
+            done()
+          })
+        })
+      })
+    })
+    it('countBy compte le nb d’entities par valeur d’index', (done) => {
+      TestEntity.countBy('nom', (error, result) => {
+        if (error) return done(error)
+        expect(result.foo).to.equals(2)
+        expect(result.bar).to.equals(1)
+        done()
+      })
+    })
+    it('sans les softDeleted', (done) => {
+      TestEntity.match('nom').equals('bar').grabOne((error, entity) => {
+        if (error) return done(error)
+        entity.softDelete((error) => {
+          if (error) return done(error)
+          TestEntity.countBy('nom', (error, result) => {
+            if (error) return done(error)
+            expect(result.foo).to.equals(2)
+            expect(result.bar).to.be.undefined
+            done()
+          })
+        })
+      })
+    })
+  })
+
   describe('EntityDefinition#trackAttribute', () => {
     beforeEach(function () {
       TestEntity = entities.define('TestEntity')
@@ -306,6 +380,20 @@ describe('Entity', () => {
         entity.nom = 'foo'
         expect(entity.attributeHasChanged('nom')).to.be.true
         expect(entity.attributeWas('nom')).to.equal('foobar')
+      })
+    })
+  })
+
+  describe('EntityDefinition#trackAttributes', () => {
+    it('affecte bien chaque attribut', (done) => {
+      TestEntity = entities.define('TestEntity')
+      TestEntity.trackAttributes(['nom', 'prenom'])
+      TestEntity.create({prenom: 'foo', nom: 'bar'}).store((err, entity) => {
+        if (err) return done(err)
+        entity.nom = 'baz'
+        expect(entity.attributeHasChanged('prenom')).to.be.false
+        expect(entity.attributeHasChanged('nom')).to.be.true
+        done()
       })
     })
   })

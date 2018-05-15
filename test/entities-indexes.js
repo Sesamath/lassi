@@ -68,10 +68,9 @@ describe('Test entities-indexes', function () {
       const coll = db.collection('SimpleEntity')
       coll.listIndexes().toArray((error, indexes) => {
         if (error) return done(error)
-        // on vérifie juste que l'on a nos 7 index positionnés sur les bons attributs
-        expect(indexes).to.have.length(7)
-        const [idIndex, index1, index2, indexTypeless, indexUnique, indexSparse, indexUniqueSparse] = indexes
-
+        // on vérifie juste que l'on a nos 8 index positionnés sur les bons attributs
+        expect(indexes).to.have.length(8)
+        const [idIndex, index1, index2, indexTypeless, indexUnique, indexSparse, indexUniqueSparse, indexDeleted] = indexes
         expect(idIndex.key).to.deep.equal({ _id: 1 })
         expect(idIndex.name).to.equal('_id_')
 
@@ -95,6 +94,9 @@ describe('Test entities-indexes', function () {
 
         expect(indexUniqueSparse.key).to.deep.equal({ 'indexUniqueSparse': 1 })
         expect(indexUniqueSparse.name).to.equal('entity_index_indexUniqueSparse-unique-sparse')
+        // et l'index __deletedAt en dernier
+        expect(indexDeleted.key).to.deep.equal({ __deletedAt: 1 })
+        expect(indexDeleted.name).to.equal('__deletedAt')
         done()
       })
     })

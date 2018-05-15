@@ -32,8 +32,12 @@ describe('Test entities-queries', function () {
     }).seq(function (indexes) {
       // Pour visualiser les index rapidement
       // console.log('index de la collection', indexes)
-      expect(indexes).to.have.lengthOf(13) // nos indexes + _id_ toujours mis par mongo
-      this(null, indexes.filter(i => i.name !== '_id_'))
+      // nos indexes + _id_ toujours mis par mongo + __deletedAt ajouté par lassi
+      expect(indexes).to.have.lengthOf(14)
+      // on ne check que les notres
+      const testIndexes = indexes.filter(i => !['_id_', '__deletedAt'].includes(i.name))
+      expect(testIndexes).to.have.lengthOf(12)
+      this(null, testIndexes)
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
       this()
