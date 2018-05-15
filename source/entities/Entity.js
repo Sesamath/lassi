@@ -41,8 +41,8 @@ class Entity {
     // appelé dans EntityDefinition#create
     throw new Error(`Une entité n'est jamais instanciée directement. Utiliser EntityDefinition#create`)
   }
-  setDefinition (entity) {
-    Object.defineProperty(this, 'definition', {value: entity})
+  setDefinition (entityDefinition) {
+    Object.defineProperty(this, 'definition', {value: entityDefinition})
   }
 
   /**
@@ -91,14 +91,18 @@ class Entity {
       this.definition._toValidate
     )
 
-    const self = this
+    const entity = this
     flow(validators)
       .seqEach(function (fn) {
-        fn.call(self, this)
+        fn.call(entity, this)
       })
       .done(cb)
   }
 
+  /**
+   * Retourne l'entity sans ses méthodes ni ses propriétés préfixées avec $ ou _
+   * @return {Object}
+   */
   values () {
     // on vire les _, $ et méthodes, puis serialize et sauvegarde
     // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
@@ -112,16 +116,17 @@ class Entity {
       return true
     })
   }
+
   /**
    * Construits les index d'après l'entity
    * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
    */
   buildIndexes () {
-    const entityDefinition = this.definition
+    const def = this.definition
     const indexes = {}
 
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
-    _.forEach(entityDefinition.indexes, ({callback, fieldType, useData, indexName}) => {
+    _.forEach(def.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
 
       // valeurs retournées par la fct d'indexation
@@ -192,35 +197,48 @@ class Entity {
   }
 
   beforeStore (cb, storeOptions) {
-    const self = this
+    const entity = this
+    const def = this.definition
     flow()
       .seq(function () {
-        if (self.definition._beforeStore) {
-          self.definition._beforeStore.call(self, this)
+        if (def._beforeStore) {
+          def._beforeStore.call(entity, this)
         } else {
           this()
         }
       })
       .seq(function () {
-        if (self.definition._skipValidation || storeOptions.skipValidation) return this()
-        return self.isValid(this, {
+        if (def._skipValidation || storeOptions.skipValidation) return this()
+        return entity.isValid(this, {
           onlyChangedAttributes: true
         })
       })
       .done(cb)
   }
 
+  /**
+   * Retourne l'objet db de mongo. À réserver à des cas très particuliers,
+   * à priori il faut utiliser les méthodes de EntityQuery pour toutes vos requêtes
+   * @return {Db}
+   */
   db () {
     return this.definition.entities.db
   }
 
   /**
-   * Stockage d'une instance d'entité.
-   * @param {Object=} options non utilisé
+   * @callback Entity~entityCallback
+   * @param {Error} error
+   * @param {Entity} entity
+   */
+  /**
+   * Stockage d'une instance d'entité
+   * @param {Object} [options]
+   * @param {boolean} [options.skipValidation]
+   * @param {Entity~entityCallback}
    */
   store (options, callback) {
-    const self = this
-    const entity = this.definition
+    const entity = this
+    const def = this.definition
 
     if (_.isFunction(options)) {
       callback = options
@@ -233,38 +251,40 @@ class Entity {
 
     let document
     flow().seq(function () {
-      self.beforeStore(this, options)
+      entity.beforeStore(this, options)
     }).seq(function () {
-      let isNew = !self.oid
+      let isNew = !entity.oid
       // on génère un oid sur les créations
-      if (isNew) self.oid = ObjectID().toString()
+      if (isNew) entity.oid = ObjectID().toString()
       // les index
-      document = self.buildIndexes()
-      if (self.__deletedAt) {
-        document.__deletedAt = self.__deletedAt
-      }
-      document._id = self.oid
-      document._data = self.values()
+      document = entity.buildIndexes()
+      if (entity.__deletedAt) document.__deletedAt = entity.__deletedAt
+      document._id = entity.oid
+      document._data = entity.values()
       // {w:1} est le write concern par défaut, mais on le rend explicite (on veut que la callback
       // soit rappelée une fois que l'écriture est effective sur le 1er master)
       // @see https://docs.mongodb.com/manual/reference/write-concern/
-      if (isNew) entity.getCollection().insertOne(document, {w: 1}, this)
-      else entity.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this)
+      if (isNew) def.getCollection().insertOne(document, {w: 1}, this)
+      // upsert devrait être omis ici car l'objet doit exister en base,
+      // c'est au cas où qqun l'aurait supprimé depuis sa lecture
+      else def.getCollection().replaceOne({_id: document._id}, document, {upsert: true, w: 1}, this)
     }).seq(function () {
-      if (entity._afterStore) {
+      // suivant insert / replace
+      // on récupère un http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html#~insertOneWriteOpResult
+      // ou un http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html#~updateWriteOpResult
+      if (def._afterStore) {
         // faudrait appeler _afterStore avec l'entité telle qu'elle serait récupérée de la base,
-        // mais on l'a pas sous la main, et self devrait être en tout point identique,
-        // au __deletedAt près qui est un index pas toujours présent ajouté par
-        // EntityQuery.createEntitiesFromRows au retour de mongo
-        entity._afterStore.call(self, this)
+        // on l'a pas directement sous la main mais entity devrait être identique en tout point
+        // (on a généré l'oid s'il manquait)
+        def._afterStore.call(entity, this)
       } else {
         this()
       }
     }).seq(function () {
       // On appelle le onLoad() car l'état de l'entité en BDD a changé,
       // comme si l'entity avait été "rechargée".
-      self.onLoad()
-      callback(null, self)
+      entity.onLoad()
+      callback(null, entity)
     }).catch(callback)
   }
 
@@ -279,14 +299,14 @@ class Entity {
    * @param {SimpleCallback} callback
    */
   restore (callback) {
-    var self = this
-    var entity = this.definition
+    const entity = this
+    const def = this.definition
 
     flow()
       .seq(function () {
-        if (!self.oid) return this('Impossible de restaurer une entité sans oid')
-        entity.getCollection().update({
-          _id: self.oid
+        if (!entity.oid) return this('Impossible de restaurer une entité sans oid')
+        def.getCollection().update({
+          _id: entity.oid
         }, {
           $unset: {__deletedAt: ''}
         }, this)
@@ -294,8 +314,8 @@ class Entity {
       .seq(function () {
         // On appelle le onLoad() car l'état de l'entité en BDD a changé,
         // comme si l'entity avait été "rechargée".
-        self.onLoad()
-        callback(null, self)
+        entity.onLoad()
+        callback(null, entity)
       })
       .catch(callback)
   }
@@ -327,21 +347,21 @@ class Entity {
    * @param {SimpleCallback} callback
    */
   delete (callback) {
-    var self = this
+    const entity = this
     // @todo activer ce throw ?
-    // if (!self.oid) throw new Error('Impossible d’effacer une entity sans oid')
-    var entity = this.definition
+    // if (!entity.oid) throw new Error('Impossible d’effacer une entity sans oid')
+    const def = this.definition
     flow()
       .seq(function () {
-        if (entity._beforeDelete) {
-          entity._beforeDelete.call(self, this)
+        if (def._beforeDelete) {
+          def._beforeDelete.call(entity, this)
         } else {
           this()
         }
       })
       .seq(function () {
-        if (!self.oid) return this()
-        entity.getCollection().remove({_id: self.oid}, {w: 1}, this)
+        if (!entity.oid) return this()
+        def.getCollection().remove({_id: entity.oid}, {w: 1}, this)
       })
       .done(callback)
   }
