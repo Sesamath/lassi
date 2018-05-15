@@ -55,7 +55,6 @@ const BUILT_IN_INDEXES = {
     path: '__deletedAt',
     indexOptions: {}
   }
-
 }
 /**
  * @callback simpleCallback
@@ -116,11 +115,20 @@ class EntityDefinition {
       })
   }
 
+  /**
+   * Ajoute une fonction de validation
+   * @param {function} validateFn
+   */
   validate (validateFn) {
     this._toValidate.push(validateFn)
   }
 
-  validateOnChange (attributeName, validateFn, skipDeleted = true) {
+  /**
+   * Ajoute une fonction de validation sur un attribut particulier
+   * @param {string} attributeName
+   * @param {function} validateFn
+   */
+  validateOnChange (attributeName, validateFn) {
     if (_.isArray(attributeName)) {
       attributeName.forEach((att) => this.validateOnChange(att, validateFn))
       return
@@ -132,14 +140,22 @@ class EntityDefinition {
     this.trackAttribute(attributeName)
   }
 
-  // On suite la valeur de l'attribut, pour voir le changement entre le chargement depuis la base et le store
-  trackAttributes (attributeName) {
-    attributeName.forEach((att) => this.trackAttribute(attributeName))
+  /**
+   * Marque les attributs comme étant à suivre, pour voir le changement entre le chargement depuis la base et le store
+   * @param {string[]} attributeName
+   */
+  trackAttributes (attributeNames) {
+    attributeNames.forEach((att) => this.trackAttribute(att))
   }
 
+  /**
+   * Marque l'attribut comme étant à suivre, pour voir le changement entre le chargement depuis la base et le store
+   * @param {string} attributeName
+   */
   trackAttribute (attributeName) {
     this._trackedAttributes[attributeName] = true
   }
+
   /**
    * Définit un json schema pour l'entity, validé lors d'un appel à isValid() ou avant le store d'une entity
    * Le deuxième argument permet d'ajouter des keywords personnalisés
@@ -173,7 +189,8 @@ class EntityDefinition {
   }
 
   /**
-   * @param {Boolean} skipValidation si true, on ne vérifie pas la validation avant le store
+   * Permet de désactiver / réactiver la validation au beforeStore
+   * @param {boolean} skipValidation si true, on ne vérifiera pas la validation avant le store
    */
   setSkipValidation (skipValidation) {
     this._skipValidation = skipValidation
@@ -217,15 +234,13 @@ class EntityDefinition {
   getMongoIndexName (indexName, useData, indexOptions = {}) {
     let name = `${INDEX_PREFIX}${indexName}`
 
-    if (useData) {
-      // quand un index passe de calculé à non calculé, on veut le regéner donc on change son nom
-      name = `${name}-data`
-    }
+    // quand un index passe de calculé à non calculé, on veut le regénérer donc on change son nom
+    if (useData) name += '-data'
 
     // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
     // si on ajoute ou enlève l'option
     ;['unique', 'sparse'].forEach((opt) => {
-      if (indexOptions[opt]) name = `${name}-${opt}`
+      if (indexOptions[opt]) name += `-${opt}`
     })
 
     return name
@@ -418,10 +433,12 @@ class EntityDefinition {
     }).catch(cb)
   }
 
+  /**
+   * Défini les index de recherche fullText
+   * @param fields
+   */
   defineTextSearchFields (fields) {
-    var self = this
-
-    self._textSearchFields = fields.map(this.getIndex.bind(this))
+    this._textSearchFields = fields.map(this.getIndex, this)
   }
 
   initializeTextSearchFieldsIndex (callback) {
@@ -432,7 +449,7 @@ class EntityDefinition {
      */
     function createIndex (cb) {
       // Pas de nouvel index à créer
-      if (!self._textSearchFields) { return cb() }
+      if (!self._textSearchFields) return cb()
 
       const indexParams = {}
       self._textSearchFields.forEach(function ({path}) {
@@ -558,13 +575,30 @@ class EntityDefinition {
 
   /**
    * Retourne un requeteur (sur lequel on pourra chaîner les méthodes de {@link EntityQuery})
-   * @param {String=} index Un index à matcher en premier.
+   * @param {string} [index] Un index à matcher en premier, on peut en mettre plusieurs
    * @return {EntityQuery}
    */
   match () {
-    var query = new EntityQuery(this)
+    const query = new EntityQuery(this)
     if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments))
     return query
+  }
+
+  /**
+   * Passe à cb le nb d'entity (hors softDeleted, passer par EntityQuery#count si on les veut)
+   * @param {EntityQuery~CountCallback} cb
+   */
+  count (cb) {
+    this.getCollection().count({}, {__deletedAt: {$eq: null}}, cb)
+  }
+
+  /**
+   * Compte le nb d'entité pour chaque valeur de l'index demandé
+   * @param {string} index
+   * @param {EntityQuery~CountByCallback} cb
+   */
+  countBy (index, cb) {
+    this.match().countBy(index, cb)
   }
 
   /**
@@ -632,19 +666,6 @@ class EntityDefinition {
    * Callback à rappeler sans argument
    * @callback simpleCallback
    */
-}
-
-for (var method in EntityQuery.prototype) {
-  if (['match', 'finalizeQuery', 'grab', 'count', 'countBy', 'grabOne', 'sort', 'alterLastMatch', 'textSearch', 'createEntitiesFromRows'].indexOf(method) === -1) {
-    EntityDefinition.prototype[method] = (function (method) {
-      return function () {
-        var args = Array.prototype.slice.call(arguments)
-        var field = args.shift()
-        var matcher = this.match(field)
-        return matcher[method].apply(matcher, args)
-      }
-    })(method)
-  }
 }
 
 module.exports = EntityDefinition
