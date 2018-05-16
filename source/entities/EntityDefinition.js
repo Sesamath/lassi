@@ -443,7 +443,7 @@ class EntityDefinition {
 
   /**
    * Défini les index de recherche fullText
-   * @param fields
+   * @param {string[]} fields la liste des champs à prendre en compte pour la recherche fulltext
    */
   defineTextSearchFields (fields) {
     this._textSearchFields = fields.map(this.getIndex, this)

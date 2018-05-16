@@ -371,8 +371,4 @@ describe('$cache', () => {
       )
     })
   })
-
-  describe('ne fait rien', () => {
-    it('vraiment rien', () => undefined)
-  })
 })

@@ -14,7 +14,8 @@ let TestEntity
 // TODO: tester les autres beforeStore, beforeDelete & co
 //       ou ramener les tests qui sont dans entities-queries.js
 describe('Entity', () => {
-  before((done) => {
+  before(function (done) {
+    this.timeout(20000)
     flow()
       .seq(function () {
         setup(this)
