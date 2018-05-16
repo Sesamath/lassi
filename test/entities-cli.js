@@ -32,7 +32,7 @@ function addData (next) {
 }
 
 describe('Test $entities-cli', function () {
-  this.timeout(10000) // circleCI peut être un peu lent à l'init
+  this.timeout(20000) // circleCI peut être un peu lent à l'init
 
   before('Connexion à Mongo et initialisation des entités', (done) => {
     flow().seq(function () {

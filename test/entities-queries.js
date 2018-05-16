@@ -119,8 +119,8 @@ function addData (next) {
 
 describe('Test entities-queries', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
-    // Evite les erreurs de timeout sur une machine lente
-    this.timeout(10000)
+    // Evite les erreurs de timeout sur une machine lente (ou circleCI)
+    this.timeout(20000)
     flow().seq(function () {
       setup(this)
     }).seq(function (Entity) {
@@ -772,7 +772,7 @@ describe('Test entities-queries', function () {
     })
 
     it('Insert, update et delete en parallèle', function (done) {
-      this.timeout(10000) // 10s
+      this.timeout(10000)
       const count = 1000
       const objs = []
       for (let i = 0; i < count; i++) {
