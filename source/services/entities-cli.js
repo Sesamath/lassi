@@ -120,17 +120,18 @@ function reindexAll (entityName, done) {
   if (typeof entityName !== 'string') return done(new Error('Il faut passer un nom d’entity en 1er argument'))
   const Entity = lassi.service(entityName)
   if (!Entity) return done(new Error('Aucune entity nommée ' + entityName))
-  Entity.match().count((error, total) => {
+  Entity.match().includeDeleted().count((error, total) => {
     if (error) return done(error)
     if (total) {
-      log(`Ré-indexation de ${total} entités ${entityName} :`)
-      grab(
-        Entity.match(),
-        defaultLimit,
-        (entity, next) => entity.reindex(next),
-        { groupCb: (start, nb) => log(`Reindex ${entityName} OK (${start} à ${start + nb})`) },
-        done
-      )
+      log(`Début de la ré-indexation de ${total} entités ${entityName}`)
+      const forEachCb = (e, cb) => e.reindex(cb)
+      const allDoneCb = (error) => {
+        if (error) return done(error)
+        log(`Ré-indexation de ${total} entités ${entityName} terminée`)
+        done()
+      }
+      const options = {progressBar: true}
+      Entity.match().includeDeleted().forEachEntity(forEachCb, allDoneCb, options)
     } else {
       log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrement)`)
       done()
