@@ -1,4 +1,6 @@
 node_modules
 .idea
 documentation
+# on abandonne npm, ceux qui veulent l'utiliseront localement
+package-lock.json
 package.local-extras.json

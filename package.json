@@ -14,8 +14,8 @@
     "ajv-errors": "^1.0.0",
     "ajv-i18n": "^3.0.0",
     "ajv-keywords": "^3.1.0",
-    "an-flow": "git://src.sesamath.net/an-flow#2.0.8",
-    "an-log": "git://src.sesamath.net/an-log#3.1.4",
+    "an-flow": "git://src.sesamath.net/an-flow#3aa74ba",
+    "an-log": "git://src.sesamath.net/an-log#55ea104",
     "colors": "^1.1.2",
     "compression": "^1.7.1",
     "connect-redis": "^3.3.2",
@@ -31,7 +31,7 @@
     "progress": "^2.0.0",
     "redis": "^2.8.0",
     "serve-static": "^1.13.1",
-    "sesajstools": "git://src.sesamath.net/sesajstools"
+    "sesajstools": "Sesamath/sesajstools"
   },
   "devDependencies": {
     "chai": "^4.1.2",
