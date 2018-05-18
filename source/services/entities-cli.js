@@ -150,7 +150,7 @@ function reindexAll (entityName, argSup, done) {
 }
 reindexAll.help = function reindexAllHelp () {
   log = (...args) => anLog('entities-cli reindexAll', ...args)
-  log('La commande reindexAll prend en 1er argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)\n  et un éventuel 2nd argument "continueOnError"')
+  log('La commande reindexAll prend en 1er argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)\n  et un éventuel 2nd argument "continueOnError" (si vous l’utilisez pensez à rediriger la sortie d’erreur en ajoutant "2>error.log")')
 }
 
 /**
