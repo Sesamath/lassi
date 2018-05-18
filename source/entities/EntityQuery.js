@@ -524,19 +524,22 @@ class EntityQuery {
    * @param {object} [options]
    * @param {number} [options.limit] Le max du nb d'entity à traiter
    * @param {boolean} [options.progressBar] Passer true pour afficher la progression en console (donc si l'on a un tty, i.e. en cli sans redirection de stdout)
+   * @param {boolean} [options.continueOnError] Passer true pour continuer en cas d'erreur (qui sera alors affichée dans console.error avec l'oid concerné)
    */
   forEachEntity (onEachEntity, done, options = {}) {
     const query = this
     const globalLimit = options.limit
 
     let skip = 0
-    // le nb d'entités traitées sans erreur
+    // le nb d'entités traitées
     let nbTreated = 0
+    // le nb d'entités traitées en erreur (si options.continueOnError)
+    let nbErrors = 0
 
     let progressBar
 
     const finalCb = (err) => {
-      done(err, nbTreated)
+      done(err, nbTreated, nbErrors)
     }
 
     const processEntities = (entities, cb) => {
@@ -545,16 +548,20 @@ class EntityQuery {
       // On traite les entités au début du tableau jusqu'à ce qu'il soit vide
       try { // si 'onEachEntity' throw une erreur
         let called = false // garde-fou pour éviter que la définition de onEachEntity appelle plusieurs fois son callback (ce qui aurait un drôle d'effet!)
-        onEachEntity(entities[0], (err) => {
+        onEachEntity(entities[0], (error) => {
           if (called) {
             console.error(new Error('ERROR: forEachEntity onEntity callback function called many times'))
             return
           }
           called = true
 
-          if (err) return cb(err)
-
+          if (error) {
+            nbErrors++
+            if (options.continueOnError) console.error(`Erreur sur ${entities[0].oid}`, error)
+            else return cb(error)
+          }
           nbTreated++
+
           // Sortie immédiate via le finalCb() global si on a atteint une limite arbitraire
           if (globalLimit && globalLimit <= nbTreated) return finalCb()
           processEntities(entities.slice(1), cb)

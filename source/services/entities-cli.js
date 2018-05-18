@@ -108,18 +108,29 @@ function parse (json) {
 /**
  * Réindexe toutes les entités entityName
  * @param {string} entityName
+ * @param {string} [argSup]
  * @param {errorCallback} done
  */
-function reindexAll (entityName, done) {
+function reindexAll (entityName, argSup, done) {
   log = (...args) => anLog('entities-cli reindexAll', ...args)
+  // options passées à forEachEntity
+  const options = {progressBar: true}
+  // check des arguments
+  if (typeof argSup === 'function') {
+    done = argSup
+  } else if (argSup === 'continueOnError') {
+    options.continueOnError = true
+  }
   if (typeof done !== 'function') {
     const error = new Error('Reindex prend le nom de l’entity en premier argument et une callback en 2e')
     if (typeof entityName === 'function') return entityName(error)
     throw error
   }
   if (typeof entityName !== 'string') return done(new Error('Il faut passer un nom d’entity en 1er argument'))
+
   const Entity = lassi.service(entityName)
   if (!Entity) return done(new Error('Aucune entity nommée ' + entityName))
+  // go
   Entity.match().includeDeleted().count((error, total) => {
     if (error) return done(error)
     if (total) {
@@ -130,7 +141,6 @@ function reindexAll (entityName, done) {
         log(`Ré-indexation de ${total} entités ${entityName} terminée`)
         done()
       }
-      const options = {progressBar: true}
       Entity.match().includeDeleted().forEachEntity(forEachCb, allDoneCb, options)
     } else {
       log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrement)`)
@@ -140,7 +150,7 @@ function reindexAll (entityName, done) {
 }
 reindexAll.help = function reindexAllHelp () {
   log = (...args) => anLog('entities-cli reindexAll', ...args)
-  log('La commande reindexAll prend en seul argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)')
+  log('La commande reindexAll prend en 1er argument le nom de l’entité à réindexer\n  (commande allServices pour les voir dans la liste des services)\n  et un éventuel 2nd argument "continueOnError" (si vous l’utilisez pensez à rediriger la sortie d’erreur en ajoutant "2>error.log")')
 }
 
 /**
