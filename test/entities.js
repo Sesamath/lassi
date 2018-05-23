@@ -189,6 +189,24 @@ describe('Entity', () => {
         .done(done)
     })
 
+    it('enlève les attributs "null" ou "undefined" en bdd', (done) => {
+      const entity = TestEntity.create({nonTemporaire: 1, nullValue: null, undefinedValue: undefined})
+      flow()
+        .seq(function () {
+          entity.store(this)
+        })
+        .seq(function ({oid}) {
+          TestEntity.match('oid').equals(oid).grabOne(this)
+        })
+        .seq(function (dbEntity) {
+          expect(dbEntity.nonTemporaire).to.equal(1)
+          expect(dbEntity.nullValue).to.be.undefined
+          expect(dbEntity.undefinedValue).to.be.undefined
+          this()
+        })
+        .done(done)
+    })
+
     describe('.afterStore', () => {
       it(`est appelée avec un oid lors d'une création`, (done) => {
         // Cas d'utilisation principale du afterStore :

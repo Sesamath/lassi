@@ -104,13 +104,15 @@ class Entity {
    * @return {Object}
    */
   values () {
-    // on vire les _, $ et méthodes, puis serialize et sauvegarde
+    // on vire les _, null, undefined, $ et méthodes, puis serialize et sauvegarde
     // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
     //
     // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
     // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
     return _.pickBy(this, function (v, k) {
       if (_.isFunction(v)) return false
+      if (v === null) return false
+      if (v === undefined) return false
       if (k[0] === '_') return false
       if (k[0] === '$') return false
       return true
