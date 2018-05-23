@@ -190,7 +190,7 @@ describe('Entity', () => {
     })
 
     it('enlève les attributs "null" ou "undefined" en bdd', (done) => {
-      const entity = TestEntity.create({nonTemporaire: 1, nullValue: null, undefinedValue: undefined})
+      const entity = TestEntity.create({nonTemporaire: 1, nullValue: null, undefinedValue: undefined, child: {deepNumber: 6, deepUndefined: undefined}})
       flow()
         .seq(function () {
           entity.store(this)
@@ -202,6 +202,8 @@ describe('Entity', () => {
           expect(dbEntity.nonTemporaire).to.equal(1)
           expect(dbEntity.nullValue).to.be.undefined
           expect(dbEntity.undefinedValue).to.be.undefined
+          expect(dbEntity.child.deepNumber).to.equal(6)
+          expect(dbEntity.child.deepUndefined).to.be.undefined
           this()
         })
         .done(done)
