@@ -190,7 +190,20 @@ describe('Entity', () => {
     })
 
     it('enlève les attributs "null" ou "undefined" en bdd', (done) => {
-      const entity = TestEntity.create({nonTemporaire: 1, nullValue: null, undefinedValue: undefined, child: {deepNumber: 6, deepUndefined: undefined}})
+      const entity = TestEntity.create({
+        nonTemporaire: 1,
+        nullValue: null,
+        undefinedValue: undefined,
+        child: {
+          deepArray: [],
+          deepDate: new Date(),
+          deepFunction: () => 'hello',
+          deepNumber: 6,
+          deepRegexp: new RegExp(),
+          deepUndefined: undefined
+        }
+      })
+
       flow()
         .seq(function () {
           entity.store(this)
@@ -199,11 +212,23 @@ describe('Entity', () => {
           TestEntity.match('oid').equals(oid).grabOne(this)
         })
         .seq(function (dbEntity) {
+          // Test de l'entité provenant de la BDD
           expect(dbEntity.nonTemporaire).to.equal(1)
-          expect(dbEntity.nullValue).to.be.undefined
-          expect(dbEntity.undefinedValue).to.be.undefined
           expect(dbEntity.child.deepNumber).to.equal(6)
-          expect(dbEntity.child.deepUndefined).to.be.undefined
+
+          expect(dbEntity).to.not.have.property('nullValue')
+          expect(dbEntity).to.not.have.property('undefinedValue')
+          expect(dbEntity.child).to.not.have.property('deepFunction')
+
+          expect(dbEntity.child).to.have.property('deepDate')
+          expect(dbEntity.child).to.have.property('deepRegexp')
+          expect(dbEntity.child).to.have.property('deepArray')
+
+          // Vérifie que le store n'a pas modifié l'objet original
+          expect(entity).to.have.property('nullValue')
+          expect(entity).to.have.property('undefinedValue')
+          expect(entity.child).to.have.property('deepFunction')
+
           this()
         })
         .done(done)
