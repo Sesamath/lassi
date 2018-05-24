@@ -135,8 +135,8 @@ module.exports = function ($maintenance, $settings) {
           // la session lassi a besoin d'un client redis, on prend celui de $cache défini à son configure
           const $cache = lassi.service('$cache')
           const redisClient = $cache.getRedisClient()
-          const session = require('express-session')
-          const RedisStore = require('connect-redis')(session)
+          const sessionMiddlewareFactory = require('express-session')
+          const RedisStore = require('connect-redis')(sessionMiddlewareFactory)
           const sessionOptions = {
             mountPoint: $settings.get('lassi.settings.$rail.session.mountPoint', '/'),
             resave: false,
@@ -144,7 +144,24 @@ module.exports = function ($maintenance, $settings) {
             secret,
             store: new RedisStore({client: redisClient})
           }
-          railUse('session', sessionOptions, session)
+          const sessionMiddleware = sessionMiddlewareFactory(sessionOptions)
+          railUse('session', {}, () => function sessionRedisRetryMiddleware (req, res, next) {
+            // on ajoute du retry en cas de perte de connexion redis
+            // cf https://github.com/expressjs/session/issues/99#issuecomment-63853989
+            function lookupSession (error) {
+              if (error) return next(error)
+              if (req.session !== undefined) return next()
+              tries++
+              error = new Error(`pas de session après ${tries} essai${tries > 1 ? 's' : ''}`)
+              if (tries > 2) return next(error)
+              log.error(error)
+              // on retente
+              sessionMiddleware(req, res, lookupSession)
+            }
+
+            let tries = 0
+            sessionMiddleware(req, res, lookupSession)
+          })
         } else {
           log.error('settings.$rail.session.secret not set => no session')
         }
