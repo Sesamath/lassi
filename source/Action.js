@@ -181,9 +181,9 @@ class Action {
     var isCbCompleted = false
 
     function fooProtect () {
-      console.error('Attention, un résultat est arrivé de manière inatendue (un appel de next en trop ?).')
-      console.trace()
+      console.error(new Error('Attention, un résultat est arrivé de manière inattendue (un appel de next en trop ?).'))
     }
+    
     function processResult (error, result) {
       context.next = fooProtect
       isCbCompleted = true

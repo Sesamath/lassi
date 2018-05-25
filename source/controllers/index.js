@@ -62,9 +62,8 @@ class Controllers extends EventEmitter {
      * @fires Controllers#request
      */
     return function (request, response, next) {
-      // Première entrées, on collectionne toutes les actions
-      // disponibles
       if (!self.actions) {
+        // Première requête depuis le boot, on collectionne toutes les actions disponibles
         self.actions = []
         _.forEach(lassi.components, function (component) {
           _.forEach(component.controllers, function (controller) {
@@ -111,9 +110,11 @@ class Controllers extends EventEmitter {
       // Séquencement des actions
       flow(actionnables)
         .seqEach(function (actionnable) {
-        // Si une erreur s'est produite plus haut dans la chaîne, on n'exécute pas
-        // les actions suivantes.
+          // Si une erreur s'est produite plus haut dans la chaîne, on n'exécute pas les actions suivantes.
           if (context.error) return this()
+          // idem si un contrôleur veut court-cirtuiter les suivants (à priori c'est un contrôleur qui détecté un problème
+          // et il devrait plutôt passer une erreur, mais on lui laisse cette possibilité)
+          if (context.skipNext) return this()
 
           var nextAction = this
           context.arguments = actionnable.params
@@ -123,7 +124,7 @@ class Controllers extends EventEmitter {
           if (actionnable.action.middleware) {
             actionnable.action.middleware(request, response, function () { nextAction() })
 
-            // L'actionnable est une action
+          // L'actionnable est une action
           } else {
             actionnable.action.execute(context, function (error, result) {
               if (error) {
@@ -149,7 +150,7 @@ class Controllers extends EventEmitter {
           }
         })
         .seq(function () {
-        // le contrôleur a le droit de se débrouiller avec context.response et demander l'abandon du processing
+          // le contrôleur a le droit de se débrouiller avec context.response et demander l'abandon du processing
           if (context.transport === 'done') return
           // Une redirection passe en fast-track
           if (!context.error && context.location) return this()

@@ -318,3 +318,40 @@ class Context {
 }
 
 module.exports = Context
+
+/**
+ * Booléen qui peut être mis par un contrôleur pour court-circuiter les contrôleurs suivants.
+ * À priori, ça devrait plutôt être fait en passant une erreur à context.next(), ou en la mettant dans context.error,
+ * mais on laisse cette possibilité.
+ * @name skipNext
+ * @memberOf Context
+ * @default undefined
+ * @type {boolean}
+ */
+/**
+ * Erreur qui peut être mise par un contrôleur, mais à priori affectée lors d'un appel de context.next(error)
+ * Sa présence court-circuite les contrôleurs suivants.
+ * Utile par exemple pour un listener beforeTransport (par ex pour ajouter status ou content-type si ça manque)
+ * @name error
+ * @memberOf Context
+ * @default undefined
+ * @type {Error}
+ */
+/**
+ * À priori affecté après le passage de tous les contrôleurs, d'après le content-type, mais un contrôleur
+ * qui veut traiter lui-même la réponse via context.response (l'objet response d'express) peut le faire en
+ * affectant `context.transport = 'done'` pour indiquer à lassi de ne plus s'occuper de la réponse.
+ * @name transport
+ * @memberOf Context
+ * @default undefined
+ * @type {string}
+ */
+/**
+ * Méthode pour passer à l'action suivante (affecté et géré par le middleware de Controllers)
+ * Un contrôleur appelle en général `context.next(error, data)` lorsqu'il a fini.
+ * Si error, lassi gère (court-circuite les contrôleurs suivant et envoie la réponse, qui sera par défaut une erreur 500 en plain/text).
+ * Sans erreur, les data renvoyés par tous les contrôleurs sont mergés et lassi envoie la réponse.
+ * @name next
+ * @memberOf Context
+ * @type {function}
+ */
