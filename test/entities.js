@@ -190,19 +190,26 @@ describe('Entity', () => {
     })
 
     it('enlève les attributs "null" ou "undefined" en bdd', (done) => {
-      const entity = TestEntity.create({
+      // on ne met pas de undefined dans le tableau car c'est converti en null par mongo
+      const deepArray = [1, 2, 3, 'soleil', null]
+      const deepDate = new Date()
+      const deepFunction = () => 'hello'
+      const deepRegexp = /foo/
+      const entityData = {
         nonTemporaire: 1,
         nullValue: null,
         undefinedValue: undefined,
         child: {
-          deepArray: [],
-          deepDate: new Date(),
-          deepFunction: () => 'hello',
+          deepArray,
+          deepDate,
+          deepFunction,
+          deepNull: null,
           deepNumber: 6,
-          deepRegexp: new RegExp(),
+          deepRegexp,
           deepUndefined: undefined
         }
-      })
+      }
+      const entity = TestEntity.create(entityData)
 
       flow()
         .seq(function () {
@@ -214,20 +221,28 @@ describe('Entity', () => {
         .seq(function (dbEntity) {
           // Test de l'entité provenant de la BDD
           expect(dbEntity.nonTemporaire).to.equal(1)
-          expect(dbEntity.child.deepNumber).to.equal(6)
 
           expect(dbEntity).to.not.have.property('nullValue')
           expect(dbEntity).to.not.have.property('undefinedValue')
           expect(dbEntity.child).to.not.have.property('deepFunction')
+          expect(dbEntity.child).to.not.have.property('deepNull')
+          expect(dbEntity.child).to.not.have.property('deepUndefined')
 
-          expect(dbEntity.child).to.have.property('deepDate')
-          expect(dbEntity.child).to.have.property('deepRegexp')
-          expect(dbEntity.child).to.have.property('deepArray')
+          expect(dbEntity.child.deepArray).to.deep.equals(deepArray)
+          // avec la serialisation / désérialisation mongo on perd l'égalité stricte d'objet Date
+          expect(dbEntity.child.deepDate.toString()).to.equals(deepDate.toString())
+          expect(dbEntity.child.deepNumber).to.equal(6)
+          // idem pour regex
+          expect(dbEntity.child.deepRegexp.source).to.equals(deepRegexp.source)
 
           // Vérifie que le store n'a pas modifié l'objet original
           expect(entity).to.have.property('nullValue')
           expect(entity).to.have.property('undefinedValue')
           expect(entity.child).to.have.property('deepFunction')
+          expect(entity.child).to.have.property('deepUndefined')
+          Object.keys(entityData).forEach(k => {
+            expect(entity[k]).to.deep.equals(entityData[k])
+          })
 
           this()
         })
