@@ -74,24 +74,22 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
       // version actuelle
       LassiUpdate.match('num').sort('num', 'desc').grabOne(this)
     }).seq(function (lastUpdate) {
-      const defaultVersion = lastUpdate && lastUpdate.num ? 0 : getMinUpdate() - 1
-      dbVersion = (lastUpdate && lastUpdate.num) || 0
-      if (dbVersion < defaultVersion) {
-        // init avec la version de départ mise en config
+      const firstUpdateNum = getMinUpdate()
+      const defaultVersion = firstUpdateNum ? firstUpdateNum - 1 : 0
+      if (lastUpdate) {
+        // on vérifie qu'on a pas de trou
+        if (lastUpdate.num < defaultVersion) return this(new Error(`La base est en version ${lastUpdate.num} mais le premier update disponible est le n° ${firstUpdateNum}`))
+        this(null, lastUpdate.num)
+      } else {
+        // pas d'update en db, init avec le n° juste avant le premier update dispo
         const firstUpdate = {
           name: 'version initiale',
           description: '',
           num: defaultVersion
         }
-        LassiUpdate.create(firstUpdate).store((error) => {
-          if (error) return cb(error)
-          dbVersion = defaultVersion
-          this()
-        })
-      } else {
-        this()
+        LassiUpdate.create(firstUpdate).store(this)
       }
-    }).seq(function () {
+    }).seq(function (dbVersion) {
       getUpdatesAboveVersion(dbVersion, this)
     }).done(cb)
   }
@@ -183,14 +181,18 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
   }
 
   /**
-   * Récupère la version minimum disponible dans le dossier d'updates en se basant sur le nom de fichier
-   * @return {Number}
+   * Récupère la version minimum disponible dans le dossier d'updates en se basant sur le nom de fichier (undefined s'il n'y en a pas)
+   * @return {Number|undefined}
    */
   function getMinUpdate () {
     const folder = $settings.get('application.updates.folder')
-    const files = fs.readdirSync(folder).map(filename => Number(filename.match(/\d/g).join('')))
-
-    return Math.min(...files)
+    // on liste les fichiers sous la forme N.js où N est entier (on suppose que personne n'ira nommer un dossier NNN.js)
+    const updatesNumbers = fs.readdirSync(folder)
+      .filter(filename => /^[1-9][0-9]*\.js$/.test(filename))
+      .map(filename => Number(filename.substring(filename, filename.length - 3)))
+    // si le tableau est vide, Math.min se retrouve sans arqument et renvoie Infinity (qui est > 0)
+    // sinon, la regexp nous garanti qu'il ne contient que des entiers strictement positifs
+    return updatesNumbers.length ? Math.min(...updatesNumbers) : undefined
   }
 
   /**
