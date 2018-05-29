@@ -789,6 +789,7 @@ describe('Entity', () => {
 
           entity.store({skipValidation: true}, (err, entityStored) => {
             expect(err).to.be.null
+            expect(entityStored).to.have.property('num')
             expect(entityStored.num).to.equals('not a number')
             done()
           })
