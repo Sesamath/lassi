@@ -15,7 +15,7 @@ let TestEntity
 //       ou ramener les tests qui sont dans entities-queries.js
 describe('Entity', () => {
   before(function (done) {
-    this.timeout(20000)
+    this.timeout(60000)
     flow()
       .seq(function () {
         setup(this)

@@ -28,7 +28,7 @@ function initEntities (dbSettings, next) {
 
 describe('Test entities-search', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
-    this.timeout(20000)
+    this.timeout(60000)
     flow().seq(function () {
       setup(this)
     }).seq(function (Entity, dbSettings) {

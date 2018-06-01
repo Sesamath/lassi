@@ -39,6 +39,8 @@ describe('Test entities-indexes', function () {
   let db
 
   before('Connexion à Mongo et initialisation des entités', function (done) {
+    // Evite les erreurs de timeout sur une machine lente (ou circleCI)
+    this.timeout(60000)
     let dbSettings
     flow().seq(function () {
       setup(this)
