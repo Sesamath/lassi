@@ -14,6 +14,8 @@ let TestEntity
 
 describe('Test entities-queries', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
+    // Evite les erreurs de timeout sur une machine lente (ou circleCI)
+    this.timeout(60000)
     flow().seq(function () {
       setup(this)
     }).seq(function (Entity) {

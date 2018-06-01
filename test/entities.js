@@ -15,7 +15,7 @@ let TestEntity
 //       ou ramener les tests qui sont dans entities-queries.js
 describe('Entity', () => {
   before(function (done) {
-    this.timeout(20000)
+    this.timeout(60000)
     flow()
       .seq(function () {
         setup(this)
@@ -184,6 +184,66 @@ describe('Entity', () => {
         .seq(function (dbEntity) {
           expect(dbEntity.nonTemporaire).to.equal(1)
           expect(dbEntity.$temporaire).to.be.undefined
+          this()
+        })
+        .done(done)
+    })
+
+    it('enlève les attributs "null" ou "undefined" en bdd', (done) => {
+      // on ne met pas de undefined dans le tableau car c'est converti en null par mongo
+      const deepArray = [1, 2, 3, 'soleil', null]
+      const deepDate = new Date()
+      const deepFunction = () => 'hello'
+      const deepRegexp = /foo/
+      const entityData = {
+        nonTemporaire: 1,
+        nullValue: null,
+        undefinedValue: undefined,
+        child: {
+          deepArray,
+          deepDate,
+          deepFunction,
+          deepNull: null,
+          deepNumber: 6,
+          deepRegexp,
+          deepUndefined: undefined
+        }
+      }
+      const entity = TestEntity.create(entityData)
+
+      flow()
+        .seq(function () {
+          entity.store(this)
+        })
+        .seq(function ({oid}) {
+          TestEntity.match('oid').equals(oid).grabOne(this)
+        })
+        .seq(function (dbEntity) {
+          // Test de l'entité provenant de la BDD
+          expect(dbEntity.nonTemporaire).to.equal(1)
+
+          expect(dbEntity).to.not.have.property('nullValue')
+          expect(dbEntity).to.not.have.property('undefinedValue')
+          expect(dbEntity.child).to.not.have.property('deepFunction')
+          expect(dbEntity.child).to.not.have.property('deepNull')
+          expect(dbEntity.child).to.not.have.property('deepUndefined')
+
+          expect(dbEntity.child.deepArray).to.deep.equals(deepArray)
+          // avec la serialisation / désérialisation mongo on perd l'égalité stricte d'objet Date
+          expect(dbEntity.child.deepDate.toString()).to.equals(deepDate.toString())
+          expect(dbEntity.child.deepNumber).to.equal(6)
+          // idem pour regex
+          expect(dbEntity.child.deepRegexp.source).to.equals(deepRegexp.source)
+
+          // Vérifie que le store n'a pas modifié l'objet original
+          expect(entity).to.have.property('nullValue')
+          expect(entity).to.have.property('undefinedValue')
+          expect(entity.child).to.have.property('deepFunction')
+          expect(entity.child).to.have.property('deepUndefined')
+          Object.keys(entityData).forEach(k => {
+            expect(entity[k]).to.deep.equals(entityData[k])
+          })
+
           this()
         })
         .done(done)

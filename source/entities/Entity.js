@@ -100,21 +100,31 @@ class Entity {
   }
 
   /**
-   * Retourne l'entity sans ses méthodes ni ses propriétés préfixées avec $ ou _
+   * Retourne l'entity en supprimant certaines de ses données :
+   * - les attributs ayant un nom commençant par "_" ou "$"
+   * - les attributs ayant des valeurs null ou undefined (profondément)
    * @return {Object}
    */
   values () {
-    // on vire les _, $ et méthodes, puis serialize et sauvegarde
-    // mais on les conserve sur l'entité elle-même car ça peut être utiles pour le afterStore
-    //
-    // On utilise _pick() pour passer outre une éventuelle méthode toJSON() qui viendrait modifier le contenu "jsonifié"
-    // de l'entity (par exemple pour masquer le champ 'password' sur un utilisateur)
-    return _.pickBy(this, function (v, k) {
-      if (_.isFunction(v)) return false
-      if (k[0] === '_') return false
-      if (k[0] === '$') return false
-      return true
-    })
+    const copyCleanProps = (obj, dest, isFirstLevel = false) => {
+      Object.keys(obj).forEach(key => {
+        const v = obj[key]
+        // au 1er niveau on ajoute ce filtre
+        if (isFirstLevel && (key[0] === '_' || key[0] === '$')) return
+        if (v === null || v === undefined || typeof v === 'function') return
+        // on ne veut que les objets qui n'ont pas d'autre constructeur que Object (ni Regexp ni Date ni Array,
+        // mais les objets "maison" définis avec un constructeur classique passent ce filtre)
+        if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
+          dest[key] = {}
+          copyCleanProps(v, dest[key])
+        } else {
+          dest[key] = v
+        }
+      })
+      return dest
+    }
+
+    return copyCleanProps(this, {}, true)
   }
 
   /**
