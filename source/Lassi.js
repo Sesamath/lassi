@@ -73,11 +73,13 @@ class Lassi extends EventEmitter {
     this.components = {}
     this.services = new Services()
     lassi.options = options
-    // cette commande nous ajoute lassi en component
+    // cette commande ajoute lassi en component
     const lassiComponent = lassi.component('lassi')
+    // qui permet de déclarer nos services (attention à l'ordre pour les dépendances)
     lassiComponent.service('$settings', require('./services/settings'))
     lassiComponent.service('$cache', require('./services/cache'))
     lassiComponent.service('$entities', require('./services/entities'))
+    // la seule entity de lassi
     lassiComponent.entity('LassiUpdate', require('./updates/LassiUpdate'))
     lassiComponent.service('$updates', require('./services/updates'))
     lassiComponent.service('$maintenance', require('./services/maintenance'))
