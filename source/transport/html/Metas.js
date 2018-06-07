@@ -77,12 +77,8 @@ Metas.prototype.head = function () {
   }
 
   // Titre de la page
-  if (!this.pageTitle) {
-    this.pageTitle = this.title || this.siteName
-  }
-  if (this.pageTitle) { // sinon un tag <title/> perturbe l'affichage de la page
-    head.add('title', {}, this.pageTitle)
-  }
+  if (!this.pageTitle) this.pageTitle = this.title || this.siteName
+  head.add('title', {}, this.pageTitle)
 
   // Titre du document
   if (this.title) {
