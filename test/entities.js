@@ -633,18 +633,30 @@ describe('Entity', () => {
         })
       })
 
-      it('si schema conforme aux données', testValidationSuccess(
-        // Schema
-        {
+      describe('si données conforme au schema', () => {
+        const schema = {
           properties: {
+            bool: {type: 'boolean'},
+            date: {instanceof: 'Date'},
             num: {type: 'number'},
+            mixed: {
+              oneof: [
+                {type: 'string'},
+                {type: 'number'},
+                {instanceof: 'Date'}
+              ]
+            },
             text: {type: 'string'}
           },
           required: [ 'num', 'text' ]
-        },
-        // Data
-        {num: 1, text: 'hello'}
-      ))
+        }
+        const date = new Date()
+        it('données complètes', testValidationSuccess(schema, {bool: true, date, num: 1, mixed: 'foo', text: 'hello'}))
+        it('données complètes mais falsy', testValidationSuccess(schema, {bool: false, date, num: 0, mixed: 0, text: ''}))
+        it('sans donnée facultative', testValidationSuccess(schema, {num: 1, text: 'hello'}))
+        it('avec donnée facultative null', testValidationSuccess(schema, {bool: null, date: null, num: 1, mixed: date, text: 'hello'}))
+        it('avec donnée facultative undefined', testValidationSuccess(schema, {num: 1, date: undefined, mixed: undefined, text: 'hello'}))
+      })
     })
 
     describe(`erreur de validation`, () => {

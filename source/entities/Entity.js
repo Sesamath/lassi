@@ -63,13 +63,12 @@ class Entity {
   /**
    * Lance une validation de l'entity. Par défaut on parcourt toutes les validations :
    * validate(), validateJsonSchema() et validateOnChange()
-   * @param {} cb
-   * @param {*} param1
+   * @param {errorCallback} cb rappelée avec la première erreur de validation (ou rien si c'est valide)
+   * @param {object} [options]
+   * @param {boolean} [options.schema=true] passer false pour ne pas tester le schéma éventuel
+   * @param {boolean} [options.onlyChangedAttributes=false] passer true pour ne tester que les attributs modifiés
    */
-  isValid (cb, {
-    schema = true,
-    onlyChangedAttributes = false
-  } = {}) {
+  isValid (cb, {schema = true, onlyChangedAttributes = false} = {}) {
     let validators = [].concat(
 
       // Json-sSchema validation
@@ -92,17 +91,15 @@ class Entity {
     )
 
     const entity = this
-    flow(validators)
-      .seqEach(function (fn) {
-        fn.call(entity, this)
-      })
-      .done(cb)
+    flow(validators).seqEach(function (fn) {
+      fn.call(entity, this)
+    }).done(cb)
   }
 
   /**
-   * Retourne l'entity en supprimant certaines de ses données :
-   * - les attributs ayant un nom commençant par "_" ou "$"
-   * - les attributs ayant des valeurs null ou undefined (profondément)
+   * Retourne une shallow copy de l'entity en filtrant certaines de ses données :
+   * - les attributs de 1er niveau ayant un nom commençant par "_" ou "$"
+   * - les attributs ayant des valeurs null ou undefined (en profondeur)
    * @return {Object}
    */
   values () {
@@ -111,13 +108,16 @@ class Entity {
         const v = obj[key]
         // au 1er niveau on ajoute ce filtre
         if (isFirstLevel && (key[0] === '_' || key[0] === '$')) return
+        // à tous les niveaux on vire null, undefined et function
         if (v === null || v === undefined || typeof v === 'function') return
-        // on ne veut que les objets qui n'ont pas d'autre constructeur que Object (ni Regexp ni Date ni Array,
-        // mais les objets "maison" définis avec un constructeur classique passent ce filtre)
+        // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
+        // (ni Regexp ni Date ni Array, les objets définis avec un constructeur classique passent ce filtre)
         if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
           dest[key] = {}
           copyCleanProps(v, dest[key])
         } else {
+          // pour les autres on prend la valeur telle quelle
+          // (la sérialisation json ou mongo virera les méthodes éventuelles)
           dest[key] = v
         }
       })
