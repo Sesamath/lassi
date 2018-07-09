@@ -10,6 +10,13 @@ const {quit, setup} = require('./init')
 let entities
 let TestEntity
 
+const testEntities = [
+  { i: 42000, text1: 'foo', text2: 'bar', type: 'foo' },
+  { i: 42001, text1: 'foo', text2: 'foo', type: 'bar' },
+  { i: 42002, text1: 'bar', text2: 'bar', type: 'foo' },
+  { i: 42003, text1: 'foo bar', text2: 'bar', type: 'bar' }
+]
+
 function initEntities (dbSettings, next) {
   entities = new Entities({database: dbSettings})
   flow().seq(function () {
@@ -20,7 +27,6 @@ function initEntities (dbSettings, next) {
   }).seq(function () {
     TestEntity.defineIndex('type', 'string')
     TestEntity.defineIndex('text1', 'string')
-    TestEntity.defineIndex('text2', 'string')
     TestEntity.defineTextSearchFields(['text1', 'text2'])
     TestEntity.initialize(this)
   }).done(next)
@@ -44,12 +50,6 @@ describe('Test entities-search', function () {
   describe('.textSearch()', function () {
     let createdEntities
     beforeEach(function (done) {
-      const testEntities = [
-        { i: 42000, text1: 'foo', text2: 'bar', type: 'foo' },
-        { i: 42001, text1: 'foo', text2: 'foo', type: 'bar' },
-        { i: 42002, text1: 'bar', text2: 'bar', type: 'foo' },
-        { i: 42003, text1: 'foo bar', text2: 'bar', type: 'bar' }
-      ]
       flow(testEntities)
         .seqEach(function (entity) {
           TestEntity.create(entity).store(this)
@@ -77,6 +77,13 @@ describe('Test entities-search', function () {
         assert.equal(results[0].i, 42001)
         assert.equal(results[1].i, 42000)
         assert.equal(results[2].i, 42003)
+        done()
+      })
+    })
+    it('Count sur plusieurs champs', function (done) {
+      TestEntity.match().textSearch('foo').count(function (error, total) {
+        if (error) return done(error)
+        assert.equal(total, 3)
         done()
       })
     })

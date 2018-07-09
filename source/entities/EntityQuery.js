@@ -139,6 +139,21 @@ function buildQuery (entityQuery, record) {
   // par défaut on prend pas les softDeleted
   if (!query.__deletedAt && !entityQuery._includeDeleted) query.__deletedAt = {$eq: null}
   if (entityQuery.debug) log('mongoQuery', record)
+
+  // faut ajouter le cas fulltext
+  if (entityQuery.search) {
+    let sorts = {}
+    _.forEach(record.options.sort, ([index, order]) => {
+      sorts[index] = order === 'asc' ? 1 : -1
+    })
+    // Le sort sur le score doit être fait avant les sorts "classiques",
+    // on garde les sorts classique dans un options.moreSort et on met le sort text à la place
+    // grab ajoutera le 2e sort
+    record.moreSort = _.merge({score: {$meta: 'textScore'}}, sorts)
+    delete record.options.sort
+    record.query = _.merge(record.query, {$text: {$search: entityQuery.search}})
+    record.options = _.merge(record.options, {score: {$meta: 'textScore'}})
+  }
 } // buildQuery
 
 /**
@@ -445,42 +460,26 @@ class EntityQuery {
    * @param {EntityQuery~GrabCallback} callback rappelée avec l'erreur ou les résultats
    */
   grab (options, callback) {
+    const entityQuery = this
     if (_.isFunction(options)) {
       callback = options
       options = {}
     }
-    const record = prepareRecord(this, options)
+    const record = prepareRecord(entityQuery, options)
     // mongo n'a pas l'air de gérer query.limit(0) correctement, donc on le fait manuellement
     if (record.limit === 0) return callback(null, [])
-    let query
-
-    if (this.search) {
-      let sorts = {}
-      _.forEach(record.options.sort, (sort) => {
-        sorts[sort[0]] = sort[1] === 'asc' ? 1 : -1
-      })
-      // Le sort sur le score doit être fait avant les sorts "classiques"
-      let recordSort = _.merge({score: {$meta: 'textScore'}}, sorts)
-      delete record.options.sort
-
-      let recordQuery = _.merge(record.query, {$text: {$search: this.search}})
-      let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}})
-
-      query = this.entity.getCollection()
-        .find(recordQuery, recordOptions)
-        .sort(recordSort)
-    } else {
-      query = this.entity.getCollection()
-        .find(record.query, record.options)
-    }
-
-    query.limit(record.limit)
+    const query = entityQuery.entity.getCollection()
+      .find(record.query, record.options)
+    // faut ajouter un 2e sort (si fulltext, cf buildQuery)
+    if (record.moreSort) query.sort(record.moreSort)
+    query
+      .limit(record.limit)
       .toArray((error, rows) => {
         if (error) return callback(error)
         // on râle si on atteint la limite, sauf si on avait demandé cette limite
         if (rows.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
         try {
-          callback(null, createEntitiesFromRows(this, rows))
+          callback(null, createEntitiesFromRows(entityQuery, rows))
         } catch (error) {
           callback(error)
         }
