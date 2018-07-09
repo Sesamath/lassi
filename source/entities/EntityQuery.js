@@ -138,22 +138,24 @@ function buildQuery (entityQuery, record) {
 
   // par défaut on prend pas les softDeleted
   if (!query.__deletedAt && !entityQuery._includeDeleted) query.__deletedAt = {$eq: null}
-  if (entityQuery.debug) log('mongoQuery', record)
 
-  // faut ajouter le cas fulltext
+  // on ajoute le cas fulltext
   if (entityQuery.search) {
     let sorts = {}
     _.forEach(record.options.sort, ([index, order]) => {
       sorts[index] = order === 'asc' ? 1 : -1
     })
-    // Le sort sur le score doit être fait avant les sorts "classiques",
-    // on garde les sorts classique dans un options.moreSort et on met le sort text à la place
-    // grab ajoutera le 2e sort
+    // Le sort sur le score doit être fait avant les sorts "classiques", car on veut pas qu'un
+    // sort vienne mettre un résultat "peu pertinent" avant d'autres.
+    // On garde les sorts classique dans un options.moreSort et on met le sort text seul dans les options
+    // grab ajoutera le 2e sort ensuite
     record.moreSort = _.merge({score: {$meta: 'textScore'}}, sorts)
     delete record.options.sort
     record.query = _.merge(record.query, {$text: {$search: entityQuery.search}})
     record.options = _.merge(record.options, {score: {$meta: 'textScore'}})
   }
+
+  if (entityQuery.debug) log('mongoQuery', record)
 } // buildQuery
 
 /**
@@ -199,7 +201,7 @@ function checkIsArray (value) {
 function createEntitiesFromRows (entityQuery, rows) {
   // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
   const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
-  const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
+  const jsonDateReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
   return rows.map((row) => {
     let data = row._data
 
@@ -207,7 +209,7 @@ function createEntitiesFromRows (entityQuery, rows) {
     //            avec un _data en objet mongo plutôt qu'un json
     if (typeof data === 'string') {
       try {
-        data = JSON.parse(data, jsonReviver)
+        data = JSON.parse(data, jsonDateReviver)
       } catch (error) {
         console.error(error, `avec les _data :\n${row._data}`)
         // on renvoie un message plus compréhensible

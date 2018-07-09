@@ -79,6 +79,11 @@ class EntityDefinition {
     this.name = name
     this.indexes = {}
     this.indexesByMongoIndexName = {}
+    /**
+     * La définition de l'index text si y'en a un
+     * @type {{path: string, indexName: string, weigth: number}}
+     * @private
+     */
     this._textSearchFields = null
 
     /* Validation */
@@ -445,16 +450,34 @@ class EntityDefinition {
 
   /**
    * Défini les index de recherche fullText
-   * @param {string[]} fields la liste des champs à prendre en compte pour la recherche fulltext
+   * @param {string[],Array[]} fields la liste des champs à prendre en compte pour la recherche fulltext, passer un tableau [name, weight] pour fixer un poid ≠ 1 sur le champ concerné
    */
   defineTextSearchFields (fields) {
-    this._textSearchFields = fields.map((field) => {
-      return this.hasIndex(field)
-        ? this.getIndex(field)
-        : {
-          indexName: field,
-          path: `_data.${field}`
+    const def = this
+    def._textSearchFields = fields.map((field) => {
+      // valeurs par défaut
+      let indexName = field
+      let path = `_data.${indexName}`
+      let weight = 1
+      // si on nous passe un array, le 1er doit être un nom et le 2e un poid
+      if (Array.isArray(field)) {
+        if (typeof field[0] !== 'string' || typeof field[1] !== 'number') {
+          throw new TypeError('Si vous précisez un champ à indexer en texte sous forme d’un Array, cela doit être [fieldName: string, weight: number]')
         }
+        ;[indexName, weight] = field
+        weight = Math.min(99, Math.max(1, Math.round(weight)))
+        if (weight !== field[1]) log.error(Error(`Pour un champ texte weight doit être un entier entre 1 et 99 (${field[1]} fourni, ramené à ${weight}`))
+      }
+
+      // si le champ est indexé par ailleurs, on prend son path (pour indexer
+      // les valeurs retournées par sa callback plutôt que celle du champ)
+      if (def.hasIndex(indexName)) path = def.getIndex(indexName).path
+
+      return {
+        indexName,
+        path,
+        weight
+      }
     })
   }
 
@@ -473,15 +496,18 @@ class EntityDefinition {
       // Pas de nouvel index à créer
       if (!def._textSearchFields) return cb()
 
-      const indexParams = {}
-      def._textSearchFields.forEach(function ({path}) {
-        indexParams[path] = 'text'
-      })
-      const indexOptions = {
+      const options = {
         name: indexName,
-        default_language: 'french' // @todo lire la conf
+        default_language: 'french', // @todo lire la conf
+        weights: {}
       }
-      dbCollection.createIndex(indexParams, indexOptions, cb)
+      const keys = {}
+      def._textSearchFields.forEach(function ({path, weight}) {
+        keys[path] = 'text'
+        // @see https://docs.mongodb.com/manual/reference/method/db.collection.createIndex/#options-for-text-indexes
+        options.weights[path] = weight
+      })
+      dbCollection.createIndex(keys, options, cb)
     }
 
     /**
