@@ -79,6 +79,11 @@ class EntityDefinition {
     this.name = name
     this.indexes = {}
     this.indexesByMongoIndexName = {}
+    /**
+     * La définition de l'index text si y'en a un
+     * @type {{path: string, indexName: string, weigth: number}}
+     * @private
+     */
     this._textSearchFields = null
 
     /* Validation */
@@ -286,7 +291,7 @@ class EntityDefinition {
     let indexOptions = {}
     let fieldType
     // On récupère les paramètres optionnels: fieldType, indexOptions, callback
-    // en partant de la fin. Heureusement ils ont des types différents!
+    // en partant de la fin. Heureusement ils ont des types différents !
     let param = params.pop()
     if (typeof param === 'function') {
       callback = param
@@ -401,6 +406,8 @@ class EntityDefinition {
     // on parse l'existant
     }).seqEach(function (existingIndex) {
       const mongoIndexName = existingIndex.name
+      // si c'est un index text on s'en occupe pas, c'est initializeTextSearchFieldsIndex qui verra plus tard
+      if (/^text_index/.test(mongoIndexName)) return this()
 
       if (def.indexesByMongoIndexName[mongoIndexName] || _.some(BUILT_IN_INDEXES, (index) => index.mongoIndexName === mongoIndexName)) {
         // la notion de type de valeur à indexer n'existe pas dans mongo.
@@ -432,7 +439,7 @@ class EntityDefinition {
         // directement au format attendu par mongo
         // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
         indexesToAdd.push({key: {[path]: 1}, name: mongoIndexName, ...indexOptions})
-        log(def.name, `index ${mongoIndexName} n’existait pas => à créer`)
+        log(def.name, `index ${mongoIndexName} n’existait pas => création`)
       })
       delete def.indexes.__deletedAt
 
@@ -443,12 +450,42 @@ class EntityDefinition {
 
   /**
    * Défini les index de recherche fullText
-   * @param {string[]} fields la liste des champs à prendre en compte pour la recherche fulltext
+   * @param {string[],Array[]} fields la liste des champs à prendre en compte pour la recherche fulltext, passer un tableau [name, weight] pour fixer un poid ≠ 1 sur le champ concerné
    */
   defineTextSearchFields (fields) {
-    this._textSearchFields = fields.map(this.getIndex, this)
+    const def = this
+    def._textSearchFields = fields.map((field) => {
+      // valeurs par défaut
+      let indexName = field
+      let path = `_data.${indexName}`
+      let weight = 1
+      // si on nous passe un array, le 1er doit être un nom et le 2e un poid
+      if (Array.isArray(field)) {
+        if (typeof field[0] !== 'string' || typeof field[1] !== 'number') {
+          throw new TypeError('Si vous précisez un champ à indexer en texte sous forme d’un Array, cela doit être [fieldName: string, weight: number]')
+        }
+        ;[indexName, weight] = field
+        weight = Math.min(99, Math.max(1, Math.round(weight)))
+        if (weight !== field[1]) log.error(Error(`Pour un champ texte weight doit être un entier entre 1 et 99 (${field[1]} fourni, ramené à ${weight}`))
+      }
+
+      // si le champ est indexé par ailleurs, on prend son path (pour indexer
+      // les valeurs retournées par sa callback plutôt que celle du champ)
+      if (def.hasIndex(indexName)) path = def.getIndex(indexName).path
+
+      return {
+        indexName,
+        path,
+        weight
+      }
+    })
   }
 
+  /**
+   * Initialise l'index text (qui doit être unique)
+   * @see https://docs.mongodb.com/manual/core/index-text/
+   * @param callback
+   */
   initializeTextSearchFieldsIndex (callback) {
     /**
      * Crée l'index texte pour cette entité
@@ -457,13 +494,20 @@ class EntityDefinition {
      */
     function createIndex (cb) {
       // Pas de nouvel index à créer
-      if (!self._textSearchFields) return cb()
+      if (!def._textSearchFields) return cb()
 
-      const indexParams = {}
-      self._textSearchFields.forEach(function ({path}) {
-        indexParams[path] = 'text'
+      const options = {
+        name: indexName,
+        default_language: 'french', // @todo lire la conf
+        weights: {}
+      }
+      const keys = {}
+      def._textSearchFields.forEach(function ({path, weight}) {
+        keys[path] = 'text'
+        // @see https://docs.mongodb.com/manual/reference/method/db.collection.createIndex/#options-for-text-indexes
+        options.weights[path] = weight
       })
-      dbCollection.createIndex(indexParams, {name: indexName}, cb)
+      dbCollection.createIndex(keys, options, cb)
     }
 
     /**
@@ -471,7 +515,7 @@ class EntityDefinition {
      * @param {simpleCallback} cb
      */
     function findFirstExistingTextIndex (cb) {
-      self.getMongoIndexes(function (error, indexes) {
+      def.getMongoIndexes(function (error, indexes) {
         if (error) return cb(error)
         // le 1er index dont le nom commence par text_index
         var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name))
@@ -480,32 +524,37 @@ class EntityDefinition {
       })
     }
 
-    var self = this
-
-    var dbCollection = self.getCollection()
-    var indexName = self._textSearchFields ? 'text_index_' + self._textSearchFields.join('_') : null
+    const def = this
+    const dbCollection = def.getCollection()
+    const indexName = def._textSearchFields
+      ? 'text_index_' + def._textSearchFields.map(({indexName}) => indexName).join('_')
+      : null
 
     flow()
       .seq(function () {
         findFirstExistingTextIndex(this)
       })
       .seq(function (oldTextIndex) {
-        var next = this
+        const next = this
 
         if (indexName === oldTextIndex) {
-        // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
+          // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
+          if (oldTextIndex) log(def.name, `index ${oldTextIndex} ok`)
           return callback()
         }
 
         if (!oldTextIndex) {
-        // Pas d'index à supprimer, on passe à la suite
+          // Pas d'index à supprimer, on passe à la suite
           return next()
         }
 
         // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
+        log(def.name, `index text_index_* a ${indexName ? 'changé' : 'disparu'} dans l'Entity => DROP ${oldTextIndex}`)
         dbCollection.dropIndex(oldTextIndex, this)
       })
       .seq(function () {
+        if (!indexName) return callback()
+        log(def.name, `index ${indexName} n’existait pas => création`)
         createIndex(this)
       })
       .done(callback)

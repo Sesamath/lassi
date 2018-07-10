@@ -141,7 +141,7 @@ function reindexAll (entityName, argSup, done) {
         log(`Ré-indexation de ${total} entités ${entityName} terminée`)
         done()
       }
-      Entity.match().includeDeleted().forEachEntity(forEachCb, allDoneCb, options)
+      Entity.match().includeDeleted().sort('oid').forEachEntity(forEachCb, allDoneCb, options)
     } else {
       log(`Rien à réindexer pour ${entityName} (l’entité existe mais il n’y a aucun enregistrement)`)
       done()

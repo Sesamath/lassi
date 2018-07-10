@@ -294,6 +294,14 @@ class Context {
   }
 
   /**
+   * Ajoute un header pour mise en cache (par un proxy ou le navigateur)
+   * @param {string} [maxAge=1d] Sans unité c'est des secondes
+   */
+  setPublicCache (maxAge = '1d') {
+    this.setHeader('Cache-Control', `public, max-age=${maxAge}`)
+  }
+
+  /**
    * Fixe le status (code http de la réponse)
    * @param {number} status
    */
