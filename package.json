@@ -14,7 +14,7 @@
     "ajv-errors": "^1.0.0",
     "ajv-i18n": "^3.0.0",
     "ajv-keywords": "^3.1.0",
-    "an-flow": "git://src.sesamath.net/an-flow#3aa74ba",
+    "an-flow": "git://src.sesamath.net/an-flow#118c528",
     "an-log": "git://src.sesamath.net/an-log#55ea104",
     "colors": "^1.1.2",
     "compression": "^1.7.1",
