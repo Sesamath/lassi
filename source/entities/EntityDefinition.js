@@ -476,7 +476,7 @@ class EntityDefinition {
     const mongoIndexName = this.getMongoIndexName(indexName, useData, indexOptions)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
-    if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
+    if (mongoIndexName.length > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
 
     const index = {
       fieldType,
