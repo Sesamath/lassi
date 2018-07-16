@@ -61,10 +61,25 @@ const BUILT_IN_INDEXES = {
     indexOptions: {}
   }
 }
+
+/**
+ * Index d'entity
+ * @typedef indexDefinition
+ * @property {string} [fieldType] Si précisé il y aura du cast avant store et sur les arguments des EntityQuery (ça empêche d'utiliser directement la valeur de _data comme index)
+ * @property {string} indexName
+ * @property {object} [indexOptions]
+ * @property {boolean} [indexOptions.unique]
+ * @property {boolean} [indexOptions.sparse]
+ * @property {string} mongoIndexName
+ * @property {string} path Le chemin de l'index dans le document mongo (indexName ou _data.indexName suivant useData)
+ * @property {boolean} useData
+ */
+
 /**
  * @callback simpleCallback
  * @param {Error} [error]
  */
+
 /**
  * Définition d'une entité, avec les méthodes pour la définir
  * mais aussi récupérer sa collection, une EntityQuery, etc.
@@ -96,6 +111,186 @@ class EntityDefinition {
     this._toValidate = []
   }
 
+  /**
+   * Finalisation de l'objet Entité, appelé en fin de définition, avant initialize
+   * @param {Entities} entities le conteneur d'entités.
+   * @return {Entity} l'entité (chaînable)
+   * @private
+   */
+  _bless (entities) {
+    if (this.configure) this.configure()
+    this.entities = entities
+    if (!this.entityConstructor) {
+      this.entityConstructor = function () {
+        // Théoriquement il aurait fallut appeler le constructeur d'Entity avec Entity.call(this, ...), mais
+        // 1. c'est impossible car Entity est une classe, qu'il faut instancier avec 'new'
+        // 2. Entity n'a pas de constructeur, donc ça ne change pas grand chose
+      }
+      this.entityConstructor.prototype = Object.create(Entity.prototype)
+    }
+    return this
+  }
+
+  /**
+   * Initialise les index (au boot)
+   * @param {errorCallback} cb
+   * @private
+   */
+  _initialize (cb) {
+    log(this.name, 'initialize')
+    this._initializeIndexes(error => {
+      if (error) return cb(error)
+      this._initializeTextSearchFieldsIndex(cb)
+    })
+  }
+
+  /**
+   * Init des indexes
+   * - virent ceux qu'on avait mis et qui ont disparu de l'entity
+   * - ajoute ceux qui manquent
+   * @param {indexesCallback} cb rappelée avec (error, createdIndexes), le 2e argument est undefined si on a rien créé
+   */
+  _initializeIndexes (cb) {
+    const def = this
+    const coll = def.getCollection()
+    const existingIndexes = {}
+    flow().seq(function () {
+      def.getMongoIndexes(this)
+      // on parse l'existant
+    }).seqEach(function (existingIndex) {
+      const mongoIndexName = existingIndex.name
+      // si c'est un index text on s'en occupe pas, c'est initializeTextSearchFieldsIndex qui verra plus tard
+      if (/^text_index/.test(mongoIndexName)) return this()
+
+      if (def.indexesByMongoIndexName[mongoIndexName] || _.some(BUILT_IN_INDEXES, (index) => index.mongoIndexName === mongoIndexName)) {
+        // la notion de type de valeur à indexer n'existe pas dans mongo.
+        // seulement des type d'index champ unique / composé / texte / etc.
+        // https://docs.mongodb.com/manual/indexes/#index-types
+        // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
+        // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
+        // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
+        existingIndexes[mongoIndexName] = existingIndex
+        log(def.name, `index ${mongoIndexName} ok`)
+        return this()
+      }
+      // si on est toujours là c'est un index qui n'est plus défini,
+      // on met un message différent suivant que c'est un index lassi ou pas
+      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
+        log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
+      } else {
+        log(def.name, `index ${mongoIndexName} existe dans mongo mais n’est pas un index lassi => DROP`, existingIndex)
+      }
+      // on le vire
+      coll.dropIndex(mongoIndexName, this)
+    }).seq(function () {
+      // et on regarde ce qui manque
+      let indexesToAdd = []
+      // par commodité, on ajoute __deletedAt aux index ici et l'enlève juste après le forEach
+      def.indexes.__deletedAt = BUILT_IN_INDEXES.__deletedAt
+      _.forEach(def.indexes, ({path, mongoIndexName, indexOptions}) => {
+        if (existingIndexes[mongoIndexName]) return
+        // directement au format attendu par mongo
+        // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
+        indexesToAdd.push({key: {[path]: 1}, name: mongoIndexName, ...indexOptions})
+        log(def.name, `index ${mongoIndexName} n’existait pas => création`)
+      })
+      delete def.indexes.__deletedAt
+
+      if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
+      else cb()
+    }).catch(cb)
+  } // _initializeIndexes
+
+  /**
+   * Initialise l'index text (qui doit être unique)
+   * @see https://docs.mongodb.com/manual/core/index-text/
+   * @param callback
+   */
+  _initializeTextSearchFieldsIndex (callback) {
+    /**
+     * Crée l'index texte pour cette entité
+     * @param {simpleCallback} cb
+     * @private
+     */
+    function createIndex (cb) {
+      // Pas de nouvel index à créer
+      if (!def._textSearchFields) return cb()
+
+      const options = {
+        name: indexName,
+        default_language: 'french', // @todo lire la conf
+        weights: {}
+      }
+      const keys = {}
+      def._textSearchFields.forEach(function ({path, weight}) {
+        keys[path] = 'text'
+        // @see https://docs.mongodb.com/manual/reference/method/db.collection.createIndex/#options-for-text-indexes
+        options.weights[path] = weight
+      })
+      dbCollection.createIndex(keys, options, cb)
+    }
+
+    /**
+     * Passe le nom du 1er index texte (normalement le seul)
+     * @param {simpleCallback} cb
+     */
+    function findFirstExistingTextIndex (cb) {
+      def.getMongoIndexes(function (error, indexes) {
+        if (error) return cb(error)
+        // le 1er index dont le nom commence par text_index
+        var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name))
+
+        cb(null, textIndex ? textIndex.name : null)
+      })
+    }
+
+    const def = this
+    const dbCollection = def.getCollection()
+    const indexName = def._textSearchFields
+      ? 'text_index_' + def._textSearchFields.map(({indexName}) => indexName).join('_')
+      : null
+
+    flow()
+      .seq(function () {
+        findFirstExistingTextIndex(this)
+      })
+      .seq(function (oldTextIndex) {
+        const next = this
+
+        if (indexName === oldTextIndex) {
+          // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
+          if (oldTextIndex) log(def.name, `index ${oldTextIndex} ok`)
+          return callback()
+        }
+
+        if (!oldTextIndex) {
+          // Pas d'index à supprimer, on passe à la suite
+          return next()
+        }
+
+        // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
+        log(def.name, `index text_index_* a ${indexName ? 'changé' : 'disparu'} dans l'Entity => DROP ${oldTextIndex}`)
+        dbCollection.dropIndex(oldTextIndex, this)
+      })
+      .seq(function () {
+        if (!indexName) return callback()
+        log(def.name, `index ${indexName} n’existait pas => création`)
+        createIndex(this)
+      })
+      .done(callback)
+  } // _initializeTextSearchFieldsIndex
+
+  /**
+   * @callback validationCallback
+   * @param {Error} error
+   * @param {Object} data la valeur de la promesse résolue par la fn retournée par ajv.compile
+   */
+  /**
+   * Valide l'entity avec son schéma (ne fait rien si y'a pas de schéma)
+   * @private
+   * @param {Entity} entity
+   * @param {validationCallback} cb
+   */
   _validateEntityWithSchema (entity, cb) {
     if (!this._ajvValidate) return cb()
 
@@ -126,144 +321,95 @@ class EntityDefinition {
   }
 
   /**
-   * Ajoute une fonction de validation
-   * @param {function} validateFn
+   * Ajoute un traitement après stockage.
+   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
-  validate (validateFn) {
-    this._toValidate.push(validateFn)
+  afterStore (fn) {
+    this._afterStore = fn
   }
 
   /**
-   * Ajoute une fonction de validation sur un attribut particulier
-   * @param {string} attributeName
-   * @param {function} validateFn
+   * Ajoute un traitement avant suppression
+   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
-  validateOnChange (attributeName, validateFn) {
-    if (_.isArray(attributeName)) {
-      attributeName.forEach((att) => this.validateOnChange(att, validateFn))
-      return
+  beforeDelete (fn) {
+    this._beforeDelete = fn
+  }
+
+  /**
+   * Ajoute un traitement avant stockage.
+   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
+   */
+  beforeStore (fn) {
+    this._beforeStore = fn
+  }
+
+  /**
+   * Ajoute un constructeur (appelé par create avec l'objet qu'on lui donne), s'il n'existe pas
+   * le create affectera à l'entité toutes les valeurs qu'on lui passe
+   * @param {function} fn Constructeur
+   */
+  construct (fn) {
+    this._construct = fn
+  }
+
+  /**
+   * Passe à cb le nb d'entity (hors softDeleted, passer par EntityQuery#count si on les veut)
+   * @param {EntityQuery~CountCallback} cb
+   */
+  count (cb) {
+    this.getCollection().count({__deletedAt: {$eq: null}}, cb)
+  }
+
+  /**
+   * Compte le nb d'entité pour chaque valeur de l'index demandé
+   * @param {string} index
+   * @param {EntityQuery~CountByCallback} cb
+   */
+  countBy (index, cb) {
+    this.match().countBy(index, cb)
+  }
+
+  /**
+   * Retourne une instance {@link Entity} à partir de la définition
+   * (appelera defaults s'il existe, puis construct s'il existe et Object.assign sinon)
+   * Attention, si la fonction passée à construct n'attend pas d'argument,
+   * toutes les propriétés de values seront affectée à l'entité !
+   * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
+   * @param {Object=} values Des valeurs à injecter dans l'objet.
+   * @return {Entity} Une instance d'entité
+   */
+  create (values) {
+    var instance = new this.entityConstructor() // eslint-disable-line new-cap
+    instance.setDefinition(this)
+    if (this._defaults) {
+      this._defaults.call(instance)
     }
-    if (!this._toValidateOnChange[attributeName]) {
-      this._toValidateOnChange[attributeName] = []
+    if (this._construct) {
+      this._construct.call(instance, values)
+      // Si la fonction passée en constructeur ne prend aucun argument,
+      // on ajoute d'office les values passées au create dans l'entity
+      // (si le constructeur ne les a pas créées)
+      if (values && this._construct.length === 0) {
+        Object.assign(instance, values)
+      }
+    } else {
+      if (values) Object.assign(instance, values)
     }
-    this._toValidateOnChange[attributeName].push(validateFn)
-    this.trackAttribute(attributeName)
+
+    if (!instance.isNew()) {
+      instance.onLoad()
+    }
+
+    return instance
   }
 
   /**
-   * Marque les attributs comme étant à suivre, pour voir le changement entre le chargement depuis la base et le store
-   * @param {string[]} attributeName
+   * Ajoute un initialisateur, qui sera toujours appelé par create (avant un éventuel construct)
+   * @param {function} fn La fonction qui initialisera des valeurs par défaut (sera appelée sans arguments)
    */
-  trackAttributes (attributeNames) {
-    attributeNames.forEach((att) => this.trackAttribute(att))
-  }
-
-  /**
-   * Marque l'attribut comme étant à suivre, pour voir le changement entre le chargement depuis la base et le store
-   * @param {string} attributeName
-   */
-  trackAttribute (attributeName) {
-    this._trackedAttributes[attributeName] = true
-  }
-
-  /**
-   * Définit un json schema pour l'entity, validé lors d'un appel à isValid() ou avant le store d'une entity
-   * Le deuxième argument permet d'ajouter des keywords personnalisés
-   *
-   * @param {Object} schema json schema à valider
-   * @param {Object} addKeywords "keywords" supplémentaires à définir sur ajv, cf. https://github.com/epoberezkin/ajv#api-addkeyword
-   */
-  validateJsonSchema (schema, addKeywords = {}) {
-    if (this.schema) throw new Error(`validateJsonSchema a déjà été appelé pour l'entity ${this.name}`)
-
-    this._ajv = new Ajv({allErrors: true, jsonPointers: true})
-    // Ajv options allErrors and jsonPointers are required for AjxErrors
-    AjvErrors(this._ajv)
-    AjvKeywords(this._ajv, 'instanceof')
-
-    _.forEach(addKeywords, (definition, keyword) => {
-      this._ajv.addKeyword(keyword, definition)
-    })
-
-    this.schema = Object.assign(
-      {
-        $async: true, // pour avoir une validation uniforme, on considère tous les schémas asynchrones
-        additionalProperties: false, // par défaut, on n'autorise pas les champs non-déclarés dans les properties
-        type: 'object', // toutes les entities sont des objets
-        title: this.name
-      },
-      schema
-    )
-
-    this._ajvValidate = this._ajv.compile(this.schema)
-  }
-
-  /**
-   * Permet de désactiver / réactiver la validation au beforeStore
-   * @param {boolean} skipValidation si true, on ne vérifiera pas la validation avant le store
-   */
-  setSkipValidation (skipValidation) {
-    this._skipValidation = skipValidation
-  }
-  /**
-   * Retourne l'objet Collection de mongo de cette EntityDefinition
-   * @return {Collection}
-   */
-  getCollection () {
-    return this.entities.db.collection(this.name)
-  }
-
-  /**
-   * Retourne l'objet db de la connexion à Mongo
-   * À n'utiliser que dans des cas très particuliers pour utiliser directement des commandes du driver mongo
-   * Si lassi ne propose pas la méthode pour votre besoin, il vaudrait mieux l'ajouter à lassi
-   * plutôt que d'utiliser directement cet objet, on vous le donne à vos risques et périls…
-   * @return {Db}
-   */
-  getDb () {
-    return this.entities.db
-  }
-
-  /**
-   * Retourne la définition de l'index demandé
-   * @param {string} indexName
-   * @throws {Error} si index n'est pas un index défini
-   */
-  getIndex (indexName) {
-    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName]
-
-    if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
-    return this.indexes[indexName]
-  }
-
-  /**
-   * Retourne le nom de l'index mongo associé à un champ
-   * @param indexName
-   * @return {string}
-   */
-  getMongoIndexName (indexName, useData, indexOptions = {}) {
-    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName].mongoIndexName
-    let name = `${INDEX_PREFIX}${indexName}`
-
-    // quand un index passe de calculé à non calculé, on veut le regénérer donc on change son nom
-    if (useData) name += '-data'
-
-    // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
-    // si on ajoute ou enlève l'option
-    ;['unique', 'sparse'].forEach((opt) => {
-      if (indexOptions[opt]) name += `-${opt}`
-    })
-
-    return name
-  }
-
-  /**
-   * Pour savoir si un index est défini
-   * @param indexName
-   * @return {boolean}
-   */
-  hasIndex (indexName) {
-    return !!this.indexes[indexName]
+  defaults (fn) {
+    this._defaults = fn
   }
 
   /**
@@ -349,103 +495,13 @@ class EntityDefinition {
     return this
   }
 
+  /**
+   * Ajoute une méthode au prototype du constructeur d'entity
+   * @param {string} name Nom de la méthode
+   * @param {function} fn Méthode
+   */
   defineMethod (name, fn) {
     this.entityConstructor.prototype[name] = fn
-  }
-
-  initialize (cb) {
-    log(this.name, 'initialize')
-    this.initializeIndexes(error => {
-      if (error) return cb(error)
-      this.initializeTextSearchFieldsIndex(cb)
-    })
-  }
-
-  /**
-   * @callback indexesCallback
-   * @param {Error} [error]
-   * @param {Object[]} [createdIndexes] tableau d'index mongo (retourné par listIndexes ou createIndexes)
-   */
-  /**
-   * Récupère tous les index existants
-   * @param {indexesCallback} cb
-   */
-  getMongoIndexes (cb) {
-    this.getCollection().listIndexes().toArray(function (error, indexes) {
-      if (error) {
-        // mongo 3.2 ou 3.4…il semblerait que les message ne soient pas uniformes
-        if (
-          error.message === 'no collection' ||
-          error.message === 'no database' ||
-          /^Collection.*doesn't exist$/.test(error.message) ||
-          /^Database.*doesn't exist$/.test(error.message)
-        ) {
-          // Ce cas peut se produire si la collection/database vient d'être créée
-          // il n'y a donc pas d'index existant
-          return cb(null, [])
-        }
-        return cb(error)
-      }
-
-      return cb(null, indexes)
-    })
-  }
-
-  /**
-   * Init des indexes
-   * - virent ceux qu'on avait mis et qui ont disparu de l'entity
-   * - ajoute ceux qui manquent
-   * @param {indexesCallback} cb rappelée avec (error, createdIndexes), le 2e argument est undefined si on a rien créé
-   */
-  initializeIndexes (cb) {
-    const def = this
-    const coll = def.getCollection()
-    const existingIndexes = {}
-    flow().seq(function () {
-      def.getMongoIndexes(this)
-    // on parse l'existant
-    }).seqEach(function (existingIndex) {
-      const mongoIndexName = existingIndex.name
-      // si c'est un index text on s'en occupe pas, c'est initializeTextSearchFieldsIndex qui verra plus tard
-      if (/^text_index/.test(mongoIndexName)) return this()
-
-      if (def.indexesByMongoIndexName[mongoIndexName] || _.some(BUILT_IN_INDEXES, (index) => index.mongoIndexName === mongoIndexName)) {
-        // la notion de type de valeur à indexer n'existe pas dans mongo.
-        // seulement des type d'index champ unique / composé / texte / etc.
-        // https://docs.mongodb.com/manual/indexes/#index-types
-        // ici on boucle sur les index ordinaire, faudrait vérifier que c'est pas un composé ou un unique,
-        // mais vu qu'il a un nom à nous… il a été mis par nous avec ce même code donc pas la peine de trop creuser.
-        // faudra le faire si on ajoute les index composés et qu'on utilise def.indexes aussi pour eux
-        existingIndexes[mongoIndexName] = existingIndex
-        log(def.name, `index ${mongoIndexName} ok`)
-        return this()
-      }
-      // si on est toujours là c'est un index qui n'est plus défini,
-      // on met un message différent suivant que c'est un index lassi ou pas
-      if (RegExp(`^${INDEX_PREFIX}`).test(mongoIndexName)) {
-        log(def.name, `index ${mongoIndexName} existe dans mongo mais plus dans l'Entity => DROP`, existingIndex)
-      } else {
-        log(def.name, `index ${mongoIndexName} existe dans mongo mais n’est pas un index lassi => DROP`, existingIndex)
-      }
-      // on le vire
-      coll.dropIndex(mongoIndexName, this)
-    }).seq(function () {
-      // et on regarde ce qui manque
-      let indexesToAdd = []
-      // par commodité, on ajoute __deletedAt aux index ici et l'enlève juste après le forEach
-      def.indexes.__deletedAt = BUILT_IN_INDEXES.__deletedAt
-      _.forEach(def.indexes, ({path, mongoIndexName, indexOptions}) => {
-        if (existingIndexes[mongoIndexName]) return
-        // directement au format attendu par mongo
-        // cf https://docs.mongodb.com/manual/reference/command/createIndexes/
-        indexesToAdd.push({key: {[path]: 1}, name: mongoIndexName, ...indexOptions})
-        log(def.name, `index ${mongoIndexName} n’existait pas => création`)
-      })
-      delete def.indexes.__deletedAt
-
-      if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
-      else cb()
-    }).catch(cb)
   }
 
   /**
@@ -482,139 +538,6 @@ class EntityDefinition {
   }
 
   /**
-   * Initialise l'index text (qui doit être unique)
-   * @see https://docs.mongodb.com/manual/core/index-text/
-   * @param callback
-   */
-  initializeTextSearchFieldsIndex (callback) {
-    /**
-     * Crée l'index texte pour cette entité
-     * @param {simpleCallback} cb
-     * @private
-     */
-    function createIndex (cb) {
-      // Pas de nouvel index à créer
-      if (!def._textSearchFields) return cb()
-
-      const options = {
-        name: indexName,
-        default_language: 'french', // @todo lire la conf
-        weights: {}
-      }
-      const keys = {}
-      def._textSearchFields.forEach(function ({path, weight}) {
-        keys[path] = 'text'
-        // @see https://docs.mongodb.com/manual/reference/method/db.collection.createIndex/#options-for-text-indexes
-        options.weights[path] = weight
-      })
-      dbCollection.createIndex(keys, options, cb)
-    }
-
-    /**
-     * Passe le nom du 1er index texte (normalement le seul)
-     * @param {simpleCallback} cb
-     */
-    function findFirstExistingTextIndex (cb) {
-      def.getMongoIndexes(function (error, indexes) {
-        if (error) return cb(error)
-        // le 1er index dont le nom commence par text_index
-        var textIndex = indexes && _.find(indexes, index => /^text_index/.test(index.name))
-
-        cb(null, textIndex ? textIndex.name : null)
-      })
-    }
-
-    const def = this
-    const dbCollection = def.getCollection()
-    const indexName = def._textSearchFields
-      ? 'text_index_' + def._textSearchFields.map(({indexName}) => indexName).join('_')
-      : null
-
-    flow()
-      .seq(function () {
-        findFirstExistingTextIndex(this)
-      })
-      .seq(function (oldTextIndex) {
-        const next = this
-
-        if (indexName === oldTextIndex) {
-          // Index déjà créé pour les champs demandés (ou déjà inexistant si null === null), rien d'autre à faire
-          if (oldTextIndex) log(def.name, `index ${oldTextIndex} ok`)
-          return callback()
-        }
-
-        if (!oldTextIndex) {
-          // Pas d'index à supprimer, on passe à la suite
-          return next()
-        }
-
-        // Sinon, on supprime l'ancien index pour pouvoir créer le nouveau
-        log(def.name, `index text_index_* a ${indexName ? 'changé' : 'disparu'} dans l'Entity => DROP ${oldTextIndex}`)
-        dbCollection.dropIndex(oldTextIndex, this)
-      })
-      .seq(function () {
-        if (!indexName) return callback()
-        log(def.name, `index ${indexName} n’existait pas => création`)
-        createIndex(this)
-      })
-      .done(callback)
-  }
-
-  /**
-   * Finalisation de l'objet Entité, appelé en fin de définition, avant initialize
-   * @param {Entities} entities le conteneur d'entités.
-   * @return {Entity} l'entité (chaînable)
-   * @private
-   */
-  bless (entities) {
-    if (this.configure) this.configure()
-    this.entities = entities
-    if (!this.entityConstructor) {
-      this.entityConstructor = function () {
-        // Théoriquement il aurait fallut appeler le constructeur d'Entity avec Entity.call(this, ...), mais
-        // 1. c'est impossible car Entity est une classe, qu'il faut instancier avec 'new'
-        // 2. Entity n'a pas de constructeur, donc ça ne change pas grand chose
-      }
-      this.entityConstructor.prototype = Object.create(Entity.prototype)
-    }
-    return this
-  }
-
-  /**
-   * Retourne une instance {@link Entity} à partir de la définition
-   * (appelera defaults s'il existe, puis construct s'il existe et Object.assign sinon)
-   * Attention, si la fonction passée à construct n'attend pas d'argument,
-   * toutes les propriétés de values seront affectée à l'entité !
-   * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
-   * @param {Object=} values Des valeurs à injecter dans l'objet.
-   * @return {Entity} Une instance d'entité
-   */
-  create (values) {
-    var instance = new this.entityConstructor() // eslint-disable-line new-cap
-    instance.setDefinition(this)
-    if (this._defaults) {
-      this._defaults.call(instance)
-    }
-    if (this._construct) {
-      this._construct.call(instance, values)
-      // Si la fonction passée en constructeur ne prend aucun argument,
-      // on ajoute d'office les values passées au create dans l'entity
-      // (si le constructeur ne les a pas créées)
-      if (values && this._construct.length === 0) {
-        Object.assign(instance, values)
-      }
-    } else {
-      if (values) Object.assign(instance, values)
-    }
-
-    if (!instance.isNew()) {
-      instance.onLoad()
-    }
-
-    return instance
-  }
-
-  /**
    * drop la collection
    * @param {simpleCallback} cb
    */
@@ -631,6 +554,98 @@ class EntityDefinition {
   }
 
   /**
+   * Retourne l'objet Collection de mongo de cette EntityDefinition
+   * @return {Collection}
+   */
+  getCollection () {
+    return this.entities.db.collection(this.name)
+  }
+
+  /**
+   * Retourne l'objet db de la connexion à Mongo
+   * À n'utiliser que dans des cas très particuliers pour utiliser directement des commandes du driver mongo
+   * Si lassi ne propose pas la méthode pour votre besoin, il vaudrait mieux l'ajouter à lassi
+   * plutôt que d'utiliser directement cet objet, on vous le donne à vos risques et périls…
+   * @return {Db}
+   */
+  getDb () {
+    return this.entities.db
+  }
+
+  /**
+   * Retourne la définition de l'index demandé
+   * @param {string} indexName
+   * @return {indexDefinition}
+   * @throws {Error} si index n'est pas un index défini
+   */
+  getIndex (indexName) {
+    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName]
+
+    if (!this.hasIndex(indexName)) throw new Error(`L’entity ${this.name} n’a pas d’index ${indexName}`)
+    return this.indexes[indexName]
+  }
+
+  /**
+   * @callback indexesCallback
+   * @param {Error} [error]
+   * @param {Object[]} [createdIndexes] tableau d'index mongo (retourné par listIndexes ou createIndexes)
+   */
+  /**
+   * Récupère tous les index existants
+   * @param {indexesCallback} cb
+   */
+  getMongoIndexes (cb) {
+    this.getCollection().listIndexes().toArray(function (error, indexes) {
+      if (error) {
+        // mongo 3.2 ou 3.4…il semblerait que les message ne soient pas uniformes
+        if (
+          error.message === 'no collection' ||
+          error.message === 'no database' ||
+          /^Collection.*doesn't exist$/.test(error.message) ||
+          /^Database.*doesn't exist$/.test(error.message)
+        ) {
+          // Ce cas peut se produire si la collection/database vient d'être créée
+          // il n'y a donc pas d'index existant
+          return cb(null, [])
+        }
+        return cb(error)
+      }
+
+      return cb(null, indexes)
+    })
+  }
+
+  /**
+   * Retourne le nom de l'index mongo associé à un champ
+   * @param indexName
+   * @return {string}
+   */
+  getMongoIndexName (indexName, useData, indexOptions = {}) {
+    if (BUILT_IN_INDEXES[indexName]) return BUILT_IN_INDEXES[indexName].mongoIndexName
+    let name = `${INDEX_PREFIX}${indexName}`
+
+    // quand un index passe de calculé à non calculé, on veut le regénérer donc on change son nom
+    if (useData) name += '-data'
+
+    // On donne un nom différent à un index unique et/ou sparse ce qui force lassi à recréer l'index
+    // si on ajoute ou enlève l'option
+    ;['unique', 'sparse'].forEach((opt) => {
+      if (indexOptions[opt]) name += `-${opt}`
+    })
+
+    return name
+  }
+
+  /**
+   * Pour savoir si un index est défini
+   * @param indexName
+   * @return {boolean}
+   */
+  hasIndex (indexName) {
+    return !!this.indexes[indexName]
+  }
+
+  /**
    * Retourne un requeteur (sur lequel on pourra chaîner les méthodes de {@link EntityQuery})
    * @param {string} [index] Un index à matcher en premier, on peut en mettre plusieurs
    * @return {EntityQuery}
@@ -639,56 +654,6 @@ class EntityDefinition {
     const query = new EntityQuery(this)
     if (arguments.length) query.match.apply(query, Array.prototype.slice.call(arguments))
     return query
-  }
-
-  /**
-   * Passe à cb le nb d'entity (hors softDeleted, passer par EntityQuery#count si on les veut)
-   * @param {EntityQuery~CountCallback} cb
-   */
-  count (cb) {
-    this.getCollection().count({__deletedAt: {$eq: null}}, cb)
-  }
-
-  /**
-   * Compte le nb d'entité pour chaque valeur de l'index demandé
-   * @param {string} index
-   * @param {EntityQuery~CountByCallback} cb
-   */
-  countBy (index, cb) {
-    this.match().countBy(index, cb)
-  }
-
-  /**
-   * Ajoute un constructeur (appelé par create avec l'objet qu'on lui donne), s'il n'existe pas
-   * le create affectera toutes les valeurs qu'on lui passe à l'entité
-   * @param {function} fn Constructeur
-   */
-  construct (fn) {
-    this._construct = fn
-  }
-
-  /**
-   * Ajoute un initialisateur, qui sera toujours appelé par create (avant un éventuel construct)
-   * @param {function} fn La fonction qui initialisera des valeurs par défaut (sera appelée sans arguments)
-   */
-  defaults (fn) {
-    this._defaults = fn
-  }
-
-  /**
-   * Ajoute un traitement avant stockage.
-   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
-   */
-  beforeStore (fn) {
-    this._beforeStore = fn
-  }
-
-  /**
-   * Ajoute un traitement après stockage.
-   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
-   */
-  afterStore (fn) {
-    this._afterStore = fn
   }
 
   /**
@@ -712,17 +677,90 @@ class EntityDefinition {
   }
 
   /**
-   * Ajoute un traitement avant suppression
-   * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
+   * Permet de désactiver / réactiver la validation au beforeStore
+   * @param {boolean} skipValidation si true, on ne vérifiera pas la validation avant le store
    */
-  beforeDelete (fn) {
-    this._beforeDelete = fn
+  setSkipValidation (skipValidation) {
+    this._skipValidation = skipValidation
   }
 
   /**
-   * Callback à rappeler sans argument
-   * @callback simpleCallback
+   * Marque l'attribut comme étant à suivre, pour voir le changement entre le chargement depuis la base et le store
+   * @param {string} attributeName
    */
+  trackAttribute (attributeName) {
+    this._trackedAttributes[attributeName] = true
+  }
+
+  /**
+   * Marque les attributs comme étant à suivre, pour voir le changement entre le chargement depuis la base et le store
+   * @param {string[]} attributeName
+   */
+  trackAttributes (attributeNames) {
+    attributeNames.forEach((att) => this.trackAttribute(att))
+  }
+
+  /**
+   * Ajoute une fonction de validation
+   * @param {function} validateFn
+   */
+  validate (validateFn) {
+    this._toValidate.push(validateFn)
+  }
+
+  /**
+   * Définit un json schema pour l'entity, validé lors d'un appel à isValid() ou avant le store d'une entity
+   * Le deuxième argument permet d'ajouter des keywords personnalisés
+   *
+   * @param {Object} schema json schema à valider
+   * @param {Object} addKeywords "keywords" supplémentaires à définir sur ajv, @link {https://github.com/epoberezkin/ajv#api-addkeyword}
+   */
+  validateJsonSchema (schema, addKeywords = {}) {
+    if (this.schema) throw new Error(`validateJsonSchema a déjà été appelé pour l'entity ${this.name}`)
+
+    this._ajv = new Ajv({allErrors: true, jsonPointers: true})
+    // Ajv options allErrors and jsonPointers are required for AjxErrors
+    AjvErrors(this._ajv)
+    AjvKeywords(this._ajv, 'instanceof')
+
+    _.forEach(addKeywords, (definition, keyword) => {
+      this._ajv.addKeyword(keyword, definition)
+    })
+
+    this.schema = Object.assign(
+      {
+        $async: true, // pour avoir une validation uniforme, on considère tous les schémas asynchrones
+        additionalProperties: false, // par défaut, on n'autorise pas les champs non-déclarés dans les properties
+        type: 'object', // toutes les entities sont des objets
+        title: this.name
+      },
+      schema
+    )
+
+    this._ajvValidate = this._ajv.compile(this.schema)
+  }
+
+  /**
+   * Ajoute une fonction de validation sur un attribut particulier
+   * @param {string} attributeName
+   * @param {function} validateFn
+   */
+  validateOnChange (attributeName, validateFn) {
+    if (_.isArray(attributeName)) {
+      attributeName.forEach((att) => this.validateOnChange(att, validateFn))
+      return
+    }
+    if (!this._toValidateOnChange[attributeName]) {
+      this._toValidateOnChange[attributeName] = []
+    }
+    this._toValidateOnChange[attributeName].push(validateFn)
+    this.trackAttribute(attributeName)
+  }
 }
 
 module.exports = EntityDefinition
+
+/**
+ * Callback à rappeler sans argument
+ * @callback simpleCallback
+ */

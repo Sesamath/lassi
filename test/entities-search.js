@@ -32,7 +32,7 @@ function initEntities (dbSettings, next) {
     TestEntity.defineIndex('type', 'string')
     TestEntity.defineIndex('text1', 'string')
     TestEntity.defineTextSearchFields([['text1', 2], 'text2'])
-    TestEntity.initialize(this)
+    TestEntity._initialize(this)
   }).done(next)
 }
 

@@ -681,7 +681,6 @@ describe('Test entities-queries', function () {
   describe('.delete()', function () {
     it('Suppression de la moitié des entités', function (done) {
       flow()
-        .callbackWrapper(process.nextTick)
         .seq(function () {
           TestEntity.match('iPair').equals(1).grab(this)
         }).seq(function (entities) {
@@ -784,7 +783,6 @@ describe('Test entities-queries', function () {
       }
 
       flow(objs)
-        .callbackWrapper(process.nextTick)
         .parEach(function (obj) {
           obj.store(this)
         }).parEach(function (obj) {

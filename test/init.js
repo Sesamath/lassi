@@ -174,7 +174,7 @@ function initEntities (next) {
     TestEntity.defineIndex('dArray', 'date')
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
-    TestEntity.initialize(this)
+    TestEntity._initialize(this)
   }).seq(function () {
     next(null, TestEntity)
   }).catch(next)

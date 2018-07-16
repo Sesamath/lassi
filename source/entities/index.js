@@ -67,7 +67,7 @@ class Entities extends EventEmitter {
    */
   define (name) {
     const def = new EntityDefinition(name)
-    def.bless(this)
+    def._bless(this)
     this.entities[name] = def
     return def
   }
@@ -106,7 +106,7 @@ class Entities extends EventEmitter {
       self.db = db
       // on passe à l'init de toutes les entities
       flow(Object.values(self.entities)).seqEach(function (entityDefinition) {
-        entityDefinition.initialize(this)
+        entityDefinition._initialize(this)
       }).done(cb)
     })
   }

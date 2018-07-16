@@ -37,7 +37,7 @@ describe('Entity', () => {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush((err) => {
         if (err) return done(err)
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
 
@@ -102,7 +102,7 @@ describe('Entity', () => {
         this.$loaded = `load-${++count}`
       })
       TestEntity.flush(() => {
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
 
@@ -168,7 +168,7 @@ describe('Entity', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(() => {
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
 
@@ -346,7 +346,7 @@ describe('Entity', () => {
       const init = () => new Promise((resolve, reject) => {
         TestEntity.flush((err) => {
           if (err) return reject(err)
-          TestEntity.initialize((err) => {
+          TestEntity._initialize((err) => {
             if (err) return reject(err)
             resolve()
           })
@@ -595,7 +595,7 @@ describe('Entity', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(() => {
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
     const testValidationError = (schema, data, expectedError, addKeywords = {}) => (done) => {
