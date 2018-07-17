@@ -432,16 +432,12 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur cherchée
    * @return {EntityQuery} La requête (pour chaînage)
    */
-  equals (value, fieldValue) {
-    if (typeof fieldValue !== 'undefined') {
-      this.match(value)
-      value = fieldValue
-    }
+  equals (value) {
     return alterLastMatch(this, {value: value, operator: '='})
   }
 
   /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est fausse.
+   * raccourci pour .equals(false)
    * @return {EntityQuery} La requête (pour chaînage)
    */
   false () {
@@ -737,11 +733,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur cherchée
    * @return {EntityQuery} La requête (pour chaînage)
    */
-  notEquals (value, fieldValue) {
-    if (typeof fieldValue !== 'undefined') {
-      this.match(value)
-      value = fieldValue
-    }
+  notEquals (value) {
     return alterLastMatch(this, {value: value, operator: '<>'})
   }
 
@@ -837,22 +829,12 @@ class EntityQuery {
   }
 
   /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est vraie.
+   * raccourci pour .equals(true)
    *
    * @return {EntityQuery} La requête (pour chaînage)
    */
   true () {
     return this.equals(true)
-  }
-
-  /**
-   * @alias equals
-   *
-   * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (pour chaînage)
-   */
-  with (value) {
-    return alterLastMatch(this, {value: value, operator: '='})
   }
 }
 
