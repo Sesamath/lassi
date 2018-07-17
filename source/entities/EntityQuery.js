@@ -34,7 +34,7 @@ const HARD_LIMIT_GRAB = 1000
 const FOREACH_BATCH_SIZE = 200
 
 /**
- * Helper permettant d'altérer la dernière clause.
+ * Helper permettant d'altérer le dernièr match.
  * @param {EntityQuery} entityQuery
  * @param {Object} data les données à injecter.
  * @return {EntityQuery} La requête modifiée (pour chaînage)
@@ -54,53 +54,54 @@ function alterLastMatch (entityQuery, data) {
 function buildQuery (entityQuery, record) {
   var query = record.query
 
-  entityQuery.matches.forEach((clause) => {
-    if (!clause) throw new Error('Erreur interne, requête invalide')
-    const {path, fieldType} = clause.index
-    if (clause.type === 'sort') {
+  entityQuery.matches.forEach((match) => {
+    if (!match) throw new Error('Erreur interne, requête invalide')
+    const {path, fieldType} = match.index
+    if (match.type === 'sort') {
       record.options.sort = record.options.sort || []
-      record.options.sort.push([path, clause.order])
+      record.options.sort.push([path, match.order])
       return
     }
 
-    if (clause.type !== 'match') return
+    if (match.type !== 'match') return
 
     const cast = x => castToType(x, fieldType)
 
-    if (!clause.operator) return
+    if (!match.operator) return
 
-    var condition
-    switch (clause.operator) {
+    let condition
+    const value = {match}
+    switch (match.operator) {
       case '=':
-        condition = {$eq: cast(clause.value)}
+        condition = {$eq: cast(value)}
         break
 
       case '<>':
-        condition = {$ne: cast(clause.value)}
+        condition = {$ne: cast(value)}
         break
 
       case '>':
-        condition = {$gt: cast(clause.value)}
+        condition = {$gt: cast(value)}
         break
 
       case '<':
-        condition = {$lt: cast(clause.value)}
+        condition = {$lt: cast(value)}
         break
 
       case '>=':
-        condition = {$gte: cast(clause.value)}
+        condition = {$gte: cast(value)}
         break
 
       case '<=':
-        condition = {$lte: cast(clause.value)}
+        condition = {$lte: cast(value)}
         break
 
       case 'BETWEEN':
-        condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])}
+        condition = {$gte: cast(value[0]), $lte: cast(value[1])}
         break
 
       case 'LIKE':
-        condition = {$regex: new RegExp(cast(clause.value).replace(/%/g, '.*'))}
+        condition = {$regex: new RegExp(cast(value).replace(/%/g, '.*'))}
         break
 
       case 'ISNULL':
@@ -112,15 +113,15 @@ function buildQuery (entityQuery, record) {
         break
 
       case 'NOT IN':
-        condition = {$nin: clause.value.map(cast)}
+        condition = {$nin: value.map(cast)}
         break
 
       case 'IN':
-        condition = {$in: clause.value.map(cast)}
+        condition = {$in: value.map(cast)}
         break
 
       default:
-        log.error(new Error(`operator ${clause.operator} unknown`))
+        log.error(new Error(`operator ${match.operator} unknown`))
     }
 
     // On ajoute la condition
