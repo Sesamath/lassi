@@ -143,7 +143,7 @@ class Entity {
       // valeurs retournées par la fct d'indexation si y'en a une
       const value = callback ? callback.call(entity) : entity[indexName]
 
-      if (value === undefined || value === null) {
+      if (value === undefined || value === null || Number.isNaN(value)) {
         // https://docs.mongodb.com/manual/core/index-sparse/
         // En résumé
         // - non-sparse : tous les documents sont indexés :
@@ -154,8 +154,10 @@ class Entity {
         // - prop absente
         // - prop avec valeur undefined
         // - prop avec valeur null
-        // 1) si index non-sparse, on laisse faire mongo, les 3 se retrouvent avec un index valant null
-        // 2) si index sparse, buildIndexes supprime l'index pour null|undefined
+        // 1) si index non-sparse, on ne retourne rien et on laisse faire mongo,
+        //    l'index ne sera pas dans le doc mongo mais ça revient au même qu'un null,
+        //    dans les 3 cas isNull remontera l'entity.
+        // 2) si index sparse, on supprime l'index pour null|undefined
         //    => dans les 3 cas le doc mongo n'est pas indexé
         //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
         return
