@@ -133,14 +133,16 @@ class Entity {
    */
   buildIndexes () {
     const def = this.definition
+    const entity = this
     const indexes = {}
 
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
     _.forEach(def.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
 
-      // valeurs retournées par la fct d'indexation
-      const value = callback.apply(this)
+      // valeurs retournées par la fct d'indexation si y'en a une
+      const value = callback ? callback.call(entity) : entity[indexName]
+
       if (value === undefined || value === null) {
         // https://docs.mongodb.com/manual/core/index-sparse/
         // En résumé
@@ -159,11 +161,15 @@ class Entity {
         return
       }
 
-      // affectation après cast dans le type indiqué
-      if (Array.isArray(value)) {
-        indexes[indexName] = value.map(x => castToType(x, fieldType))
+      // affectation après cast dans le type indiqué (si y'en a un)
+      if (fieldType) {
+        if (Array.isArray(value)) {
+          indexes[indexName] = value.map(x => castToType(x, fieldType))
+        } else {
+          indexes[indexName] = castToType(value, fieldType)
+        }
       } else {
-        indexes[indexName] = castToType(value, fieldType)
+        indexes[indexName] = value
       }
     })
 

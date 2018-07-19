@@ -46,62 +46,69 @@ function alterLastMatch (entityQuery, data) {
 }
 
 /**
- * Applique les matches à la requête record.query
+ * construit record.query à partir des matches
  * @param {EntityQuery} entityQuery
  * @param {EntityQuery~record} record
  * @private
  */
 function buildQuery (entityQuery, record) {
-  var query = record.query
+  const query = record.query
 
   entityQuery.matches.forEach((match) => {
     if (!match) throw new Error('Erreur interne, requête invalide')
-    const {path, fieldType} = match.index
+    const {path, fieldType, indexOptions} = match.index
     if (match.type === 'sort') {
+      const order = match.order === 'desc' ? 'desc' : 'asc'
       record.options.sort = record.options.sort || []
-      record.options.sort.push([path, match.order])
+      record.options.sort.push([path, order])
       return
     }
 
     if (match.type !== 'match') return
-
-    const cast = x => castToType(x, fieldType)
-
     if (!match.operator) return
 
+    const normalizer = indexOptions && indexOptions.normalizer
+    const normalize = (value) => {
+      // si y'a un normalizer on l'applique
+      if (normalizer) value = normalizer(value)
+      // et si le type d'index est précisé faut caster les valeurs passées
+      if (fieldType) return castToType(value, fieldType)
+      return value
+    }
+
     let condition
-    const value = {match}
+    const {value} = match
     switch (match.operator) {
       case '=':
-        condition = {$eq: cast(value)}
+        condition = {$eq: normalize(value)}
         break
 
       case '<>':
-        condition = {$ne: cast(value)}
+        condition = {$ne: normalize(value)}
         break
 
       case '>':
-        condition = {$gt: cast(value)}
+        condition = {$gt: normalize(value)}
         break
 
       case '<':
-        condition = {$lt: cast(value)}
+        condition = {$lt: normalize(value)}
         break
 
       case '>=':
-        condition = {$gte: cast(value)}
+        condition = {$gte: normalize(value)}
         break
 
       case '<=':
-        condition = {$lte: cast(value)}
+        condition = {$lte: normalize(value)}
         break
 
       case 'BETWEEN':
-        condition = {$gte: cast(value[0]), $lte: cast(value[1])}
+        condition = {$gte: normalize(value[0]), $lte: normalize(value[1])}
         break
 
       case 'LIKE':
-        condition = {$regex: new RegExp(cast(value).replace(/%/g, '.*'))}
+        condition = {$regex: new RegExp(normalize(value).replace(/%/g, '.*'))}
         break
 
       case 'ISNULL':
@@ -113,11 +120,11 @@ function buildQuery (entityQuery, record) {
         break
 
       case 'NOT IN':
-        condition = {$nin: value.map(cast)}
+        condition = {$nin: value.map(normalize)}
         break
 
       case 'IN':
-        condition = {$in: value.map(cast)}
+        condition = {$in: value.map(normalize)}
         break
 
       default:
@@ -150,6 +157,12 @@ function buildQuery (entityQuery, record) {
 
   if (entityQuery.debug) log('mongoQuery', record)
 } // buildQuery
+
+/**
+ * Objet qui sera passé en 1er argument des commandes find|count de mongo
+ * Chaque propriété est un chemin dans le document, sa valeur le filtre à y appliquer
+ * @typedef EntityQuery~query
+ */
 
 /**
  * Objet qui contient toutes les infos à passer à mongo pour exécuter la requête
@@ -455,7 +468,7 @@ class EntityQuery {
    * @param {boolean} [options.continueOnError] Passer true pour continuer en cas d'erreur (qui sera alors affichée dans console.error avec l'oid concerné)
    */
   forEachEntity (onEachEntity, done, options = {}) {
-    const query = this
+    const entityQuery = this
     const globalLimit = options.limit
 
     let skip = 0
@@ -500,7 +513,7 @@ class EntityQuery {
     }
 
     const nextBatch = () => {
-      query.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
+      entityQuery.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
         if (err) return finalCb(err)
 
         processEntities(entities, (e) => {
@@ -514,7 +527,7 @@ class EntityQuery {
       })
     }
 
-    query.count((err, count) => {
+    entityQuery.count((err, count) => {
       if (err) return finalCb(err)
       if (options.progressBar) {
         const format = 'progress: :percent [:bar] :current/:total (~:etas left)'

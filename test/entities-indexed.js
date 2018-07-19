@@ -35,10 +35,10 @@ describe('Test entities-queries', function () {
       // Pour visualiser les index rapidement
       // console.log('index de la collection', indexes)
       // nos indexes + _id_ toujours mis par mongo + __deletedAt ajouté par lassi
-      expect(indexes).to.have.lengthOf(14)
+      expect(indexes).to.have.lengthOf(18)
       // on ne check que les notres
       const testIndexes = indexes.filter(i => !['_id_', '__deletedAt'].includes(i.name))
-      expect(testIndexes).to.have.lengthOf(12)
+      expect(testIndexes).to.have.lengthOf(16)
       this(null, testIndexes)
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
@@ -263,7 +263,7 @@ describe('Test entities-queries', function () {
 
   describe('index options', () => {
     describe('unique', () => {
-      it('prevents having twice the same value', (done) => {
+      it('empêche d’avoir deux fois la même valeur', (done) => {
         flow()
           .seq(function () {
             TestEntity.create({
@@ -283,7 +283,7 @@ describe('Test entities-queries', function () {
       })
     })
     describe('unique and sparse', () => {
-      it('prevents having twice the same value but accepts null or undefined many times', (done) => {
+      it('empêche d’avoir deux fois la même valeur mais accepte plusieurs null|undefined', (done) => {
         flow()
           .seq(function () {
             TestEntity.create({
@@ -322,8 +322,100 @@ describe('Test entities-queries', function () {
           .catch(done)
       })
 
-      it('throws an exception when calling isNull', () => {
+      it('throws exception avec isNull', () => {
         expect(() => TestEntity.match('uniqueSparseString').isNull()).to.throw('isNull() ne peut pas être appelé sur un index sparse')
+      })
+    })
+
+    describe('normalizer', function () {
+      before('création d’entités', function (done) {
+        TestEntity.create({
+          controlled: 'FooBar',
+          controlledTyped: 'bAz'
+        }).store(done)
+      })
+      after('purge', function (done) {
+        TestEntity.match().purge(done)
+      })
+
+      it('conserve la valeur initiale dans data et normalise l’index', function (done) {
+        flow().seq(function () {
+          TestEntity.getCollection().find().sort({'_id': 1}).toArray(this)
+        }).seq(function (entities) {
+          const firstEntity = entities[0]
+          expect(firstEntity._data.controlled).to.equals('FooBar')
+          expect(firstEntity.controlled).to.equals('foobar')
+          expect(firstEntity._data.controlledTyped).to.equals('bAz')
+          expect(firstEntity.controlledTyped).to.equals('baztyped')
+          // on fait un grab standard
+          TestEntity.match('controlled').grabOne(this)
+        }).seq(function (entity) {
+          expect(entity.controlled).to.equals('FooBar')
+          done()
+        }).catch(done)
+      })
+
+      it('s’applique sur l’argument de .equals()', function (done) {
+        flow().seq(function () {
+          TestEntity.match('controlled').equals('fooBar').grabOne(this)
+        }).seq(function (entity) {
+          expect(entity.controlled).to.equals('FooBar')
+          expect(entity.controlledTyped).to.equals('bAz')
+          TestEntity.match('controlledTyped').equals('BazTYPED').grabOne(this)
+        }).seq(function (entity) {
+          expect(entity.controlled).to.equals('FooBar')
+          expect(entity.controlledTyped).to.equals('bAz')
+          done()
+        }).catch(done)
+      })
+    })
+
+    describe.only('sans type ne remonte que les égalités strictes', function (done) {
+      const datas = [
+        {whatever: 'FooBar'},
+        {whatever: 42},
+        {whatever: '42'},
+        {whatever: false},
+        {whatever: 0},
+        {whatever: null},
+        {whatever: undefined}
+      ]
+      before('création d’entités', function (done) {
+        flow(datas).seqEach(function (data) {
+          TestEntity.create().store(this)
+        }).done(done)
+      })
+      after('purge', function (done) {
+        TestEntity.match().purge(done)
+      })
+
+      it('tous les falsy sont indexés', function (done) {
+        flow().seq(function () {
+          TestEntity.match().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(datas.length)
+          console.log(entities)
+          TestEntity.match('whatever').sort('oid').grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(datas.length)
+          datas.forEach(({whatever}, index) => {
+            expect(entities[index].whatever).to.equals(whatever)
+          })
+          done()
+        }).catch(done)
+      })
+
+      it('string & number', function (done) {
+        flow().seq(function () {
+          TestEntity.match('whatever').equals('42').grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(1)
+          expect(entities[0].whatever).to.equals('42')
+          TestEntity.match('whatever').equals(42).grab(this)
+        }).seq(function (entities) {
+          expect(entities[0].whatever).to.equals(42)
+          done()
+        }).catch(done)
       })
     })
   })

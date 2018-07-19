@@ -446,6 +446,17 @@ class EntityDefinition {
 
     if (typeof param === 'object') {
       indexOptions = param
+      if (indexOptions.normalizer) {
+        if (typeof indexOptions.normalizer !== 'function') throw Error('L’option normalizer doit être une fonction')
+        // avec ou sans callback, on applique le normalizer (en dernier)
+        const initialCb = callback
+        // pas de fat arrow, on est appelé via un call
+        callback = function () {
+          const indexValue = initialCb ? initialCb.call(this) : this[indexName]
+          if (Array.isArray(indexValue)) return indexValue.map(indexOptions.normalizer)
+          return indexOptions.normalizer(indexValue)
+        }
+      }
       param = params.pop()
     }
 
@@ -485,9 +496,7 @@ class EntityDefinition {
       path: useData ? `_data.${indexName}` : indexName,
       mongoIndexName,
       indexOptions,
-      // Si on nous passe pas de callback, on retourne la valeur du champ
-      // attention, pas de fat arrow ici car on fera du apply dessus
-      callback: callback || function () { return this[indexName] }
+      callback
     }
 
     this.indexes[indexName] = index

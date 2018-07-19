@@ -158,6 +158,9 @@ function initEntities (next) {
       this.s = undefined
       this.d = undefined
       this.t = undefined
+      this.wathever = undefined // pour tester un index non typé
+      this.controlled = undefined // avec un normalizer
+      this.controlledTyped = undefined // avec un normalizer + type
       this.uniqueString = `this is unique ${_.uniqueId()}`
     })
     TestEntity.defineIndex('b', 'boolean')
@@ -174,6 +177,17 @@ function initEntities (next) {
     TestEntity.defineIndex('dArray', 'date')
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
+    TestEntity.defineIndex('created')
+    TestEntity.defineIndex('whatever')
+    const normalizer = (value) => typeof value === 'string'
+      ? value.toLowerCase()
+      : typeof value === 'number'
+        ? Math.round(value)
+        : null
+    TestEntity.defineIndex('controlled', {normalizer})
+    TestEntity.defineIndex('controlledTyped', 'string', {normalizer}, function () {
+      return this.controlledTyped + 'Typed'
+    })
     TestEntity._initialize(this)
   }).seq(function () {
     next(null, TestEntity)

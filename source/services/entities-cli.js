@@ -299,7 +299,7 @@ La commande count demande 1 ou 2 arguments :
 }
 
 /**
- * Purge les entités datant du nombre de jours indiqués
+ * Purge les entités plus vieilles que le nombre de jours indiqué (n × 24h)
  * @param {string|Object} entity Le nom de l'entité, mettre help pour avoir la syntaxe des arguments
  * @param {string}        nbDays Nombre de jours minimum pour que l'entité soit purgée
  * @param {errorCallback} done   Callback
