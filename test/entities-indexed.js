@@ -378,28 +378,37 @@ describe('Test entities-queries', function () {
         {whatever: false},
         {whatever: 0},
         {whatever: null},
-        {whatever: undefined}
-      ]
+        {whatever: undefined},
+        {whatever: NaN}
+      ].map((item, index) => {
+        item.i = index
+        return item
+      })
       before('création d’entités', function (done) {
         flow(datas).seqEach(function (data) {
-          TestEntity.create().store(this)
+          TestEntity.create(data).store(this)
         }).done(done)
       })
       after('purge', function (done) {
         TestEntity.match().purge(done)
       })
 
-      it('tous les falsy sont indexés', function (done) {
+      it('tous les falsy remontent en cherchant sur cet index (undefined et NaN deviennent null)', function (done) {
         flow().seq(function () {
           TestEntity.match().grab(this)
         }).seq(function (entities) {
           expect(entities).to.have.length(datas.length)
-          console.log(entities)
-          TestEntity.match('whatever').sort('oid').grab(this)
+          TestEntity.match('whatever').sort('i').grab(this)
         }).seq(function (entities) {
           expect(entities).to.have.length(datas.length)
-          datas.forEach(({whatever}, index) => {
-            expect(entities[index].whatever).to.equals(whatever)
+          datas.forEach(({whatever: original, i}, index) => {
+            expect(index).to.equals(i)
+            if (Number.isNaN(original)) {
+              expect(Number.isNaN(entities[index].whatever)).to.be.true
+            } else {
+              const expected = (original === null) ? undefined : original
+              expect(entities[index].whatever).to.equals(expected, `Pb sur le n° ${i}`)
+            }
           })
           done()
         }).catch(done)
@@ -419,5 +428,6 @@ describe('Test entities-queries', function () {
       })
     })
   })
+
   // @todo array de date/int/string
 })
