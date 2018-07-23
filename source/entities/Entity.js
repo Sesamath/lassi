@@ -109,8 +109,8 @@ class Entity {
         const v = obj[key]
         // au 1er niveau on ajoute ce filtre
         if (isFirstLevel && (key[0] === '_' || key[0] === '$')) return
-        // à tous les niveaux on vire null, undefined, NaN et function
-        if (v === null || v === undefined || typeof v === 'function' || Number.isNaN(v)) return
+        // à tous les niveaux on vire null, undefined et function
+        if (v === null || v === undefined || typeof v === 'function') return
         // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
         // (ni Regexp ni Date ni Array, les objets définis avec un constructeur classique passent ce filtre)
         if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
@@ -143,7 +143,7 @@ class Entity {
       // valeurs retournées par la fct d'indexation si y'en a une (inclus normalizer s'il existe)
       const value = callback ? callback.call(entity) : entity[indexName]
 
-      if (value === undefined || value === null || Number.isNaN(value)) {
+      if (value === undefined || value === null) {
         // https://docs.mongodb.com/manual/core/index-sparse/
         // En résumé
         // - non-sparse : tous les documents sont indexés :
@@ -163,16 +163,17 @@ class Entity {
         return
       }
 
-      // affectation après cast dans le type indiqué (si y'en a un)
-      if (fieldType) {
-        if (Array.isArray(value)) {
-          indexes[indexName] = value.map(x => castToType(x, fieldType))
-        } else {
-          indexes[indexName] = castToType(value, fieldType)
-        }
-      } else {
-        indexes[indexName] = value
+      const castAndCeckNaN = (v) => {
+        // le test précédent ne gère pas les array, et dans un array on garde la valeur originale
+        if (v === undefined || v === null) return v
+        if (fieldType) v = castToType(v, fieldType)
+        if (typeof v === 'number' && Number.isNaN(v)) throw Error(`${indexName} contient NaN`)
+        return v
       }
+
+      // affectation après cast dans le type indiqué (si y'en a un)
+      if (Array.isArray(value)) indexes[indexName] = value.map(castAndCeckNaN)
+      else indexes[indexName] = castAndCeckNaN(value)
     })
 
     return indexes

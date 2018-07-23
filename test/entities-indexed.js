@@ -204,6 +204,7 @@ describe('Test entities-queries', function () {
       assert.equal(entities.length, 10)
       TestEntity.match('bArray').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
+      assert.equal(entities.length, 2)
       assert.equal(entities[0].s, 'boolean null')
       assert.equal(entities[1].s, 'boolean undefined')
       TestEntity.match('bArray').isNotNull().sort('oid').grab(this)
@@ -374,7 +375,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    describe('sans type ne remonte que les égalités strictes', function (done) {
+    describe('sans type ne remonte que les égalités strictes', function () {
       const datas = [
         {whatever: 'FooBar'},
         {whatever: 42},
@@ -382,8 +383,7 @@ describe('Test entities-queries', function () {
         {whatever: false},
         {whatever: 0},
         {whatever: null},
-        {whatever: undefined},
-        {whatever: NaN}
+        {whatever: undefined}
       ].map((item, index) => {
         item.i = index
         return item
@@ -397,7 +397,7 @@ describe('Test entities-queries', function () {
         TestEntity.match().purge(done)
       })
 
-      //  null, undefined et NaN prennent la valeur undefined et un index null
+      // les valeurs null et undefined prennent la valeur undefined et un index null
 
       it('tous remontent en cherchant sur cet index', function (done) {
         flow().seq(function () {
@@ -410,18 +410,18 @@ describe('Test entities-queries', function () {
           expect(entities).to.have.length(datas.length)
           datas.forEach(({whatever: original, i}, index) => {
             expect(index).to.equals(i)
-            const expected = (original === null || Number.isNaN(original)) ? undefined : original
+            const expected = (original === null) ? undefined : original
             expect(entities[index].whatever).to.equals(expected, `Pb sur le n° ${i}`)
           })
           done()
         }).catch(done)
       })
 
-      it('isNull() remonte null|undefined|NaN', function (done) {
+      it('isNull() remonte null|undefined', function (done) {
         flow().seq(function () {
           TestEntity.match('whatever').isNull().sort('i').grab(this)
         }).seq(function (entities) {
-          expect(entities).to.have.length(3)
+          expect(entities).to.have.length(2)
           entities.forEach(e => expect(e.whatever).to.equals(undefined))
           done()
         }).catch(done)
@@ -438,6 +438,61 @@ describe('Test entities-queries', function () {
           expect(entities[0].whatever).to.equals(42)
           done()
         }).catch(done)
+      })
+    })
+
+    describe('NaN throw', function () {
+      it('sur un champ integer', function () {
+        expect(TestEntity.create({i: NaN}).store).to.throw()
+      })
+      it('sur un tableau d’integer', function () {
+        expect(TestEntity.create({iArray: [1, NaN]}).store).to.throw()
+      })
+      it('sur un champ non typé', function () {
+        expect(TestEntity.create({whatever: NaN}).store).to.throw()
+      })
+      it('string vide sur champ typé number devient NaN et throw', function () {
+        expect(TestEntity.create({i: ''}).store).to.throw()
+      })
+    })
+
+    describe('undefined|null ne deviennent pas NaN', function () {
+      const datas = [
+        {i: 42, s: '1'},
+        {i: null, s: '2'},
+        {iArray: [42], s: '3'},
+        {iArray: [42, null], s: '4'},
+        {iArray: [undefined], s: '5'}
+      ]
+      before('création d’entités', function (done) {
+        flow(datas).seqEach(function (data) {
+          TestEntity.create(data).store(this)
+        }).done(done)
+      })
+
+      it('sur un champ integer', function (done) {
+        TestEntity.match('i').isNull().sort('s').grab((error, entities) => {
+          if (error) return done(error)
+          expect(entities).to.have.length(4)
+          entities.forEach(e => expect(e.i).to.equals(undefined))
+          done()
+        })
+      })
+
+      it('sur un tableau d’integer', function (done) {
+        TestEntity.match('iArray').isNull().sort('s').grab((error, entities) => {
+          if (error) return done(error)
+          expect(entities).to.have.length(4)
+          expect(entities[0].iArray).to.equals(undefined)
+          expect(entities[1].iArray).to.equals(undefined)
+          expect(entities[2].s).to.equals('4')
+          expect(entities[2].iArray).to.have.length(2)
+          expect(entities[2].iArray[1]).to.equals(null)
+          expect(entities[3].s).to.equals('5')
+          expect(entities[3].iArray).to.have.length(1)
+          expect(entities[3].iArray[1]).to.equals(undefined)
+          done()
+        })
       })
     })
   })
