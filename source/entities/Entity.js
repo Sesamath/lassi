@@ -99,7 +99,8 @@ class Entity {
   /**
    * Retourne une shallow copy de l'entity en filtrant certaines de ses données :
    * - les attributs de 1er niveau ayant un nom commençant par "_" ou "$"
-   * - les attributs ayant des valeurs null ou undefined (en profondeur)
+   * - les attributs étant function
+   * - les attributs ayant des valeurs null, undefined ou NaN (en profondeur)
    * @return {Object}
    */
   values () {
@@ -108,8 +109,8 @@ class Entity {
         const v = obj[key]
         // au 1er niveau on ajoute ce filtre
         if (isFirstLevel && (key[0] === '_' || key[0] === '$')) return
-        // à tous les niveaux on vire null, undefined et function
-        if (v === null || v === undefined || typeof v === 'function') return
+        // à tous les niveaux on vire null, undefined, NaN et function
+        if (v === null || v === undefined || typeof v === 'function' || Number.isNaN(v)) return
         // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
         // (ni Regexp ni Date ni Array, les objets définis avec un constructeur classique passent ce filtre)
         if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
@@ -117,7 +118,6 @@ class Entity {
           copyCleanProps(v, dest[key])
         } else {
           // pour les autres on prend la valeur telle quelle
-          // (la sérialisation json ou mongo virera les méthodes éventuelles)
           dest[key] = v
         }
       })
@@ -140,7 +140,7 @@ class Entity {
     _.forEach(def.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
 
-      // valeurs retournées par la fct d'indexation si y'en a une
+      // valeurs retournées par la fct d'indexation si y'en a une (inclus normalizer s'il existe)
       const value = callback ? callback.call(entity) : entity[indexName]
 
       if (value === undefined || value === null || Number.isNaN(value)) {

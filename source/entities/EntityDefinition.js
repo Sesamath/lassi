@@ -452,6 +452,7 @@ class EntityDefinition {
         const initialCb = callback
         // pas de fat arrow, on est appelé via un call
         callback = function () {
+          // si y'avait une callback on l'appelle en premier
           const indexValue = initialCb ? initialCb.call(this) : this[indexName]
           if (Array.isArray(indexValue)) return indexValue.map(indexOptions.normalizer)
           return indexOptions.normalizer(indexValue)
@@ -515,7 +516,7 @@ class EntityDefinition {
 
   /**
    * Défini les index de recherche fullText
-   * @param {string[],Array[]} fields la liste des champs à prendre en compte pour la recherche fulltext, passer un tableau [name, weight] pour fixer un poid ≠ 1 sur le champ concerné
+   * @param {string[]|Array[]} fields la liste des champs à prendre en compte pour la recherche fulltext, passer un tableau [name, weight] pour fixer un poid ≠ 1 sur le champ concerné
    */
   defineTextSearchFields (fields) {
     const def = this

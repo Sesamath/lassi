@@ -283,6 +283,9 @@ describe('Test entities-queries', function () {
       })
     })
     describe('unique and sparse', () => {
+      after('purge', function (done) {
+        TestEntity.match().purge(done)
+      })
       it('empêche d’avoir deux fois la même valeur mais accepte plusieurs null|undefined', (done) => {
         flow()
           .seq(function () {
@@ -328,7 +331,7 @@ describe('Test entities-queries', function () {
     })
 
     describe('normalizer', function () {
-      before('création d’entités', function (done) {
+      before('création d’une entité', function (done) {
         TestEntity.create({
           controlled: 'FooBar',
           controlledTyped: 'bAz'
@@ -341,12 +344,13 @@ describe('Test entities-queries', function () {
       it('conserve la valeur initiale dans data et normalise l’index', function (done) {
         flow().seq(function () {
           TestEntity.getCollection().find().sort({'_id': 1}).toArray(this)
-        }).seq(function (entities) {
-          const firstEntity = entities[0]
-          expect(firstEntity._data.controlled).to.equals('FooBar')
-          expect(firstEntity.controlled).to.equals('foobar')
-          expect(firstEntity._data.controlledTyped).to.equals('bAz')
-          expect(firstEntity.controlledTyped).to.equals('baztyped')
+        }).seq(function (docs) {
+          expect(docs).to.have.length(1)
+          const doc = docs[0]
+          expect(doc._data.controlled).to.equals('FooBar')
+          expect(doc.controlled).to.equals('foobar')
+          expect(doc._data.controlledTyped).to.equals('bAz')
+          expect(doc.controlledTyped).to.equals('baztyped')
           // on fait un grab standard
           TestEntity.match('controlled').grabOne(this)
         }).seq(function (entity) {
@@ -370,7 +374,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    describe.only('sans type ne remonte que les égalités strictes', function (done) {
+    describe('sans type ne remonte que les égalités strictes', function (done) {
       const datas = [
         {whatever: 'FooBar'},
         {whatever: 42},
@@ -393,28 +397,37 @@ describe('Test entities-queries', function () {
         TestEntity.match().purge(done)
       })
 
-      it('tous les falsy remontent en cherchant sur cet index (undefined et NaN deviennent null)', function (done) {
+      //  null, undefined et NaN prennent la valeur undefined et un index null
+
+      it('tous remontent en cherchant sur cet index', function (done) {
         flow().seq(function () {
           TestEntity.match().grab(this)
         }).seq(function (entities) {
+          // console.log('e', entities.map(e => ({w: e.whatever, i: e.i})))
           expect(entities).to.have.length(datas.length)
           TestEntity.match('whatever').sort('i').grab(this)
         }).seq(function (entities) {
           expect(entities).to.have.length(datas.length)
           datas.forEach(({whatever: original, i}, index) => {
             expect(index).to.equals(i)
-            if (Number.isNaN(original)) {
-              expect(Number.isNaN(entities[index].whatever)).to.be.true
-            } else {
-              const expected = (original === null) ? undefined : original
-              expect(entities[index].whatever).to.equals(expected, `Pb sur le n° ${i}`)
-            }
+            const expected = (original === null || Number.isNaN(original)) ? undefined : original
+            expect(entities[index].whatever).to.equals(expected, `Pb sur le n° ${i}`)
           })
           done()
         }).catch(done)
       })
 
-      it('string & number', function (done) {
+      it('isNull() remonte null|undefined|NaN', function (done) {
+        flow().seq(function () {
+          TestEntity.match('whatever').isNull().sort('i').grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(3)
+          entities.forEach(e => expect(e.whatever).to.equals(undefined))
+          done()
+        }).catch(done)
+      })
+
+      it('distingue string & number', function (done) {
         flow().seq(function () {
           TestEntity.match('whatever').equals('42').grab(this)
         }).seq(function (entities) {
