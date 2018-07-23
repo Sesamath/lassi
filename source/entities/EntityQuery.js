@@ -364,7 +364,7 @@ class EntityQuery {
     flow()
       .seq(function () {
         buildQuery(self, record)
-        self.entity.getCollection().count(record.query, record.options, this)
+        self.entity.getCollection().countDocuments(record.query, record.options, this)
       })
       .done(callback)
   }
