@@ -557,6 +557,7 @@ class EntityDefinition {
     this.getCollection().drop(function (error) {
       if (error) {
         if (/ns not found/.test(error.message)) return cb()
+        if (/ns does not exist/.test(error.message)) return cb()
         return cb(error)
       }
       cb()
@@ -607,8 +608,9 @@ class EntityDefinition {
   getMongoIndexes (cb) {
     this.getCollection().listIndexes().toArray(function (error, indexes) {
       if (error) {
-        // mongo 3.2 ou 3.4…il semblerait que les message ne soient pas uniformes
+        // de mongo 3.2 à 4.0 les messages évoluent
         if (
+          /^ns does not exist/.test(error.message) || // 4.0
           error.message === 'no collection' ||
           error.message === 'no database' ||
           /^Collection.*doesn't exist$/.test(error.message) ||

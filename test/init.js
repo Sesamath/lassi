@@ -198,7 +198,7 @@ function initEntities (next) {
  * Ferme la connexion ouverte par Entities au setup
  */
 function quit () {
-  if (entities) {
+  if (isInitDone) {
     entities.close()
     isInitDone = false
   }
