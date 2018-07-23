@@ -110,13 +110,13 @@ function checkEntity (entity, values, checkers) {
  * @param {checkMongoConnexionCallback} next
  */
 function checkMongoConnexion (next) {
-  connectToMongo((error, db) => {
+  connectToMongo((error, client) => {
     // en cas d'erreur, le process s'arrête avant d'exécuter ça…
     if (error) {
       console.error('La connexion mongoDb a échoué')
       return next(error)
     }
-    db.close()
+    client.close()
     next(null, dbSettings)
   })
 }
@@ -129,13 +129,13 @@ function checkMongoConnexion (next) {
 function connectToMongo (next) {
   const {name, host, port, authMechanism} = dbSettings
   let url = 'mongodb://'
-  // ssl prioritaire sur user/pass
   if (dbSettings.user && dbSettings.password) {
     url += `${encodeURIComponent(dbSettings.user)}:${encodeURIComponent(dbSettings.password)}@`
   }
   url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
   if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
   const {options} = dbSettings
+  options.useNewUrlParser = true
   MongoClient.connect(url, options, next)
 }
 

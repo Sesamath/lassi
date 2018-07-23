@@ -569,6 +569,7 @@ class EntityDefinition {
    * @return {Collection}
    */
   getCollection () {
+    if (!this.entities.db) throw Error('entities n’a pas été initialisé')
     return this.entities.db.collection(this.name)
   }
 

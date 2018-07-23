@@ -37,6 +37,7 @@ function initEntities (dbSettings, next) {
 
 describe('Test entities-indexes', function () {
   let db
+  let client
 
   before('Connexion à Mongo et initialisation des entités', function (done) {
     // Evite les erreurs de timeout sur une machine lente (ou circleCI)
@@ -49,8 +50,9 @@ describe('Test entities-indexes', function () {
       // on laisse tomber le TestEntity pour notre SimpleEntity, mais avant on crée la collection
       // si elle n'existe pas pour lui ajouter des index et vérifier qu'ils sont virés ensuite
       connectToMongo(this)
-    }).seq(function (_db) {
-      db = _db
+    }).seq(function (_client) {
+      client = _client
+      db = client.db()
       db.createCollection('SimpleEntity', this)
     }).seq(function () {
       db.createIndex('SimpleEntity', 'indexToDrop', this)
@@ -60,7 +62,7 @@ describe('Test entities-indexes', function () {
   })
 
   after('ferme la connexion parallèle (pour check en direct sur mongo)', (done) => {
-    db.close(done) // notre connexion ouverte dans before
+    client.close(done) // notre connexion ouverte dans before
     entities.close() // la connexion ouverte par initEntities
     quit() // la connexion ouverte par setup
   })
