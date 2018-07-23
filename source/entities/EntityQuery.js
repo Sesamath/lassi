@@ -145,14 +145,19 @@ function buildQuery (entityQuery, record) {
     _.forEach(record.options.sort, ([index, order]) => {
       sorts[index] = order === 'asc' ? 1 : -1
     })
+    record.query = _.merge(record.query, {$text: {$search: entityQuery.search}})
     // Le sort sur le score doit être fait avant les sorts "classiques", car on veut pas qu'un
     // sort vienne mettre un résultat "peu pertinent" avant d'autres.
-    // On garde les sorts classique dans un options.moreSort et on met le sort text seul dans les options
-    // grab ajoutera le 2e sort ensuite
-    record.moreSort = _.merge({score: {$meta: 'textScore'}}, sorts)
+    // On garde les sorts classique dans un searchOptions et on met le sort text seul
+    // en projection (avant c'était dans les options mais ça passe plus en 3.0 ou 3.1
+    // cf https://jira.mongodb.org/browse/NODE-1265?focusedCommentId=1767130&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1767130)
+    // grab triera tout ça
+    record.searchOptions = {
+      project: {score: {$meta: 'textScore'}},
+      sort: _.merge({score: {$meta: 'textScore'}}, sorts)
+    }
+
     delete record.options.sort
-    record.query = _.merge(record.query, {$text: {$search: entityQuery.search}})
-    record.options = _.merge(record.options, {score: {$meta: 'textScore'}})
   }
 
   if (entityQuery.debug) log('mongoQuery', record)
@@ -570,8 +575,12 @@ class EntityQuery {
     if (record.limit === 0) return callback(null, [])
     const query = entityQuery.entity.getCollection()
       .find(record.query, record.options)
-    // faut ajouter un 2e sort (si fulltext, cf buildQuery)
-    if (record.moreSort) query.sort(record.moreSort)
+    if (record.searchOptions) {
+      // faut ajouter project + 2e sort (si fulltext, cf buildQuery)
+      query
+        .project(record.searchOptions.project)
+        .sort(record.searchOptions.sort)
+    }
     query
       .limit(record.limit)
       .toArray((error, rows) => {
