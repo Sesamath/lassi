@@ -383,26 +383,22 @@ class EntityQuery {
   countBy (index, callback) {
     const {path} = this.getIndex(index)
 
-    var self = this
-    var record = {query: {}, options: {}}
-
-    flow()
-      .seq(function () {
-        buildQuery(self, record)
-        const query = [
-          {$match: record.query},
-          {$group: {_id: `$${path}`, count: {$sum: 1}}}
-        ]
-        self.entity.getCollection().aggregate(query, this)
+    const entityQuery = this
+    const record = {query: {}, options: {}}
+    buildQuery(entityQuery, record)
+    // Cf https://docs.mongodb.com/manual/reference/method/db.collection.aggregate/
+    const pipeline = [
+      {$match: record.query},
+      {$group: {_id: `$${path}`, count: {$sum: 1}}}
+    ]
+    const groupes = {}
+    entityQuery.entity.getCollection().aggregate(pipeline).toArray((error, results) => {
+      if (error) return callback(error)
+      results.forEach(({_id, count}) => {
+        groupes[_id] = count
       })
-      .seq(function (_groupes) {
-        const groupes = {}
-        _.forEach(_groupes, (groupe) => {
-          groupes[groupe._id] = groupe.count
-        })
-        callback(null, groupes)
-      })
-      .catch(callback)
+      callback(null, groupes)
+    })
   }
 
   /**
