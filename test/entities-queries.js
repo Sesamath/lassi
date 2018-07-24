@@ -427,14 +427,24 @@ describe('Test entities-queries', function () {
       }).seq(function (entities) {
         assert.equal(entities[0].i, 0)
         assert.equal(entities[1].i, 1)
-        this()
-      }).seq(function () {
+
         TestEntity.match().sort('i', 'desc').grab({limit: 10}, this)
       }).seq(function (entities) {
         assert.equal(entities[0].i, nbEntities - 1)
         assert.equal(entities[1].i, nbEntities - 2)
-        this()
-      }).done(done)
+
+        // on vérifie que ça fonctionne aussi pour oid
+        TestEntity.match().sort('oid', 'asc').grab({limit: 10}, this)
+      }).seq(function (entities) {
+        assert.equal(entities[0].i, 0)
+        assert.equal(entities[1].i, 1)
+
+        TestEntity.match().sort('oid', 'desc').grab({limit: 10}, this)
+      }).seq(function (entities) {
+        assert.equal(entities[0].i, nbEntities - 1)
+        assert.equal(entities[1].i, nbEntities - 2)
+        done()
+      }).catch(done)
     })
   })
 
