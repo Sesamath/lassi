@@ -255,12 +255,13 @@ function checkIsArray (value) {
  * @return {Entity[]}
  * @throws Si _data n'est pas du json valide
  */
-function createEntitiesFromRows (entityQuery, rows) {
+function createEntitiesFromDocuments (entityQuery, rows) {
   // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
   const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
   const jsonDateReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
   return rows.map((row) => {
     let data = row._data
+    if (!data) throw new Error(`Données absentes pour ${entityQuery.entity.name}/${row._id}`)
 
     // TODO DATA: enlever ce if-bloc une fois que toutes les entités auront été ré-indexées
     //            avec un _data en objet mongo plutôt qu'un json
@@ -573,6 +574,7 @@ class EntityQuery {
     const record = buildRecord(entityQuery, options)
     // mongo n'a pas l'air de gérer query.limit(0) correctement, donc on le fait manuellement
     if (record.limit === 0) return callback(null, [])
+
     const query = entityQuery.entity.getCollection()
       .find(record.query, record.options)
     if (record.searchOptions) {
@@ -583,12 +585,12 @@ class EntityQuery {
     }
     query
       .limit(record.limit)
-      .toArray((error, rows) => {
+      .toArray((error, documents) => {
         if (error) return callback(error)
         // on râle si on atteint la limite, sauf si on avait demandé cette limite
-        if (rows.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
+        if (documents.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
         try {
-          callback(null, createEntitiesFromRows(entityQuery, rows))
+          callback(null, createEntitiesFromDocuments(entityQuery, documents))
         } catch (error) {
           callback(error)
         }
