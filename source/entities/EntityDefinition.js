@@ -358,7 +358,7 @@ class EntityDefinition {
    * @param {EntityQuery~CountCallback} cb
    */
   count (cb) {
-    this.getCollection().count({__deletedAt: {$eq: null}}, cb)
+    this.getCollection().countDocuments({__deletedAt: {$eq: null}}, cb)
   }
 
   /**
@@ -446,6 +446,18 @@ class EntityDefinition {
 
     if (typeof param === 'object') {
       indexOptions = param
+      if (indexOptions.normalizer) {
+        if (typeof indexOptions.normalizer !== 'function') throw Error('L’option normalizer doit être une fonction')
+        // avec ou sans callback, on applique le normalizer (en dernier)
+        const initialCb = callback
+        // pas de fat arrow, on est appelé via un call
+        callback = function () {
+          // si y'avait une callback on l'appelle en premier
+          const indexValue = initialCb ? initialCb.call(this) : this[indexName]
+          if (Array.isArray(indexValue)) return indexValue.map(indexOptions.normalizer)
+          return indexOptions.normalizer(indexValue)
+        }
+      }
       param = params.pop()
     }
 
@@ -476,7 +488,7 @@ class EntityDefinition {
     const mongoIndexName = this.getMongoIndexName(indexName, useData, indexOptions)
     // en toute rigueur il faudrait vérifier que c'est de l'ascii pur,
     // en cas d'accents dans name 127 chars font plus de 128 bytes
-    if (mongoIndexName > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
+    if (mongoIndexName.length > 128) throw new Error(`Nom d’index trop long, 128 max pour mongo dont ${INDEX_PREFIX.length} occupés par notre préfixe`)
 
     const index = {
       fieldType,
@@ -485,9 +497,7 @@ class EntityDefinition {
       path: useData ? `_data.${indexName}` : indexName,
       mongoIndexName,
       indexOptions,
-      // Si on nous passe pas de callback, on retourne la valeur du champ
-      // attention, pas de fat arrow ici car on fera du apply dessus
-      callback: callback || function () { return this[indexName] }
+      callback
     }
 
     this.indexes[indexName] = index
@@ -506,7 +516,7 @@ class EntityDefinition {
 
   /**
    * Défini les index de recherche fullText
-   * @param {string[],Array[]} fields la liste des champs à prendre en compte pour la recherche fulltext, passer un tableau [name, weight] pour fixer un poid ≠ 1 sur le champ concerné
+   * @param {string[]|Array[]} fields la liste des champs à prendre en compte pour la recherche fulltext, passer un tableau [name, weight] pour fixer un poid ≠ 1 sur le champ concerné
    */
   defineTextSearchFields (fields) {
     const def = this
@@ -547,6 +557,7 @@ class EntityDefinition {
     this.getCollection().drop(function (error) {
       if (error) {
         if (/ns not found/.test(error.message)) return cb()
+        if (/ns does not exist/.test(error.message)) return cb()
         return cb(error)
       }
       cb()
@@ -558,6 +569,7 @@ class EntityDefinition {
    * @return {Collection}
    */
   getCollection () {
+    if (!this.entities.db) throw Error('entities n’a pas été initialisé')
     return this.entities.db.collection(this.name)
   }
 
@@ -597,8 +609,9 @@ class EntityDefinition {
   getMongoIndexes (cb) {
     this.getCollection().listIndexes().toArray(function (error, indexes) {
       if (error) {
-        // mongo 3.2 ou 3.4…il semblerait que les message ne soient pas uniformes
+        // de mongo 3.2 à 4.0 les messages évoluent
         if (
+          /^ns does not exist/.test(error.message) || // 4.0
           error.message === 'no collection' ||
           error.message === 'no database' ||
           /^Collection.*doesn't exist$/.test(error.message) ||

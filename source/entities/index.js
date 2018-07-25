@@ -43,6 +43,7 @@ class Entities extends EventEmitter {
    */
   constructor (settings) {
     super()
+    this.client = null
     this.db = null
     this.entities = {}
     this.settings = settings
@@ -53,8 +54,11 @@ class Entities extends EventEmitter {
    * (reset this.db mais pas this.entities)
    */
   close () {
-    if (this.db) {
-      this.db.close()
+    if (this.client) {
+      this.client.close(false, (error) => {
+        if (error) console.error(error)
+      })
+      this.client = null
       this.db = null
     }
   }
@@ -91,19 +95,26 @@ class Entities extends EventEmitter {
     const authMechanism = settings.authMechanism || 'DEFAULT'
     // cf http://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect pour les options possibles
     const options = settings.options || {}
+    options.useNewUrlParser = true
     // pour compatibilité ascendante, poolSize était mis directement dans les settings
-    if (settings.poolSize) options.poolSize = settings.poolSize
+    if (settings.poolSize && !options.poolSize) {
+      console.error(`poolsize doit désormais être indiqué dans database.options.poolsize (defaut : ${defaultPoolSize})`)
+      options.poolSize = settings.poolSize
+    }
     if (!options.poolSize) options.poolSize = defaultPoolSize
+    // on pourra virer ça dans les prochaines versions de mongodb, avec le driver 3.0 & 3.1
+    // si on le met pas ça affiche un avertissement
+    options.useNewUrlParser = true
     // construction de l'url de connexion, cf docs.mongodb.org/manual/reference/connection-string/
     let url = 'mongodb://'
     if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
     url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
     if (authSource) url += `&authSource=${authSource}`
     // on peut connecter
-    MongoClient.connect(url, options, function (error, db) {
+    MongoClient.connect(url, options, function (error, mongoClient) {
       if (error) return cb(error)
-      // on a une db
-      self.db = db
+      self.client = mongoClient
+      self.db = mongoClient.db()
       // on passe à l'init de toutes les entities
       flow(Object.values(self.entities)).seqEach(function (entityDefinition) {
         entityDefinition._initialize(this)

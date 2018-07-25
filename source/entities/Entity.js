@@ -99,7 +99,8 @@ class Entity {
   /**
    * Retourne une shallow copy de l'entity en filtrant certaines de ses données :
    * - les attributs de 1er niveau ayant un nom commençant par "_" ou "$"
-   * - les attributs ayant des valeurs null ou undefined (en profondeur)
+   * - les attributs étant function
+   * - les attributs ayant des valeurs null, undefined ou NaN (en profondeur)
    * @return {Object}
    */
   values () {
@@ -117,7 +118,6 @@ class Entity {
           copyCleanProps(v, dest[key])
         } else {
           // pour les autres on prend la valeur telle quelle
-          // (la sérialisation json ou mongo virera les méthodes éventuelles)
           dest[key] = v
         }
       })
@@ -133,14 +133,16 @@ class Entity {
    */
   buildIndexes () {
     const def = this.definition
+    const entity = this
     const indexes = {}
 
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
     _.forEach(def.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
 
-      // valeurs retournées par la fct d'indexation
-      const value = callback.apply(this)
+      // valeurs retournées par la fct d'indexation si y'en a une (inclus normalizer s'il existe)
+      const value = callback ? callback.call(entity) : entity[indexName]
+
       if (value === undefined || value === null) {
         // https://docs.mongodb.com/manual/core/index-sparse/
         // En résumé
@@ -152,19 +154,26 @@ class Entity {
         // - prop absente
         // - prop avec valeur undefined
         // - prop avec valeur null
-        // 1) si index non-sparse, on laisse faire mongo, les 3 se retrouvent avec un index valant null
-        // 2) si index sparse, buildIndexes supprime l'index pour null|undefined
+        // 1) si index non-sparse, on ne retourne rien et on laisse faire mongo,
+        //    l'index ne sera pas dans le doc mongo mais ça revient au même qu'un null,
+        //    dans les 3 cas isNull remontera l'entity.
+        // 2) si index sparse, on supprime l'index pour null|undefined
         //    => dans les 3 cas le doc mongo n'est pas indexé
         //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
         return
       }
 
-      // affectation après cast dans le type indiqué
-      if (Array.isArray(value)) {
-        indexes[indexName] = value.map(x => castToType(x, fieldType))
-      } else {
-        indexes[indexName] = castToType(value, fieldType)
+      const castAndCeckNaN = (v) => {
+        // le test précédent ne gère pas les array, et dans un array on garde la valeur originale
+        if (v === undefined || v === null) return v
+        if (fieldType) v = castToType(v, fieldType)
+        if (typeof v === 'number' && Number.isNaN(v)) throw Error(`${indexName} contient NaN`)
+        return v
       }
+
+      // affectation après cast dans le type indiqué (si y'en a un)
+      if (Array.isArray(value)) indexes[indexName] = value.map(castAndCeckNaN)
+      else indexes[indexName] = castAndCeckNaN(value)
     })
 
     return indexes
