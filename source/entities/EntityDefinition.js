@@ -325,6 +325,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
   afterStore (fn) {
+    if (fn.length !== 1) throw Error('afterStore must handle a callback (given function hasn’t length of 1)')
     this._afterStore = fn
   }
 
@@ -333,6 +334,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
   beforeDelete (fn) {
+    if (fn.length !== 1) throw Error('beforeDelete must handle a callback (given function hasn’t length of 1)')
     this._beforeDelete = fn
   }
 
@@ -341,6 +343,7 @@ class EntityDefinition {
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
   beforeStore (fn) {
+    if (fn.length !== 1) throw Error('beforeStore function must handle a callback (given function hasn’t length of 1)')
     this._beforeStore = fn
   }
 
