@@ -525,9 +525,8 @@ class EntityQuery {
 
         processEntities(entities, (e) => {
           if (e) return finalCb(e)
-          if (entities.length < FOREACH_BATCH_SIZE) return finalCb() // dernier batch
-
           if (progressBar) progressBar.tick(entities.length)
+          if (entities.length < FOREACH_BATCH_SIZE) return finalCb() // dernier batch
           skip += FOREACH_BATCH_SIZE
           process.nextTick(nextBatch)
         })
