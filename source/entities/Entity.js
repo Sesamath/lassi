@@ -105,6 +105,14 @@ class Entity {
    * @return {Object}
    */
   values () {
+    const isPlainObject = (o) => o && typeof o === 'object' && Object.prototype.toString.call(o) === '[object Object]'
+
+    const cleanArray = (a) => a.map(elt => {
+      if (isPlainObject(elt)) return copyCleanProps(elt, {})
+      if (Array.isArray(elt) && elt.length) return cleanArray(elt)
+      return elt
+    })
+
     const copyCleanProps = (obj, dest, isFirstLevel = false) => {
       Object.keys(obj).forEach(key => {
         const v = obj[key]
@@ -114,18 +122,16 @@ class Entity {
         if (v === null || v === undefined || typeof v === 'function' || key[0] === '$') return
         // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
         // (ni Regexp ni Date, les objets définis avec un constructeur classique passent ce filtre)
-        if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
+        if (isPlainObject(v)) {
           dest[key] = {}
           copyCleanProps(v, dest[key])
 
         // et chaque élément de tableau (on vire pas null et undefined)
-        } else if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Array]') {
-          dest[key] = v.map(elt => {
-            if (elt && typeof elt === 'object') return copyCleanProps(elt, {})
-            return elt
-          })
+        } else if (Array.isArray(v) && v.length) {
+          dest[key] = cleanArray(v)
+
+        // pour les autres on prend la valeur telle quelle
         } else {
-          // pour les autres on prend la valeur telle quelle
           dest[key] = v
         }
       })
