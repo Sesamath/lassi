@@ -108,15 +108,22 @@ class Entity {
     const copyCleanProps = (obj, dest, isFirstLevel = false) => {
       Object.keys(obj).forEach(key => {
         const v = obj[key]
-        // au 1er niveau on ajoute ce filtre
+        // au 1er niveau on vire les propriétés préfixées par _
         if (isFirstLevel && (key[0] === '_')) return
-        // à tous les niveaux on vire null, undefined et function
+        // à tous les niveaux on vire null, undefined, function et préfixe $
         if (v === null || v === undefined || typeof v === 'function' || key[0] === '$') return
         // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
-        // (ni Regexp ni Date ni Array, les objets définis avec un constructeur classique passent ce filtre)
+        // (ni Regexp ni Date, les objets définis avec un constructeur classique passent ce filtre)
         if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
           dest[key] = {}
           copyCleanProps(v, dest[key])
+
+        // et chaque élément de tableau (on vire pas null et undefined)
+        } else if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Array]') {
+          dest[key] = v.map(elt => {
+            if (elt && typeof elt === 'object') return copyCleanProps(elt, {})
+            return elt
+          })
         } else {
           // pour les autres on prend la valeur telle quelle
           dest[key] = v
