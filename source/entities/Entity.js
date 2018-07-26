@@ -98,7 +98,8 @@ class Entity {
 
   /**
    * Retourne une shallow copy de l'entity en filtrant certaines de ses données :
-   * - les attributs de 1er niveau ayant un nom commençant par "_" ou "$"
+   * - les attributs de 1er niveau ayant un nom commençant par "_"
+   * - les attributs ayant un nom commençant par $ (récursion sur les plain object seulement, pas les Date RegExp & co)
    * - les attributs étant function
    * - les attributs ayant des valeurs null, undefined ou NaN (en profondeur)
    * @return {Object}
@@ -108,9 +109,9 @@ class Entity {
       Object.keys(obj).forEach(key => {
         const v = obj[key]
         // au 1er niveau on ajoute ce filtre
-        if (isFirstLevel && (key[0] === '_' || key[0] === '$')) return
+        if (isFirstLevel && (key[0] === '_')) return
         // à tous les niveaux on vire null, undefined et function
-        if (v === null || v === undefined || typeof v === 'function') return
+        if (v === null || v === undefined || typeof v === 'function' || key[0] === '$') return
         // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
         // (ni Regexp ni Date ni Array, les objets définis avec un constructeur classique passent ce filtre)
         if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
