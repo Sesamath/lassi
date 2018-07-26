@@ -500,8 +500,13 @@ class EntityQuery {
 
           if (error) {
             nbErrors++
-            if (options.continueOnError) console.error(`Erreur sur ${entities[0].oid}`, error)
-            else return cb(error)
+            if (options.continueOnError) {
+              console.error(`Erreur sur ${entities[0].oid}`, error)
+            } else {
+              // on ajoute l'oid de l'entity dans le message
+              error.message += ` (sur ${entities[0].oid})`
+              return cb(error)
+            }
           }
           nbTreated++
 
