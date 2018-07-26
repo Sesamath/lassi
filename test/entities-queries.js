@@ -1010,23 +1010,21 @@ describe('Test entities-queries', function () {
 
     it(`remonte l'erreur est arrête le traitement si une entité échoue`, (done) => {
       let treated = 0
-      flow()
-        .seq(function () {
-          TestEntity.match('s').equals('forEachEntity').forEachEntity(
-            (entity, cb) => {
-              if (treated === 2) return cb(new Error('Ooops la 3ème entité échoue!'))
-              entity.treated = true
-              treated++
-              entity.store(cb)
-            },
-            this
-          )
-        })
-        .catch((err) => {
-          expect(treated).to.equal(2) // on n'est pas allé plus loin
-          expect(err.message).to.equal('Ooops la 3ème entité échoue!')
-          done()
-        })
+      const onEach = (entity, cb) => {
+        if (treated === 2) return cb(Error('Ooops la 3ème entité échoue !'))
+        entity.treated = true
+        treated++
+        entity.store(cb)
+      }
+      flow().seq(function () {
+        TestEntity.match('s').equals('forEachEntity').forEachEntity(onEach, this)
+      }).seq(function () {
+        done(Error('ça n’a pas planté alors que ça aurait dû'))
+      }).catch((error) => {
+        expect(treated).to.equal(2) // on n'est pas allé plus loin
+        expect(error.message).to.equal('Ooops la 3ème entité échoue ! (sur oid-2)')
+        done()
+      })
     })
 
     it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {
