@@ -305,10 +305,17 @@ class EntityDefinition {
 
         // On modifie quelques erreurs pour les rendres plus lisibles
         err.errors = err.errors.map((error) => {
+          // pour additionalProperties c'est clair, on a pas besoin du contenu
           if (error.keyword === 'additionalProperties') {
-            return Object.assign({}, error, {
-              message: `${error.message} : "${error.params.additionalProperty}"`
-            })
+            error.message = `${error.message} : "${error.params.additionalProperty}"`
+          } else {
+            // mais pour les autres on veut la valeur d'origine qui provoque l'erreur
+            const props = error.dataPath.split('/').slice(1)
+            const value = props.reduce((acc, prop) => acc[prop], entity)
+            try {
+              const stringValue = JSON.stringify(value)
+              error.message = `${error.message} (oid: ${entity.oid} value: ${stringValue})`
+            } catch (error) {}
           }
           return error
         })
