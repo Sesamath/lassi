@@ -442,6 +442,7 @@ class EntityDefinition {
    * @return {Entity} l'entité (chaînable)
    */
   defineIndex (indexName, ...params) {
+    if (this.indexes[indexName]) throw Error(`L’index ${indexName} a déjà été défini`)
     if (BUILT_IN_INDEXES[indexName]) throw new Error(`${indexName} est un index imposé par lassi, il ne peut pas être redéfini`)
     let callback
     let indexOptions = {}
