@@ -8,8 +8,9 @@ let log = (...args) => anLog('entities-cli validAll', ...args)
 /**
  * Passe en revue toutes les entités entityName pour vérifier la validation (schema + beforeStore),
  * sans modification de l'existant.
+ * Ne renvoie jamais d'erreur, seulement la liste des oids invalides
  * @param {string} entityName
- * @param {errorCallback} done
+ * @param {function} done appelée avec (null, string[]), le 2e paramètre est la liste des oids qui ne passent pas la validation
  */
 function validAll (entityName, done) {
   // options passées à forEachEntity
@@ -46,7 +47,7 @@ function validAll (entityName, done) {
         }).catch(function (error) {
           // on ne plante pas le batch sur une erreur, on la signale
           oidsWithError.push(e.oid)
-          console.error(`Pb de validation de ${e.oid} :`, error)
+          console.error(`Pb de validation de ${e.oid} :`, error.ajv ? error.message : error)
           cb()
         })
       }
@@ -57,12 +58,12 @@ function validAll (entityName, done) {
           log('Les oid en erreurs : ')
           log(oidsWithError.join(' '))
         }
-        done()
+        done(null, oidsWithError)
       }
       Entity.match().includeDeleted().sort('oid').forEachEntity(forEachCb, allDoneCb, options)
     } else {
       log(`Rien à valider pour ${entityName} (l’entité existe mais il n’y a aucun enregistrement)`)
-      done()
+      done(null, [])
     }
   })
 }
