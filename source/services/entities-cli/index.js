@@ -4,6 +4,7 @@ const count = require('./count')
 const purgeDeleted = require('./purgeDeleted')
 const reindexAll = require('./reindexAll')
 const select = require('./select')
+const validAll = require('./validAll')
 
 /**
  * Service de gestion des entités via cli
@@ -15,7 +16,8 @@ module.exports = function () {
       count,
       purgeDeleted,
       reindexAll,
-      select
+      select,
+      validAll
     })
   }
 }
