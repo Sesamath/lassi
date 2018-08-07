@@ -9,7 +9,7 @@ module.exports = function () {
    */
   this.construct(function (initObj) {
     if (!initObj.name) throw new Error('Une entité LassiUpdate doit avoir un attribut name')
-    if (!initObj.num) throw new Error('Une entité LassiUpdate doit avoir un attribut num')
+    if (typeof initObj.num !== 'number') throw new Error('Une entité LassiUpdate doit avoir un attribut num')
 
     this.name = initObj.name
     this.num = initObj.num
