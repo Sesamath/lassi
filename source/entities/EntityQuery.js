@@ -535,7 +535,9 @@ class EntityQuery {
 
     entityQuery.count((err, count) => {
       if (err) return finalCb(err)
-      if (options.progressBar) {
+      // en test progress plante parfois avec une largeur dispo NaN
+      const isTestEnv = process.argv[1].includes('mocha') || process.env.NODE_ENV === 'test'
+      if (options.progressBar && !isTestEnv) {
         const format = 'progress: :percent [:bar] :current/:total (~:etas left)'
         const options = {
           total: globalLimit ? Math.min(count, globalLimit) : count
