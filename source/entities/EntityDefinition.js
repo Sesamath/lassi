@@ -349,6 +349,16 @@ class EntityDefinition {
    * Ajoute un traitement avant stockage.
    * @param {simpleCallback} fn fonction à exécuter qui doit avoir une callback en paramètre (qui n'aura pas d'arguments)
    */
+  /**
+   * Modifie ou valide une entity (mise en contexte, elle sera le this de cette fct)
+   * @callback entityContextCallback
+   * @param {simpleCallback} cb à appeller avec une erreur éventuelle quand les modif seront finies
+   */
+
+  /**
+   * Ajoute une fonction à appliquer avant store
+   * @param {entityContextCallback} beforeStoreCallback
+   */
   beforeStore (fn) {
     if (fn.length !== 1) throw Error('beforeStore function must handle a callback (given function hasn’t length of 1)')
     this._beforeStore = fn
