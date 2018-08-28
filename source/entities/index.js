@@ -86,7 +86,7 @@ class Entities extends EventEmitter {
 
   /**
    * Initialisation de l'espace de stockage
-   * @param {SimpleCallback} cb
+   * @param {simpleCallback} cb
    */
   initialize (cb) {
     const settings = this.settings.database
@@ -125,7 +125,7 @@ class Entities extends EventEmitter {
   /**
    * Reconstruction des indexes d'une entité.
    * @param {Entity} entity L'entité dont on supprime l'indexe.
-   * @param {SimpleCallback} next callback de retour
+   * @param {simpleCallback} next callback de retour
    * @private
    */
   rebuildEntityIndexes (entity, next) {
@@ -139,7 +139,7 @@ class Entities extends EventEmitter {
   /**
    * Reconstruction des indexes.
    * Cette méthode est appelée par les commandes `lassi entities-XXX`
-   * @param {SimpleCallback} next callback de retour.
+   * @param {simpleCallback} next callback de retour.
    */
   rebuildIndexes (next) {
     const self = this

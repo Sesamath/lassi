@@ -143,6 +143,7 @@ class Entity {
 
   /**
    * Construits les index d'après l'entity
+   * @private
    * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
    */
   buildIndexes () {
@@ -193,11 +194,21 @@ class Entity {
     return indexes
   }
 
+  /**
+   * Idem this[att] sauf si att vaut isDeleted (retourne alors le booléen)
+   * @private
+   * @param {string} att
+   * @return {*}
+   */
   getAttributeValue (att) {
     if (att === 'isDeleted') return this.isDeleted()
     return this[att]
   }
 
+  /**
+   * Appelé après un load bdd pour stocker les valeurs des attributs suivis
+   * @private
+   */
   onLoad () {
     if (this.definition._onLoad) this.definition._onLoad.call(this)
     // Keep track of the entity state when loaded, so that we can compare when storing
@@ -208,10 +219,20 @@ class Entity {
     })
   }
 
+  /**
+   * Retourne la liste des attributs suivis qui ont changés depuis la sortie de la bdd
+   * @return {string[]}
+   */
   changedAttributes () {
     return Object.keys(this.definition._trackedAttributes).filter((att) => this.attributeHasChanged(att))
   }
 
+  /**
+   * Retourne true si l'attribut suivi a changé
+   * @throws si y'a pas eu de EntityDefinitiontrackAttribute(attribute) sur cette Entity
+   * @param {string} attribute
+   * @return {boolean} true si l'attribut a changé (toujours le cas sur une création)
+   */
   attributeHasChanged (attribute) {
     // Une nouvelle entité non sauvegardée n'a pas de "loadState", mais
     // on considère que tous ses attributs ont changés
@@ -219,6 +240,12 @@ class Entity {
     return this.attributeWas(attribute) !== this.getAttributeValue(attribute)
   }
 
+  /**
+   * Retourne la valeur de l'attribut au dernier chargement depuis la base
+   * @throws si y'a pas eu de EntityDefinitiontrackAttribute(attribute) sur cette Entity
+   * @param {string} attribute
+   * @return {*} null si l'entity ne sort pas de la db
+   */
   attributeWas (attribute) {
     if (!this.definition._trackedAttributes[attribute]) {
       throw new Error(`L'attribut ${attribute} n'est pas suivi`)
@@ -229,24 +256,23 @@ class Entity {
     return this.$loadState[attribute]
   }
 
+  /**
+   * Applique le beforeStore s'il y en a un puis vérifie la validité
+   * @private
+   * @param {Entity~entityCallback} cb
+   * @param {Object} [storeOptions]
+   * @param {boolean} [storeOptions.skipValidation=false]
+   */
   beforeStore (cb, storeOptions) {
     const entity = this
     const def = this.definition
-    flow()
-      .seq(function () {
-        if (def._beforeStore) {
-          def._beforeStore.call(entity, this)
-        } else {
-          this()
-        }
-      })
-      .seq(function () {
-        if (def._skipValidation || storeOptions.skipValidation) return this()
-        return entity.isValid(this, {
-          onlyChangedAttributes: true
-        })
-      })
-      .done(cb)
+    flow().seq(function () {
+      if (def._beforeStore) def._beforeStore.call(entity, this)
+      else this()
+    }).seq(function () {
+      if (def._skipValidation || storeOptions.skipValidation) cb()
+      else entity.isValid(cb, {onlyChangedAttributes: true})
+    }).catch(cb)
   }
 
   /**
@@ -321,6 +347,10 @@ class Entity {
     }).catch(callback)
   }
 
+  /**
+   * Reconstruit les index (en fait un simple store avec $byPassDuplicate)
+   * @param {Entity~entityCallback} callback
+   */
   reindex (callback) {
     // faut pouvoir réindexer d'éventuel doublons pour mieux les trouver ensuite
     this.$byPassDuplicate = true
@@ -328,8 +358,8 @@ class Entity {
   }
 
   /**
-   * Restaure un élément supprimé en soft-delete
-   * @param {SimpleCallback} callback
+   * Restaure un élément supprimé par {@link Entity#softDelete}
+   * @param {Entity~entityCallback} callback
    */
   restore (callback) {
     const entity = this
@@ -364,9 +394,8 @@ class Entity {
   }
 
   /**
-   * Effectue une suppression "douce" de l'entité
-   * @param {SimpleCallback} callback
-   * @see restore
+   * Effectue une suppression "douce" de l'entité ({@link Entity#restore} pour la récupérer)
+   * @param {Entity~entityCallback} callback
    */
   softDelete (callback) {
     if (!this.oid) return callback(new Error(`Impossible de softDelete une entité qui n'a pas encore été sauvegardée`))
@@ -377,26 +406,20 @@ class Entity {
   /**
    * Efface cette instance d'entité en base (et ses index) puis appelle callback
    * avec une éventuelle erreur
-   * @param {SimpleCallback} callback
+   * @param {simpleCallback} callback
    */
   delete (callback) {
     const entity = this
     // @todo activer ce throw ?
     // if (!entity.oid) throw new Error('Impossible d’effacer une entity sans oid')
+    if (!entity.oid) return callback()
     const def = this.definition
-    flow()
-      .seq(function () {
-        if (def._beforeDelete) {
-          def._beforeDelete.call(entity, this)
-        } else {
-          this()
-        }
-      })
-      .seq(function () {
-        if (!entity.oid) return this()
-        def.getCollection().remove({_id: entity.oid}, {w: 1}, this)
-      })
-      .done(callback)
+    flow().seq(function () {
+      if (def._beforeDelete) def._beforeDelete.call(entity, this)
+      else this()
+    }).seq(function () {
+      def.getCollection().remove({_id: entity.oid}, {w: 1}, callback)
+    }).catch(callback)
   }
 }
 
