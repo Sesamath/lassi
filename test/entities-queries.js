@@ -26,16 +26,17 @@ let TestEntity
  * @param {Object}  entity Entité
  */
 function assertEntity (i, entity) {
-  checkEntity(entity)
-  assert.equal(entity.i, i)
-  assert.equal(entity.s, STRING_PREFIX + i)
-  assert.equal(entity.d.getTime(), bt + seconde * i)
-  assert.equal(entity.sArray.length, 3)
-  assert.equal(entity.iArray.length, 3)
-  assert.equal(entity.dArray.length, 3)
-  // assert.equal(typeof entity.iArray[0], 'number')
-  // assert.equal(typeof entity.sArray[0], 'string')
-  // assert.equal(entity.dArray[0].constructor.name, 'Date')
+  const values = {
+    i,
+    s: STRING_PREFIX + i
+  }
+  const checkers = {
+    d: (d) => d.getTime() === bt + seconde * i,
+    dArray: (ar) => ar.length === 3 && ar.every(item => item.constructor.name === 'Date'),
+    iArray: (ar) => ar.length === 3 && ar.every(item => typeof item === 'number'),
+    sArray: (ar) => ar.length === 3 && ar.every(item => typeof item === 'string')
+  }
+  checkEntity(entity, values, checkers)
 }
 
 /**
@@ -526,8 +527,8 @@ describe('Test entities-queries', function () {
       started = new Date()
 
       var entities = [
-        { i: 42000 }, // <-- celle là sera soft-deleted
-        { i: 42001 }
+        {i: 42000}, // <-- celle là sera soft-deleted
+        {i: 42001}
       ]
 
       flow(entities)
@@ -628,13 +629,17 @@ describe('Test entities-queries', function () {
           .seq(function () {
             deletedEntity.restore(this)
           })
-          .seq(function () {
-          // On vérifie la mise à jour en bdd
+          .seq(function (entityRestored) {
+            expect(entityRestored.isDeleted()).to.be.false
+            expect(entityRestored.i).to.equal(deletedEntity.i)
+            expect(entityRestored.oid).to.equal(deletedEntity.oid)
+            // On vérifie la mise à jour en bdd
             TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.isDeleted(), false)
-            assert.equal(entity.oid, deletedEntity.oid)
+            expect(entity.isDeleted()).to.be.false
+            expect(entity.i).to.equal(deletedEntity.i)
+            expect(entity.oid).to.equal(deletedEntity.oid)
             this()
           })
           .done(done)

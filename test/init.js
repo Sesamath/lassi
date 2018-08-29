@@ -72,8 +72,8 @@ function overrideSettings () {
  * Vérifie que l'entité est de la forme attendue
  *
  * @param {TestEntity}  entity Entité
- * @param {object} values Pour chacune des propriétés fournies vérifie que la valeur est celle attendue
- * @param {object} checkers Liste de fonctions, pour chacune des propriétés fournies, appelle la fonction avec la valeur (faut mettre assert ou expect dans cette fonction)
+ * @param {object} [values] Pour chacune des propriétés fournies vérifie que la valeur est celle attendue
+ * @param {object} [checkers] Liste de fonctions, pour chacune des propriétés fournies, appelle la fonction avec la valeur (faut mettre assert ou expect dans cette fonction)
  */
 function checkEntity (entity, values, checkers) {
   // vérif des types

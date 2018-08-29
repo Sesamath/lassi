@@ -371,10 +371,12 @@ class Entity {
         def.getCollection().update({
           _id: entity.oid
         }, {
-          $unset: {__deletedAt: ''}
+          $unset: {__deletedAt: ''} // la valeur '' ne change rien, cf https://docs.mongodb.com/manual/reference/operator/update/unset/
         }, this)
       })
       .seq(function () {
+        // l'update mongo a fonctionné, il faut mettre à jour notre objet
+        entity.__deletedAt = null
         // On appelle le onLoad() car l'état de l'entité en BDD a changé,
         // comme si l'entity avait été "rechargée".
         entity.onLoad()
