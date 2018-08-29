@@ -196,6 +196,7 @@ class EntityDefinition {
       })
       delete def.indexes.__deletedAt
 
+      // console.log(`création des ${indexesToAdd.length} indexes`, indexesToAdd)
       if (indexesToAdd.length) coll.createIndexes(indexesToAdd, cb)
       else cb()
     }).catch(cb)
@@ -277,7 +278,11 @@ class EntityDefinition {
         log(def.name, `index ${indexName} n’existait pas => création`)
         createIndex(this)
       })
-      .done(callback)
+      .seq(function () {
+        log(def.name, `index ${indexName} créé`)
+        callback()
+      })
+      .catch(callback)
   } // _initializeTextSearchFieldsIndex
 
   /**
