@@ -79,7 +79,7 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
       if (lastUpdate) {
         // on vérifie qu'on a pas de trou
         if (lastUpdate.num < defaultVersion) return this(new Error(`La base est en version ${lastUpdate.num} mais le premier update disponible est le n° ${firstUpdateNum}`))
-        this(null, lastUpdate.num)
+        this(null, lastUpdate)
       } else {
         // pas d'update en db, init avec le n° juste avant le premier update dispo
         const firstUpdate = {
@@ -89,7 +89,8 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
         }
         LassiUpdate.create(firstUpdate).store(this)
       }
-    }).seq(function (dbVersion) {
+    }).seq(function (lastUpdate) {
+      dbVersion = lastUpdate.num
       getUpdatesAboveVersion(dbVersion, this)
     }).done(cb)
   }
