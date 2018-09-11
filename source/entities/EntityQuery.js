@@ -111,6 +111,10 @@ function buildQuery (entityQuery, record) {
         condition = {$regex: new RegExp(normalize(value).replace(/%/g, '.*'))}
         break
 
+      case 'ISEMPTY':
+        condition = {$eq: []}
+        break
+
       case 'ISNULL':
         condition = {$eq: null}
         break
@@ -241,7 +245,7 @@ function checkDate (value) {
  * Vérifie que value est un array
  * @private
  * @param value
- * @throws si value invalide
+ * @throws si value n'est pas un Array
  */
 function checkIsArray (value) {
   if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
@@ -364,15 +368,12 @@ class EntityQuery {
    * @return {undefined}
    */
   count (callback) {
-    var self = this
-    var record = {query: {}, options: {}}
-
-    flow()
-      .seq(function () {
-        buildQuery(self, record)
-        self.entity.getCollection().countDocuments(record.query, record.options, this)
-      })
-      .done(callback)
+    const self = this
+    const record = {query: {}, options: {}}
+    flow().seq(function () {
+      buildQuery(self, record)
+      self.entity.getCollection().countDocuments(record.query, record.options, this)
+    }).done(callback)
   }
 
   /**
@@ -668,7 +669,19 @@ class EntityQuery {
   }
 
   /**
+   * Filtre sur un index multiple ne contenant aucune valeur (fait du $eq: [])
+   * (car isNull sur un index multiple remonte les entites ayant une valeur null ou undefined dans le tableau d'origine)
+   * @return {EntityQuery}
+   */
+  isEmpty () {
+    return alterLastMatch(this, {operator: 'ISEMPTY'})
+  }
+
+  /**
    * Limite aux entities ayant l'index précédent non null
+   * (ATTENTION, sur un index multiple ce n'est pas le complément de isNull : la même entity
+   * remonte dans les deux cas si la valeur est un array avec un élément null|undefined
+   * et un autre élément non null|undefined)
    * @return {EntityQuery} La requête (pour chaînage)
    */
   isNotNull () {
@@ -677,6 +690,9 @@ class EntityQuery {
 
   /**
    * Limite aux entities ayant l'index précédent null (ou undefined)
+   * Attention, pour les index multiple ça remonte les entity dont l'array contient au moins un null|undefined
+   * Pour remonter les entities ayant une valeur [] il faut utiliser isEmpty, ou alors utiliser une callback
+   * d'index qui retourne null si le tableau est vide
    * @return {EntityQuery} La requête (pour chaînage)
    */
   isNull () {
@@ -768,7 +784,8 @@ class EntityQuery {
    */
   notIn (values) {
     checkIsArray(values)
-    return alterLastMatch(this, {value: values, operator: 'NOT IN'})
+    if (values.length) return alterLastMatch(this, {value: values, operator: 'NOT IN'})
+    console.error(Error(`notIn avec un array vide ne sert à rien, ignoré`))
   }
 
   /**

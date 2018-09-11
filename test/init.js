@@ -179,6 +179,7 @@ function initEntities (next) {
     TestEntity.defineIndex('sArray', 'string')
     TestEntity.defineIndex('created')
     TestEntity.defineIndex('whatever')
+    // normalizer qui fait du lowerCase sur les string, round sur les number et null sur le reste
     const normalizer = (value) => typeof value === 'string'
       ? value.toLowerCase()
       : typeof value === 'number'

@@ -178,17 +178,20 @@ class Entity {
         return
       }
 
-      const castAndCeckNaN = (v) => {
+      const castAndCheckNaN = (v) => {
         // le test précédent ne gère pas les array, et dans un array on garde la valeur originale
-        if (v === undefined || v === null) return v
+        // donc pour l'index ça se traduit par null (isNull remontera les entity dont la valeur contient null ou undefined)
+        // c'est pas très logique (on pourrait s'attendre à ce que isNull remonte les entities dont la valeur est un tableau vide)
+        // mais on veut le même comportement avec et sans useData (et avec mongo indexe l'objet [])
+        if (v === undefined || v === null) return null
         if (fieldType) v = castToType(v, fieldType)
         if (typeof v === 'number' && Number.isNaN(v)) throw Error(`${indexName} contient NaN`)
         return v
       }
 
       // affectation après cast dans le type indiqué (si y'en a un)
-      if (Array.isArray(value)) indexes[indexName] = value.map(castAndCeckNaN)
-      else indexes[indexName] = castAndCeckNaN(value)
+      if (Array.isArray(value)) indexes[indexName] = value.map(castAndCheckNaN)
+      else indexes[indexName] = castAndCheckNaN(value)
     })
 
     return indexes
