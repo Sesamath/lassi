@@ -89,7 +89,8 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
         }
         LassiUpdate.create(firstUpdate).store(this)
       }
-    }).seq(function (dbVersion) {
+    }).seq(function (lastUpdate) {
+      dbVersion = lastUpdate.num
       getUpdatesAboveVersion(dbVersion, this)
     }).done(cb)
   }
