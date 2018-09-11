@@ -786,6 +786,7 @@ class EntityQuery {
     checkIsArray(values)
     if (values.length) return alterLastMatch(this, {value: values, operator: 'NOT IN'})
     console.error(Error(`notIn avec un array vide ne sert à rien, ignoré`))
+    return this
   }
 
   /**
