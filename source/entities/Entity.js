@@ -154,44 +154,49 @@ class Entity {
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
     _.forEach(def.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
+      // la cb d'index peut planter, on veut récupérer le message pour le renvoyer avec plus d'infos
+      try {
+        // valeurs retournées par la fct d'indexation si y'en a une (inclus normalizer s'il existe)
+        const value = callback ? callback.call(entity) : entity[indexName]
 
-      // valeurs retournées par la fct d'indexation si y'en a une (inclus normalizer s'il existe)
-      const value = callback ? callback.call(entity) : entity[indexName]
+        if (value === undefined || value === null) {
+          // https://docs.mongodb.com/manual/core/index-sparse/
+          // En résumé
+          // - non-sparse : tous les documents sont indexés :
+          //   => si la propriété n'existe pas dans l'objet elle sera indexée quand même avec une valeur null
+          //   => si la propriété vaut undefined elle sera indexée avec null
+          // - sparse : seulement les documents ayant la propriété (même null|undefined) sont indexés (undefined indexé avec la valeur null)
+          // Afin d'avoir un comportement homogène, buildIndexes va harmoniser les 3 cas
+          // - prop absente
+          // - prop avec valeur undefined
+          // - prop avec valeur null
+          // 1) si index non-sparse, on ne retourne rien et on laisse faire mongo,
+          //    l'index ne sera pas dans le doc mongo mais ça revient au même qu'un null,
+          //    dans les 3 cas isNull remontera l'entity.
+          // 2) si index sparse, on supprime l'index pour null|undefined
+          //    => dans les 3 cas le doc mongo n'est pas indexé
+          //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
+          return
+        }
 
-      if (value === undefined || value === null) {
-        // https://docs.mongodb.com/manual/core/index-sparse/
-        // En résumé
-        // - non-sparse : tous les documents sont indexés :
-        //   => si la propriété n'existe pas dans l'objet elle sera indexée quand même avec une valeur null
-        //   => si la propriété vaut undefined elle sera indexée avec null
-        // - sparse : seulement les documents ayant la propriété (même null|undefined) sont indexés (undefined indexé avec la valeur null)
-        // Afin d'avoir un comportement homogène, buildIndexes va harmoniser les 3 cas
-        // - prop absente
-        // - prop avec valeur undefined
-        // - prop avec valeur null
-        // 1) si index non-sparse, on ne retourne rien et on laisse faire mongo,
-        //    l'index ne sera pas dans le doc mongo mais ça revient au même qu'un null,
-        //    dans les 3 cas isNull remontera l'entity.
-        // 2) si index sparse, on supprime l'index pour null|undefined
-        //    => dans les 3 cas le doc mongo n'est pas indexé
-        //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
-        return
+        const castAndCheckNaN = (v) => {
+          // le test précédent ne gère pas les array, et dans un array on garde la valeur originale
+          // donc pour l'index ça se traduit par null (isNull remontera les entity dont la valeur contient null ou undefined)
+          // c'est pas très logique (on pourrait s'attendre à ce que isNull remonte les entities dont la valeur est un tableau vide)
+          // mais on veut le même comportement avec et sans useData (et avec mongo indexe l'objet [])
+          if (v === undefined || v === null) return null
+          if (fieldType) v = castToType(v, fieldType)
+          if (typeof v === 'number' && Number.isNaN(v)) throw Error(`${indexName} contient NaN`)
+          return v
+        }
+
+        // affectation après cast dans le type indiqué (si y'en a un)
+        if (Array.isArray(value)) indexes[indexName] = value.map(castAndCheckNaN)
+        else indexes[indexName] = castAndCheckNaN(value)
+      } catch (error) {
+        error.message = `Pb sur l’index ${indexName} de l’entity ${def.name} oid ${entity.oid}, ${error.message}`
+        throw error
       }
-
-      const castAndCheckNaN = (v) => {
-        // le test précédent ne gère pas les array, et dans un array on garde la valeur originale
-        // donc pour l'index ça se traduit par null (isNull remontera les entity dont la valeur contient null ou undefined)
-        // c'est pas très logique (on pourrait s'attendre à ce que isNull remonte les entities dont la valeur est un tableau vide)
-        // mais on veut le même comportement avec et sans useData (et avec mongo indexe l'objet [])
-        if (v === undefined || v === null) return null
-        if (fieldType) v = castToType(v, fieldType)
-        if (typeof v === 'number' && Number.isNaN(v)) throw Error(`${indexName} contient NaN`)
-        return v
-      }
-
-      // affectation après cast dans le type indiqué (si y'en a un)
-      if (Array.isArray(value)) indexes[indexName] = value.map(castAndCheckNaN)
-      else indexes[indexName] = castAndCheckNaN(value)
     })
 
     return indexes
