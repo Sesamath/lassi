@@ -11,6 +11,7 @@ module.exports = function () {
     if (!initObj.name) throw new Error('Une entité LassiUpdate doit avoir un attribut name')
     if (typeof initObj.num !== 'number') throw new Error('Une entité LassiUpdate doit avoir un attribut num')
 
+    this.oid = initObj.oid
     this.name = initObj.name
     this.num = initObj.num
     this.date = new Date()

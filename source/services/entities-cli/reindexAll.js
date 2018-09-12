@@ -26,8 +26,14 @@ function reindexAll (entityName, argSup, done) {
   }
   if (typeof entityName !== 'string') return done(new Error('Il faut passer un nom d’entity en 1er argument'))
 
-  const Entity = lassi.service(entityName)
-  if (!Entity) return done(new Error('Aucune entity nommée ' + entityName))
+  let Entity
+  try {
+    Entity = lassi.service(entityName)
+  } catch (error) {
+    error.message = `Aucune entity nommée ${entityName} ${error.message}`
+    return done(error)
+  }
+
   // go
   Entity.match().includeDeleted().count((error, total) => {
     if (error) return done(error)
