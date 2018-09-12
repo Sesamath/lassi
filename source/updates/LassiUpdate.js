@@ -3,7 +3,7 @@
 module.exports = function () {
   /**
    * Notre entité update, cf [Entity](lassi/Entity.html)
-   * @entity EntityUpdate
+   * @entity LassiUpdate
    * @param {Object} initObj Un objet ayant des propriétés d'un update
    * @extends Entity
    */
