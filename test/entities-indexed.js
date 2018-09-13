@@ -186,78 +186,79 @@ describe('Test entities-queries', function () {
   })
 
   it('Indexe un tableau de booleans', function (done) {
-    let entities = [
-      {bArray: [true], s: 'boolean true'},
-      {bArray: [null], s: 'boolean null'},
-      {bArray: [undefined], s: 'boolean undefined'},
-      {bArray: [false], s: 'boolean false'},
-      {bArray: [0], s: 'boolean zéro'},
-      {bArray: [''], s: 'boolean empty string'},
-      {bArray: [42], s: 'boolean truthy int'},
-      {bArray: ['foo'], s: 'boolean truthy string'},
-      {bArray: [{}], s: 'boolean truthy obj'},
-      {bArray: [new Date()], s: 'boolean truthy date'}
+    let data = [
+      {bArray: [true], s: 'boolean true', i: 0},
+      {bArray: [null], s: 'boolean null', i: 1},
+      {bArray: [undefined], s: 'boolean undefined', i: 2},
+      {bArray: [false], s: 'boolean false', i: 3},
+      {bArray: [0], s: 'boolean zéro', i: 4},
+      {bArray: [''], s: 'boolean empty string', i: 5},
+      {bArray: [42], s: 'boolean truthy int', i: 6},
+      {bArray: ['foo'], s: 'boolean truthy string', i: 7},
+      {bArray: [{}], s: 'boolean truthy obj', i: 8},
+      {bArray: [new Date()], s: 'boolean truthy date', i: 9},
+      {bArray: [], s: 'boolean empty', i: 10}
     ]
-    flow(entities).seqEach(function (entity) {
+    flow(data).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 10)
+      assert.equal(entities.length, 11)
+
+      // filtre null
       TestEntity.match('bArray').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'boolean null')
-      assert.equal(entities[1].s, 'boolean undefined')
+      expect(entities.map(e => e.i).join(',')).to.equals('1,2')
+      entities.forEach(e => {
+        // FIXME pourquoi [undefined] devient [null]
+        if (e.i === 2) expect(e.bArray).to.deep.equal([null])
+        else expect(e.bArray).to.deep.equal(data[e.i].bArray, `Pb avec ${e.s}`)
+      })
+
+      // filtre notNull
       TestEntity.match('bArray').isNotNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 8)
-      assert.equal(entities[0].s, 'boolean true')
-      assert.equal(entities[1].s, 'boolean false')
-      assert.equal(entities[2].s, 'boolean zéro')
-      assert.equal(entities[3].s, 'boolean empty string')
-      assert.equal(entities[4].s, 'boolean truthy int')
-      assert.equal(entities[5].s, 'boolean truthy string')
-      assert.equal(entities[6].s, 'boolean truthy obj')
-      assert.equal(entities[7].s, 'boolean truthy date')
+      expect(entities.map(e => e.i).join(',')).to.equals('0,3,4,5,6,7,8,9,10')
+
+      // filtre true
       TestEntity.match('bArray').equals(true).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 5)
-      assert.equal(entities[0].s, 'boolean true')
-      assert.equal(entities[1].s, 'boolean truthy int')
-      assert.equal(entities[2].s, 'boolean truthy string')
-      assert.equal(entities[3].s, 'boolean truthy obj')
-      assert.equal(entities[4].s, 'boolean truthy date')
+      expect(entities.map(e => e.i).join(',')).to.equals('0,6,7,8,9')
+
+      // false
       TestEntity.match('bArray').equals(false).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 3)
-      assert.equal(entities[0].s, 'boolean false')
-      assert.equal(entities[1].s, 'boolean zéro')
-      assert.equal(entities[2].s, 'boolean empty string')
+      expect(entities.map(e => e.i).join(',')).to.equals('3,4,5')
+
+      // on purge avant la prochaine série
       TestEntity.match().purge(this)
     }).seq(function () {
       // on recommence avec un tableau à plusieurs boolean
-      entities = [
+      data = [
         {bArray: [true, 42, true], i: 1},
         {bArray: [null, false], i: 2},
         {bArray: [false, undefined], i: 3},
-        {bArray: [true, false], i: 4}
+        {bArray: [true, false], i: 4},
+        {bArray: [true, null, false, undefined, true], i: 5},
+        {bArray: [null, undefined], i: 6},
+        {bArray: [], i: 7}
       ]
-      this(null, entities)
+      this(null, data)
     }).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 4)
+      assert.equal(entities.length, 7)
       TestEntity.match('bArray').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '2,3')
+      assert.equal(entities.map(e => e.i).join(','), '2,3,5,6')
       TestEntity.match('bArray').isNotNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '1,4')
+      assert.equal(entities.map(e => e.i).join(','), '1,4,7')
       TestEntity.match('bArray').equals(false).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '2,3,4')
+      assert.equal(entities.map(e => e.i).join(','), '2,3,4,5')
       TestEntity.match('bArray').equals(true).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '1,4')
+      assert.equal(entities.map(e => e.i).join(','), '1,4,5')
       TestEntity.match().purge(this)
     }).done(done)
   })
@@ -458,11 +459,15 @@ describe('Test entities-queries', function () {
 
     describe('undefined|null ne deviennent pas NaN', function () {
       const datas = [
+        {i: 0, s: '0'},
         {i: 42, s: '1'},
         {i: null, s: '2'},
         {iArray: [42], s: '3'},
         {iArray: [42, null], s: '4'},
-        {iArray: [undefined], s: '5'}
+        {iArray: [undefined], s: '5'},
+        {iArray: [null], s: '6'},
+        {iArray: [null, 42, undefined], s: '7'},
+        {iArray: [0], s: '8'}
       ]
       before('création d’entités', function (done) {
         flow(datas).seqEach(function (data) {
@@ -471,31 +476,83 @@ describe('Test entities-queries', function () {
       })
 
       it('sur un champ integer', function (done) {
-        TestEntity.match('i').isNull().sort('s').grab((error, entities) => {
-          if (error) return done(error)
-          expect(entities).to.have.length(4)
-          entities.forEach(e => expect(e.i).to.equals(undefined))
+        flow().seq(function () {
+          TestEntity.match('i').isNull().sort('s').grab(this)
+        }).seq(function (entities) {
+          expect(entities.map(e => e.s).join(',')).to.equals('2,3,4,5,6,7,8')
+          entities.forEach(e => expect(e.i).to.equals(undefined, `Pb avec ${e.s}`))
+
+          // et les autres
+          TestEntity.match('i').isNotNull().sort('s').grab(this)
+        }).seq(function (entities) {
+          expect(entities.map(e => e.s).join(',')).to.equals('0,1')
+          entities.forEach(e => expect(e.i).to.equals(datas[e.s].i))
           done()
-        })
+        }).catch(done)
       })
 
       it('sur un tableau d’integer', function (done) {
-        TestEntity.match('iArray').isNull().sort('s').grab((error, entities) => {
-          if (error) return done(error)
-          expect(entities).to.have.length(4)
-          expect(entities[0].iArray).to.equals(undefined)
-          expect(entities[1].iArray).to.equals(undefined)
-          expect(entities[2].s).to.equals('4')
-          expect(entities[2].iArray).to.have.length(2)
-          expect(entities[2].iArray[1]).to.equals(null)
-          expect(entities[3].s).to.equals('5')
-          expect(entities[3].iArray).to.have.length(1)
-          expect(entities[3].iArray[1]).to.equals(undefined)
+        flow().seq(function () {
+          TestEntity.match('iArray').isNull().sort('s').grab(this)
+        }).seq(function (entities) {
+          expect(entities.map(e => e.s).join(',')).to.equals('0,1,2,4,5,6,7')
+          // et on veut que les valeurs restent inchangées (sauf undefined qui devient null)
+          entities.forEach(e => {
+            const expected = datas[e.s].iArray
+              ? datas[e.s].iArray.map(elt => elt === undefined ? null : elt)
+              : undefined
+            expect(e.iArray).to.deep.equals(expected, `Pb avec ${e.s}`)
+          })
+
+          // on passe au complément
+          TestEntity.match('iArray').isNotNull().sort('s').grab(this)
+        }).seq(function (entities) {
+          expect(entities.map(e => e.s).join(',')).to.equals('3,8')
+          entities.forEach(e => expect(e.iArray).to.deep.equals(datas[e.s].iArray, `Pb avec ${e.s}`))
           done()
+        }).catch(done)
+      })
+    })
+
+    describe('isEmpty retrouve les tableaux vides', function () {
+      const datas = []
+      ;[null, undefined, true, false, 'foo', 42, 0, '', -1].forEach(v => {
+        datas.push({bArray: [v]})
+        datas.push({sArray: [v]})
+      })
+      // pour integer faut pas de NaN
+      ;[null, undefined, 42, 0, -1].forEach(v => {
+        datas.push({iArray: [v]})
+      })
+      // une date
+      datas.push({dArray: [new Date()]})
+      // on ajoute un array vide à chacun
+      datas.push({bArray: [], s: 'bArray vide'})
+      datas.push({dArray: [], s: 'dArray vide'})
+      datas.push({iArray: [], s: 'iArray vide'})
+      datas.push({sArray: [], s: 'sArray vide'})
+
+      before('création d’entités', function (done) {
+        flow(datas).seqEach(function (data) {
+          TestEntity.create(data).store(this)
+        }).done(done)
+      })
+
+      ;[
+        {field: 'bArray', type: 'boolean'},
+        {field: 'dArray', type: 'date'},
+        {field: 'iArray', type: 'integer'},
+        {field: 'sArray', type: 'string'}
+      ].forEach(({field, type}) => {
+        it(`sur un tableau de ${type}`, function (done) {
+          TestEntity.match(field).isEmpty().grab((error, entities) => {
+            if (error) return done(error)
+            expect(entities).to.have.length(1)
+            expect(entities[0].s).to.equals(`${field} vide`)
+            done()
+          })
         })
       })
     })
   })
-
-  // @todo array de date/int/string
 })
