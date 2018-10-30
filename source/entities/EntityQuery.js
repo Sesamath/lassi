@@ -877,7 +877,12 @@ class EntityQuery {
    * @return {EntityQuery} La requête (pour chaînage)
    */
   textSearch (search) {
-    this.search = search
+    if (this.search) {
+      if (search.includes(' ') && !search.includes('"')) this.search += ` "${search}"`
+      else this.search += ` ${search}`
+    } else {
+      this.search = search
+    }
     return this
   }
 
