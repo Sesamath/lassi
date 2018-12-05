@@ -352,7 +352,30 @@ class Entity {
       // comme si l'entity avait été "rechargée".
       entity.onLoad()
       callback(null, entity)
-    }).catch(callback)
+    }).catch(function (error) {
+      // on veut détecter les erreurs de doublon pour rendre le message plus intelligible
+      const matches = /^E11000 duplicate key error collection: ([^ ]+) index: ([^ ]+) dup key: { : (.*) }$/.exec(error.message)
+      if (matches) {
+        const [, collectionFullName, mongoIndexName, duplicateValue] = matches
+        const entityName = collectionFullName.split('.').pop()
+
+        // cf objet retourné par EntityDefinition.defineIndex
+        const indexName = (def.indexesByMongoIndexName[mongoIndexName] && def.indexesByMongoIndexName[mongoIndexName].indexName) || mongoIndexName
+        if (indexName === mongoIndexName) {
+          console.error(Error(`pas trouvé d’index correspondant à ${collectionFullName}:${mongoIndexName}`))
+        }
+        const dupError = Error(`Impossible d’enregistrer pour cause de doublon (valeur ${duplicateValue} en doublon pour ${indexName} sur ${entityName})`)
+        Object.assign(dupError, {
+          original: error,
+          entityName,
+          indexName,
+          mongoIndexName
+        })
+        callback(dupError)
+      } else {
+        callback(error)
+      }
+    })
   }
 
   /**

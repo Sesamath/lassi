@@ -266,65 +266,41 @@ describe('Test entities-queries', function () {
   describe('index options', () => {
     describe('unique', () => {
       it('empêche d’avoir deux fois la même valeur', (done) => {
-        flow()
-          .seq(function () {
-            TestEntity.create({
-              uniqueString: 'a'
-            }).store(this)
+        flow().seq(function () {
+          TestEntity.create({uniqueString: 'a'}).store(this)
+        }).seq(function () {
+          TestEntity.create({uniqueString: 'a'}).store((err) => {
+            if (!err) return done(new Error('expecting a duplicate error'))
+            expect(err.message).to.equal('Impossible d’enregistrer pour cause de doublon (valeur "a" en doublon pour uniqueString sur TestEntity)')
+            done()
           })
-          .seq(function () {
-            TestEntity.create({
-              uniqueString: 'a'
-            }).store((err) => {
-              if (!err) return done(new Error('expecting an error'))
-              expect(err.message).to.equal('E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueString-unique dup key: { : "a" }')
-              done()
-            })
-          })
-          .catch(done)
+        }).catch(done)
       })
     })
+
     describe('unique and sparse', () => {
       after('purge', function (done) {
         TestEntity.match().purge(done)
       })
+
       it('empêche d’avoir deux fois la même valeur mais accepte plusieurs null|undefined', (done) => {
-        flow()
-          .seq(function () {
-            TestEntity.create({
-              uniqueSparseString: null
-            }).store(this)
+        flow().seq(function () {
+          TestEntity.create({uniqueSparseString: null}).store(this)
+        }).seq(function () {
+          TestEntity.create({uniqueSparseString: null}).store(this)
+        }).seq(function () {
+          TestEntity.create({uniqueSparseString: undefined}).store(this)
+        }).seq(function () {
+          TestEntity.create({uniqueSparseString: undefined}).store(this)
+        }).seq(function () {
+          TestEntity.create({uniqueSparseString: 'a'}).store(this)
+        }).seq(function () {
+          TestEntity.create({uniqueSparseString: 'a'}).store((err) => {
+            if (!err) return done(new Error('expecting an error'))
+            expect(err.message).to.equal('Impossible d’enregistrer pour cause de doublon (valeur "a" en doublon pour uniqueSparseString sur TestEntity)')
+            done()
           })
-          .seq(function () {
-            TestEntity.create({
-              uniqueSparseString: null
-            }).store(this)
-          })
-          .seq(function () {
-            TestEntity.create({
-              uniqueSparseString: undefined
-            }).store(this)
-          })
-          .seq(function () {
-            TestEntity.create({
-              uniqueSparseString: undefined
-            }).store(this)
-          })
-          .seq(function () {
-            TestEntity.create({
-              uniqueSparseString: 'a'
-            }).store(this)
-          })
-          .seq(function () {
-            TestEntity.create({
-              uniqueSparseString: 'a'
-            }).store((err) => {
-              if (!err) return done(new Error('expecting an error'))
-              expect(err.message).to.equal('E11000 duplicate key error collection: testLassi.TestEntity index: entity_index_uniqueSparseString-unique-sparse dup key: { : "a" }')
-              done()
-            })
-          })
-          .catch(done)
+        }).catch(done)
       })
 
       it('throws exception avec isNull', () => {
