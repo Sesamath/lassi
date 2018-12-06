@@ -271,7 +271,7 @@ describe('Test entities-queries', function () {
         }).seq(function () {
           TestEntity.create({uniqueString: 'a'}).store((err) => {
             if (!err) return done(new Error('expecting a duplicate error'))
-            expect(err.message).to.equal('Impossible d’enregistrer pour cause de doublon (valeur "a" en doublon pour uniqueString sur TestEntity)')
+            expect(err.message).to.equal('Impossible d’enregistrer pour cause de doublon (valeur "a" en doublon pour TestEntity.uniqueString)')
             done()
           })
         }).catch(done)
@@ -297,7 +297,7 @@ describe('Test entities-queries', function () {
         }).seq(function () {
           TestEntity.create({uniqueSparseString: 'a'}).store((err) => {
             if (!err) return done(new Error('expecting an error'))
-            expect(err.message).to.equal('Impossible d’enregistrer pour cause de doublon (valeur "a" en doublon pour uniqueSparseString sur TestEntity)')
+            expect(err.message).to.equal('Impossible d’enregistrer pour cause de doublon (valeur "a" en doublon pour TestEntity.uniqueSparseString)')
             done()
           })
         }).catch(done)

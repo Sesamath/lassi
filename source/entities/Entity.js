@@ -364,9 +364,10 @@ class Entity {
         if (indexName === mongoIndexName) {
           console.error(Error(`pas trouvé d’index correspondant à ${collectionFullName}:${mongoIndexName}`))
         }
-        const dupError = Error(`Impossible d’enregistrer pour cause de doublon (valeur ${duplicateValue} en doublon pour ${indexName} sur ${entityName})`)
+        const dupError = Error(`Impossible d’enregistrer pour cause de doublon (valeur ${duplicateValue} en doublon pour ${entityName}.${indexName})`)
         Object.assign(dupError, {
           original: error,
+          type: 'duplicate',
           entityName,
           indexName,
           mongoIndexName
