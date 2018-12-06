@@ -166,6 +166,7 @@ class Entity {
           //   => si la propriété n'existe pas dans l'objet elle sera indexée quand même avec une valeur null
           //   => si la propriété vaut undefined elle sera indexée avec null
           // - sparse : seulement les documents ayant la propriété (même null|undefined) sont indexés (undefined indexé avec la valeur null)
+          //
           // Afin d'avoir un comportement homogène, buildIndexes va harmoniser les 3 cas
           // - prop absente
           // - prop avec valeur undefined
@@ -175,7 +176,7 @@ class Entity {
           //    dans les 3 cas isNull remontera l'entity.
           // 2) si index sparse, on supprime l'index pour null|undefined
           //    => dans les 3 cas le doc mongo n'est pas indexé
-          //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
+          //    => isNull remonte les 3
           return
         }
 
@@ -250,7 +251,7 @@ class Entity {
 
   /**
    * Retourne la valeur de l'attribut au dernier chargement depuis la base
-   * @throws si y'a pas eu de EntityDefinitiontrackAttribute(attribute) sur cette Entity
+   * @throws si y'a pas eu de EntityDefinition.trackAttribute(attribute) sur cette Entity pour cet attribut
    * @param {string} attribute
    * @return {*} null si l'entity ne sort pas de la db
    */

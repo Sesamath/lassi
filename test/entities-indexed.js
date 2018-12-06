@@ -35,10 +35,10 @@ describe('Test entities-queries', function () {
       // Pour visualiser les index rapidement
       // console.log('index de la collection', indexes)
       // nos indexes + _id_ toujours mis par mongo + __deletedAt ajouté par lassi
-      expect(indexes).to.have.lengthOf(18)
+      expect(indexes).to.have.lengthOf(19)
       // on ne check que les notres
       const testIndexes = indexes.filter(i => !['_id_', '__deletedAt'].includes(i.name))
-      expect(testIndexes).to.have.lengthOf(16)
+      expect(testIndexes).to.have.lengthOf(17)
       this(null, testIndexes)
     }).seqEach(function (index) {
       expect(index.name).to.match(/^entity_index_/)
@@ -279,11 +279,19 @@ describe('Test entities-queries', function () {
     })
 
     describe('unique and sparse', () => {
-      after('purge', function (done) {
+      afterEach('purge', function (done) {
         TestEntity.match().purge(done)
       })
 
-      it('empêche d’avoir deux fois la même valeur mais accepte plusieurs null|undefined', (done) => {
+      // liste de valeurs pour les props sparse et s
+      const values = [
+        [null, 'a'],
+        ['b', 'b'],
+        [undefined, 'c'],
+        ['d', 'd']
+      ]
+
+      it('unique+sparse empêche d’avoir deux fois la même valeur mais accepte plusieurs null|undefined', (done) => {
         flow().seq(function () {
           TestEntity.create({uniqueSparseString: null}).store(this)
         }).seq(function () {
@@ -303,8 +311,76 @@ describe('Test entities-queries', function () {
         }).catch(done)
       })
 
-      it('throws exception avec isNull', () => {
-        expect(() => TestEntity.match('uniqueSparseString').isNull()).to.throw('isNull() ne peut pas être appelé sur un index sparse')
+      it('isNull remonte les index unique+sparse inexistants', (done) => {
+        flow(values).seqEach(function ([uniqueSparseString, s]) {
+          TestEntity.create({uniqueSparseString, s}).store(this)
+        }).seq(function () {
+          TestEntity.match('uniqueSparseString').isNull().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(2)
+          // on est pas sur de l'ordre (ac ou ca)
+          const both = entities[0].s + entities[1].s
+          if (both === 'ac') return done()
+          expect(both).to.equals('ca')
+          this()
+        }).seq(function () {
+          // on teste aussi que isNull remonte les props absentes
+          TestEntity.match('sparseString').isNull().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(values.length)
+          done()
+        }).catch(done)
+      })
+
+      it('isNull remonte les index sparse inexistants', (done) => {
+        flow(values).seqEach(function ([sparseString, s]) {
+          TestEntity.create({sparseString, s}).store(this)
+        }).seq(function () {
+          TestEntity.match('sparseString').isNull().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(2)
+          // on est pas sur de l'ordre (ac ou ca)
+          const both = entities[0].s + entities[1].s
+          if (both === 'ac') return done()
+          expect(both).to.equals('ca')
+          this()
+        }).seq(function () {
+          // on teste aussi que isNull remonte les props absentes
+          TestEntity.match('uniqueSparseString').isNull().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(values.length)
+          done()
+        }).catch(done)
+      })
+
+      it('isNotNull remonte les index unique+sparse existants', (done) => {
+        flow(values).seqEach(function ([uniqueSparseString, s]) {
+          TestEntity.create({uniqueSparseString, s}).store(this)
+        }).seq(function () {
+          TestEntity.match('uniqueSparseString').isNotNull().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(2)
+          // on est pas sur de l'ordre (bd ou db)
+          const both = entities[0].s + entities[1].s
+          if (both === 'bd') return done()
+          expect(both).to.equals('db')
+          done()
+        }).catch(done)
+      })
+
+      it('isNotNull remonte les index sparse existants', (done) => {
+        flow(values).seqEach(function ([sparseString, s]) {
+          TestEntity.create({sparseString, s}).store(this)
+        }).seq(function () {
+          TestEntity.match('sparseString').isNotNull().grab(this)
+        }).seq(function (entities) {
+          expect(entities).to.have.length(2)
+          // on est pas sur de l'ordre (bd ou db)
+          const both = entities[0].s + entities[1].s
+          if (both === 'bd') return done()
+          expect(both).to.equals('db')
+          done()
+        }).catch(done)
       })
     })
 
@@ -360,7 +436,9 @@ describe('Test entities-queries', function () {
         {whatever: false},
         {whatever: 0},
         {whatever: null},
-        {whatever: undefined}
+        {whatever: undefined},
+        {whatever: []},
+        {whatever: [42]}
       ].map((item, index) => {
         item.i = index
         return item
@@ -388,7 +466,8 @@ describe('Test entities-queries', function () {
           datas.forEach(({whatever: original, i}, index) => {
             expect(index).to.equals(i)
             const expected = (original === null) ? undefined : original
-            expect(entities[index].whatever).to.equals(expected, `Pb sur le n° ${i}`)
+            if (Array.isArray(expected)) expect(entities[index].whatever).to.deep.equals(expected, `Pb sur le n° ${i}`)
+            else expect(entities[index].whatever).to.equals(expected, `Pb sur le n° ${i}`)
           })
           done()
         }).catch(done)

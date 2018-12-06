@@ -170,6 +170,7 @@ function initEntities (next) {
     TestEntity.defineIndex('t', 'string')
     TestEntity.defineIndex('uniqueString', 'string', {unique: true})
     TestEntity.defineIndex('uniqueSparseString', 'string', {sparse: true, unique: true})
+    TestEntity.defineIndex('sparseString', 'string', {sparse: true})
     TestEntity.defineIndex('iPair', 'integer', function () {
       if (typeof this.i === 'number') return this.i % 2
     })

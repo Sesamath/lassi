@@ -114,7 +114,7 @@ class EntityDefinition {
   /**
    * Finalisation de l'objet Entité, appelé en fin de définition, avant initialize
    * @param {Entities} entities le conteneur d'entités.
-   * @return {Entity} l'entité (chaînable)
+   * @return {EntityDefinition} pour chaînage éventuel
    * @private
    */
   _bless (entities) {
@@ -402,7 +402,7 @@ class EntityDefinition {
    * toutes les propriétés de values seront affectée à l'entité !
    * @todo virer ce comportement et ajouter dans les constructeurs qui l'utilisaient un `Object.assign(this, values)`
    * @param {Object=} values Des valeurs à injecter dans l'objet.
-   * @return {Entity} Une instance d'entité
+   * @return {Entity} Une instance de l'entité
    */
   create (values) {
     var instance = new this.entityConstructor() // eslint-disable-line new-cap
@@ -449,12 +449,19 @@ class EntityDefinition {
    *  });
    * ```
    *
-   * @param {String} indexName Nom du champ à indexer ou de l'index virtuel
-   * @param {String} fieldType (optionnel) Type du champ à indexer ('integer', 'string', 'date')
+   * @param {String} indexName Nom du champ à indexer (ou de l'index virtuel si on passe une callback)
+   * @param {String} [fieldType] Type du champ à indexer ('integer', 'string', 'date')
    *                                      ce qui va entrainer du cast à l'indexation et à la query (cf. castToType)
-   * @param {Object} indexOptions (optionnel) Options d'index mongo ex: {unique: true, sparse: true}
-   * @param {Function} callback (optionnel) Cette fonction permet de définir virtuellement la valeur d'un index.
-   * @return {Entity} l'entité (chaînable)
+   * @param {Object} [indexOptions] Options d'index mongo ex: {unique: true, sparse: true}
+   * @param {boolean} [indexOptions.sparse=false] si true l'index n'est pas sauvegardé
+   * @param {boolean} [indexOptions.unique=false] si true le store plantera si la valeur existe déjà en base
+   * @param {function} [indexOptions.normalizer] une fonction à appliquer sur la valeur de l'index avant stockage
+   *                                             (mais après callback éventuelle)
+   * @param {function} [callback] Pour définir la valeur de l'index, appelé avec un .call(entity).
+   *                              L'index est alors "virtuel" car il ne dépend pas d'un seul champ,
+   *                              mieux vaut ne pas lui donner le même nom qu'un champ
+   *                              si on fait trop de transformations
+   * @return {EntityDefinition} pour chaînage
    */
   defineIndex (indexName, ...params) {
     if (this.indexes[indexName]) throw Error(`L’index ${indexName} a déjà été défini`)
@@ -463,7 +470,7 @@ class EntityDefinition {
     let indexOptions = {}
     let fieldType
     // On récupère les paramètres optionnels: fieldType, indexOptions, callback
-    // en partant de la fin. Heureusement ils ont des types différents !
+    // en partant de la fin. Heureusement ils ont tous des types différents !
     let param = params.pop()
     if (typeof param === 'function') {
       callback = param

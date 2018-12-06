@@ -698,7 +698,6 @@ class EntityQuery {
   isNull () {
     const lastMatch = getLastMatch(this)
     if (!lastMatch) throw Error('isNull appelé sans match précédent')
-    if (lastMatch.index.indexOptions.sparse) throw Error('isNull() ne peut pas être appelé sur un index sparse')
     return alterLastMatch(this, {operator: 'ISNULL'})
   }
 
