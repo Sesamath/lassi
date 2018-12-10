@@ -71,7 +71,7 @@ class Entity {
   isValid (cb, {schema = true, onlyChangedAttributes = false} = {}) {
     let validators = [].concat(
 
-      // Json-sSchema validation
+      // Json-schema validation
       schema ? [function (cb) { this.definition._validateEntityWithSchema(this, cb) }] : [],
 
       // validateOnChange() validation.
@@ -86,11 +86,13 @@ class Entity {
           : this.definition._toValidateOnChange
       ))),
 
-      // validate() validation
+      // et on ajoute le tableau de validateurs passés via entityDefinition.validate(validator)
       this.definition._toValidate
     )
 
     const entity = this
+
+    // et on applique les validateurs en série
     flow(validators).seqEach(function (fn) {
       fn.call(entity, this)
     }).done(cb)
@@ -307,6 +309,7 @@ class Entity {
   store (options, callback) {
     const entity = this
     const def = this.definition
+    const isNew = !entity.oid
 
     if (_.isFunction(options)) {
       callback = options
@@ -321,7 +324,6 @@ class Entity {
     flow().seq(function () {
       entity.beforeStore(this, options)
     }).seq(function () {
-      let isNew = !entity.oid
       // on génère un oid sur les créations
       if (isNew) entity.oid = ObjectID().toString()
       // les index
@@ -373,7 +375,12 @@ class Entity {
           indexName,
           mongoIndexName
         })
-        callback(dupError)
+        // l'objet n'a pas été stocké en base, faut virer l'oid si on l'avait ajouté
+        if (isNew) delete entity.oid
+        // on appelle pas onLoad, c'est onDuplicate qui fera un autre store (qui ajoutera le onLoad)
+        // ou autre chose…
+        if (def._onDuplicate) def._onDuplicate.call(entity, dupError, callback)
+        else callback(dupError)
       } else {
         callback(error)
       }

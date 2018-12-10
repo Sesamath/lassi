@@ -705,6 +705,32 @@ class EntityDefinition {
   }
 
   /**
+   * Erreur provoqué par un doublon au store
+   * @typedef duplicateError
+   * @type Error
+   * @property {string} type Toujours 'duplicate'
+   * @property {Error} original L'erreur originale retournée par mongo
+   * @property {string} entityName Le nom de l'entity
+   * @property {string} indexName Le nom de l'index (1er argument passé à {@link EntityDefinition#defineIndex})
+   * @property {string} mongoIndexName Le nom de l'index mongo (créé par lassi)
+   */
+  /**
+   * Appelée en cas d'erreur de doublon, son contexte (son this) sera l'entité ayant provoqué le plantage
+   * @callback duplicateCallback
+   * @param {duplicateError} error L'erreur de doublon
+   * @param {storeCallback} callback La callback passée au store
+   */
+  /**
+   * Ajoute une fct pour traiter un plantage pour cause de doublon au store
+   * @param {duplicateCallback}
+   */
+  onDuplicate (fn) {
+    if (typeof fn !== 'function') throw Error('onDuplicate prend une fonction en argument')
+    if (fn.length !== 2) throw Error('La fonction passée à onDuplicate doit avoir 2 arguments error et callback')
+    this._onDuplicate = fn
+  }
+
+  /**
    * Ajoute un traitement après récupération de l'entité en base de donnée
    *
    * ATTENTION: cette fonction sera appelée très souvent (pour chaque entity retournée) et doit se limiter
@@ -789,8 +815,9 @@ class EntityDefinition {
   }
 
   /**
-   * Ajoute une fonction de validation sur un attribut particulier
-   * @param {string} attributeName
+   * Ajoute une fonction de validation sur un attribut particulier et ajoute un trackAttribute dessus.
+   * (donc inutile de faire ce trackAttribute par ailleurs)
+   * @param {string|string[]} attributeName (on peut en passer plusieurs, ils auront tous la même fct de validation)
    * @param {function} validateFn
    */
   validateOnChange (attributeName, validateFn) {

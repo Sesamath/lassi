@@ -162,6 +162,14 @@ function initEntities (next) {
       this.controlled = undefined // avec un normalizer
       this.controlledTyped = undefined // avec un normalizer + type
       this.uniqueString = `this is unique ${_.uniqueId()}`
+      this.uniqueSparseString = undefined
+      this.sparseString = undefined
+      this.bArray = undefined
+      this.dArray = undefined
+      this.iArray = undefined
+      this.sArray = undefined
+      this.controlled = undefined
+      this.controlledTyped = undefined
     })
     TestEntity.defineIndex('b', 'boolean')
     TestEntity.defineIndex('d', 'date')
