@@ -8,8 +8,8 @@ jobs:
       - image: circleci/node:10.14.1
       # https://circleci.com/docs/2.0/circleci-images/#mongodb
       - image: circleci/mongo:4.0
-      # https://circleci.com/docs/2.0/circleci-images/#redis
-      - image: circleci/redis:3.2.6
+      # https://circleci.com/docs/2.0/circleci-images/#redis (on tourne avec une 3.2.6 en prod, mais y'a que 4.0 chez circleci
+      - image: circleci/redis:4.0
 
     working_directory: ~/lassi
     environment:
