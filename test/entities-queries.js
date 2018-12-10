@@ -26,16 +26,17 @@ let TestEntity
  * @param {Object}  entity Entité
  */
 function assertEntity (i, entity) {
-  checkEntity(entity)
-  assert.equal(entity.i, i)
-  assert.equal(entity.s, STRING_PREFIX + i)
-  assert.equal(entity.d.getTime(), bt + seconde * i)
-  assert.equal(entity.sArray.length, 3)
-  assert.equal(entity.iArray.length, 3)
-  assert.equal(entity.dArray.length, 3)
-  // assert.equal(typeof entity.iArray[0], 'number')
-  // assert.equal(typeof entity.sArray[0], 'string')
-  // assert.equal(entity.dArray[0].constructor.name, 'Date')
+  const values = {
+    i,
+    s: STRING_PREFIX + i
+  }
+  const checkers = {
+    d: (d) => d.getTime() === bt + seconde * i,
+    dArray: (ar) => ar.length === 3 && ar.every(item => item.constructor.name === 'Date'),
+    iArray: (ar) => ar.length === 3 && ar.every(item => typeof item === 'number'),
+    sArray: (ar) => ar.length === 3 && ar.every(item => typeof item === 'string')
+  }
+  checkEntity(entity, values, checkers)
 }
 
 /**
@@ -427,14 +428,24 @@ describe('Test entities-queries', function () {
       }).seq(function (entities) {
         assert.equal(entities[0].i, 0)
         assert.equal(entities[1].i, 1)
-        this()
-      }).seq(function () {
+
         TestEntity.match().sort('i', 'desc').grab({limit: 10}, this)
       }).seq(function (entities) {
         assert.equal(entities[0].i, nbEntities - 1)
         assert.equal(entities[1].i, nbEntities - 2)
-        this()
-      }).done(done)
+
+        // on vérifie que ça fonctionne aussi pour oid
+        TestEntity.match().sort('oid', 'asc').grab({limit: 10}, this)
+      }).seq(function (entities) {
+        assert.equal(entities[0].i, 0)
+        assert.equal(entities[1].i, 1)
+
+        TestEntity.match().sort('oid', 'desc').grab({limit: 10}, this)
+      }).seq(function (entities) {
+        assert.equal(entities[0].i, nbEntities - 1)
+        assert.equal(entities[1].i, nbEntities - 2)
+        done()
+      }).catch(done)
     })
   })
 
@@ -516,8 +527,8 @@ describe('Test entities-queries', function () {
       started = new Date()
 
       var entities = [
-        { i: 42000 }, // <-- celle là sera soft-deleted
-        { i: 42001 }
+        {i: 42000}, // <-- celle là sera soft-deleted
+        {i: 42001}
       ]
 
       flow(entities)
@@ -618,13 +629,17 @@ describe('Test entities-queries', function () {
           .seq(function () {
             deletedEntity.restore(this)
           })
-          .seq(function () {
-          // On vérifie la mise à jour en bdd
+          .seq(function (entityRestored) {
+            expect(entityRestored.isDeleted()).to.be.false
+            expect(entityRestored.i).to.equal(deletedEntity.i)
+            expect(entityRestored.oid).to.equal(deletedEntity.oid)
+            // On vérifie la mise à jour en bdd
             TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.isDeleted(), false)
-            assert.equal(entity.oid, deletedEntity.oid)
+            expect(entity.isDeleted()).to.be.false
+            expect(entity.i).to.equal(deletedEntity.i)
+            expect(entity.oid).to.equal(deletedEntity.oid)
             this()
           })
           .done(done)
@@ -681,7 +696,6 @@ describe('Test entities-queries', function () {
   describe('.delete()', function () {
     it('Suppression de la moitié des entités', function (done) {
       flow()
-        .callbackWrapper(process.nextTick)
         .seq(function () {
           TestEntity.match('iPair').equals(1).grab(this)
         }).seq(function (entities) {
@@ -784,7 +798,6 @@ describe('Test entities-queries', function () {
       }
 
       flow(objs)
-        .callbackWrapper(process.nextTick)
         .parEach(function (obj) {
           obj.store(this)
         }).parEach(function (obj) {
@@ -1002,23 +1015,21 @@ describe('Test entities-queries', function () {
 
     it(`remonte l'erreur est arrête le traitement si une entité échoue`, (done) => {
       let treated = 0
-      flow()
-        .seq(function () {
-          TestEntity.match('s').equals('forEachEntity').forEachEntity(
-            (entity, cb) => {
-              if (treated === 2) return cb(new Error('Ooops la 3ème entité échoue!'))
-              entity.treated = true
-              treated++
-              entity.store(cb)
-            },
-            this
-          )
-        })
-        .catch((err) => {
-          expect(treated).to.equal(2) // on n'est pas allé plus loin
-          expect(err.message).to.equal('Ooops la 3ème entité échoue!')
-          done()
-        })
+      const onEach = (entity, cb) => {
+        if (treated === 2) return cb(Error('Ooops la 3ème entité échoue !'))
+        entity.treated = true
+        treated++
+        entity.store(cb)
+      }
+      flow().seq(function () {
+        TestEntity.match('s').equals('forEachEntity').forEachEntity(onEach, this)
+      }).seq(function () {
+        done(Error('ça n’a pas planté alors que ça aurait dû'))
+      }).catch((error) => {
+        expect(treated).to.equal(2) // on n'est pas allé plus loin
+        expect(error.message).to.equal('Ooops la 3ème entité échoue ! (sur oid-2)')
+        done()
+      })
     })
 
     it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {

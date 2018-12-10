@@ -37,7 +37,7 @@ describe('Entity', () => {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush((err) => {
         if (err) return done(err)
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
 
@@ -102,7 +102,7 @@ describe('Entity', () => {
         this.$loaded = `load-${++count}`
       })
       TestEntity.flush(() => {
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
 
@@ -125,19 +125,15 @@ describe('Entity', () => {
     describe('avec une entité en bdd,', () => {
       let storedEntity
       beforeEach((done) => {
-        const entity = TestEntity.create({})
-        flow()
-          .seq(function () {
-            entity.store(this)
-          })
-          .seq(function () {
-            TestEntity.match().grabOne(this)
-          })
-          .seq(function (entity) {
-            storedEntity = entity
-            this()
-          })
-          .done(done)
+        flow().seq(function () {
+          TestEntity.create({}).store(this)
+        }).seq(function (entity) {
+          expect(entity.$loaded).to.equal('load-1')
+          TestEntity.match().grabOne(this)
+        }).seq(function (entity) {
+          storedEntity = entity
+          done()
+        }).catch(done)
       })
 
       it('est appelé après un grab', () => {
@@ -145,14 +141,15 @@ describe('Entity', () => {
       })
       it('est appelé après le beforeStore', (done) => {
         expect(storedEntity.$loaded).to.equal('load-2')
-        TestEntity.afterStore(function () {
+        TestEntity.afterStore(function (next) {
           const entity = this
           // on a encore la valeur courante (si l'on veut faire des traitement concernant
           // les modifications opérées dans ce store)
           expect(entity.$loaded).to.equal('load-2')
+          next()
           done()
         })
-        storedEntity.store(this)
+        storedEntity.store()
       })
       it('est appelé après un store', (done) => {
         storedEntity.store(function (err, entity) {
@@ -168,7 +165,7 @@ describe('Entity', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(() => {
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
 
@@ -254,7 +251,7 @@ describe('Entity', () => {
         // Cas d'utilisation principale du afterStore :
         // faire des opérations qui ont besoin de l'oid, identiques pour la création et la mise à jour
         const testEntity = TestEntity.create({})
-        TestEntity.afterStore(function () {
+        TestEntity.afterStore(function (next) {
           const entity = this
           expect(entity.oid).not.to.be.undefined
           Object.keys(testEntity).forEach(prop => {
@@ -262,6 +259,7 @@ describe('Entity', () => {
             if (typeof testEntity[prop] === 'function') return
             expect(entity[prop]).to.deep.equals(testEntity[prop])
           })
+          next()
           done()
         })
         testEntity.store()
@@ -346,7 +344,7 @@ describe('Entity', () => {
       const init = () => new Promise((resolve, reject) => {
         TestEntity.flush((err) => {
           if (err) return reject(err)
-          TestEntity.initialize((err) => {
+          TestEntity._initialize((err) => {
             if (err) return reject(err)
             resolve()
           })
@@ -595,7 +593,7 @@ describe('Entity', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
       TestEntity.flush(() => {
-        TestEntity.initialize(done)
+        TestEntity._initialize(done)
       })
     })
     const testValidationError = (schema, data, expectedError, addKeywords = {}) => (done) => {
@@ -633,18 +631,30 @@ describe('Entity', () => {
         })
       })
 
-      it('si schema conforme aux données', testValidationSuccess(
-        // Schema
-        {
+      describe('si données conforme au schema', () => {
+        const schema = {
           properties: {
+            bool: {type: 'boolean'},
+            date: {instanceof: 'Date'},
             num: {type: 'number'},
+            mixed: {
+              oneof: [
+                {type: 'string'},
+                {type: 'number'},
+                {instanceof: 'Date'}
+              ]
+            },
             text: {type: 'string'}
           },
           required: [ 'num', 'text' ]
-        },
-        // Data
-        {num: 1, text: 'hello'}
-      ))
+        }
+        const date = new Date()
+        it('données complètes', testValidationSuccess(schema, {bool: true, date, num: 1, mixed: 'foo', text: 'hello'}))
+        it('données complètes mais falsy', testValidationSuccess(schema, {bool: false, date, num: 0, mixed: 0, text: ''}))
+        it('sans donnée facultative', testValidationSuccess(schema, {num: 1, text: 'hello'}))
+        it('avec donnée facultative null', testValidationSuccess(schema, {bool: null, date: null, num: 1, mixed: date, text: 'hello'}))
+        it('avec donnée facultative undefined', testValidationSuccess(schema, {num: 1, date: undefined, mixed: undefined, text: 'hello'}))
+      })
     })
 
     describe(`erreur de validation`, () => {
@@ -656,14 +666,15 @@ describe('Entity', () => {
           required: [ 'num' ],
           errorMessage: {
             required: {
-              num: 'Paramètre num manquant' // on vérifie aussi la sucharge du message d'erreur
+              // on vérifie aussi la sucharge du message d'erreur
+              num: 'Paramètre num manquant'
             }
           }
         },
         // Data
         {},
         // Expected error
-        {message: `Paramètre num manquant`, dataPath: ''}
+        {message: 'Paramètre num manquant (oid: undefined value: {})', dataPath: ''}
       ))
 
       it('si un champ en trop', testValidationError(
@@ -691,7 +702,7 @@ describe('Entity', () => {
         // Data
         {num: 'not a number'},
         // Expected error
-        {message: 'Num doit contenir un entier', dataPath: '/num'}
+        {message: 'Num doit contenir un entier (oid: undefined value: "not a number")', dataPath: '/num'}
       ))
 
       it('si type string incorrect', testValidationError(
@@ -702,7 +713,7 @@ describe('Entity', () => {
         // Data
         {text: 1},
         // Expected error
-        {message: `doit être de type string`, dataPath: '/text'} // message d'erreur par défaut avec i18n ajv
+        {message: 'doit être de type string (oid: undefined value: 1)', dataPath: '/text'} // message d'erreur par défaut avec i18n ajv
       ))
 
       it('si custom keyword incorrect', testValidationError(
@@ -725,7 +736,7 @@ describe('Entity', () => {
           custom: 2
         },
         // Expected error
-        {message: 'custom doit être égal à 1 !', dataPath: '/custom'},
+        {message: 'custom doit être égal à 1 ! (oid: undefined value: 2)', dataPath: '/custom'},
         // Custom keyword validator
         {
           customType: {
@@ -756,7 +767,7 @@ describe('Entity', () => {
         schemaUtilisateur,
         // Data
         {nom: 'Foo', type: 'eleve'},
-        {message: `requiert la propriété classe`, dataPath: ''} //
+        {message: 'requiert la propriété classe (oid: undefined value: {"nom":"Foo","type":"eleve"})', dataPath: ''} //
       ))
 
       it(`retourne une erreur si le prof n'a pas de mail`, testValidationError(
@@ -765,7 +776,7 @@ describe('Entity', () => {
         schemaUtilisateur,
         // Data
         {nom: 'Foo', type: 'prof'},
-        {message: `requiert la propriété mail`, dataPath: ''} //
+        {message: 'requiert la propriété mail (oid: undefined value: {"nom":"Foo","type":"prof"})', dataPath: ''} //
       ))
 
       it(`ne retourne pas d'erreur si le prof n'a pas de classe`, testValidationSuccess(
@@ -783,7 +794,7 @@ describe('Entity', () => {
         // Data
         {type: 'prof', mail: 'aa@aa.com'},
         // Expected errors
-        {message: `requiert la propriété nom`, dataPath: ''}
+        {message: 'requiert la propriété nom (oid: undefined value: {"type":"prof","mail":"aa@aa.com"})', dataPath: ''}
       ))
     })
 
@@ -814,7 +825,7 @@ describe('Entity', () => {
           const entity = TestEntity.create({num: 'not a number'})
           entity.store((err, entityStored) => {
             expect(err.errors.length).to.equal(1)
-            expect(err.errors[0].message).to.equal('doit être de type number')
+            expect(err.errors[0].message).to.match(/^doit être de type number/)
             expect(entityStored).to.equal(undefined)
             done()
           })

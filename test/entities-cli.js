@@ -16,19 +16,14 @@ let TestEntity
  * @param {Callback} next
  */
 function addData (next) {
-  const entities = [
+  const datas = [
     { i: 1000, __deletedAt: moment().subtract(5, 'days').toDate() },
     { i: 1001, __deletedAt: moment().subtract(10, 'days').toDate() },
     { i: 1002, __deletedAt: moment().subtract(15, 'days').toDate() }
   ]
-  flow(entities)
-    .seqEach(function (entity) {
-      const nextSeq = this
-      TestEntity.create(entity).store(function (error, entity) {
-        if (error) return nextSeq(error)
-        nextSeq()
-      })
-    }).done(next)
+  flow(datas).seqEach(function (data) {
+    TestEntity.create(data).store(this)
+  }).empty().done(next)
 }
 
 describe('Test $entities-cli', function () {

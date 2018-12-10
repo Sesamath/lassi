@@ -63,16 +63,15 @@ class Entity {
   /**
    * Lance une validation de l'entity. Par défaut on parcourt toutes les validations :
    * validate(), validateJsonSchema() et validateOnChange()
-   * @param {} cb
-   * @param {*} param1
+   * @param {errorCallback} cb rappelée avec la première erreur de validation (ou rien si c'est valide)
+   * @param {object} [options]
+   * @param {boolean} [options.schema=true] passer false pour ne pas tester le schéma éventuel
+   * @param {boolean} [options.onlyChangedAttributes=false] passer true pour ne tester que les attributs modifiés
    */
-  isValid (cb, {
-    schema = true,
-    onlyChangedAttributes = false
-  } = {}) {
+  isValid (cb, {schema = true, onlyChangedAttributes = false} = {}) {
     let validators = [].concat(
 
-      // Json-sSchema validation
+      // Json-schema validation
       schema ? [function (cb) { this.definition._validateEntityWithSchema(this, cb) }] : [],
 
       // validateOnChange() validation.
@@ -87,36 +86,53 @@ class Entity {
           : this.definition._toValidateOnChange
       ))),
 
-      // validate() validation
+      // et on ajoute le tableau de validateurs passés via entityDefinition.validate(validator)
       this.definition._toValidate
     )
 
     const entity = this
-    flow(validators)
-      .seqEach(function (fn) {
-        fn.call(entity, this)
-      })
-      .done(cb)
+
+    // et on applique les validateurs en série
+    flow(validators).seqEach(function (fn) {
+      fn.call(entity, this)
+    }).done(cb)
   }
 
   /**
-   * Retourne l'entity en supprimant certaines de ses données :
-   * - les attributs ayant un nom commençant par "_" ou "$"
-   * - les attributs ayant des valeurs null ou undefined (profondément)
+   * Retourne une shallow copy de l'entity en filtrant certaines de ses données :
+   * - les attributs de 1er niveau ayant un nom commençant par "_"
+   * - les attributs ayant un nom commençant par $ (récursion sur les plain object seulement, pas les Date RegExp & co)
+   * - les attributs étant function
+   * - les attributs ayant des valeurs null, undefined ou NaN (en profondeur)
    * @return {Object}
    */
   values () {
+    const isPlainObject = (o) => o && typeof o === 'object' && Object.prototype.toString.call(o) === '[object Object]'
+
+    const cleanArray = (a) => a.map(elt => {
+      if (isPlainObject(elt)) return copyCleanProps(elt, {})
+      if (Array.isArray(elt) && elt.length) return cleanArray(elt)
+      return elt
+    })
+
     const copyCleanProps = (obj, dest, isFirstLevel = false) => {
       Object.keys(obj).forEach(key => {
         const v = obj[key]
-        // au 1er niveau on ajoute ce filtre
-        if (isFirstLevel && (key[0] === '_' || key[0] === '$')) return
-        if (v === null || v === undefined || typeof v === 'function') return
-        // on ne veut que les objets qui n'ont pas d'autre constructeur que Object (ni Regexp ni Date ni Array,
-        // mais les objets "maison" définis avec un constructeur classique passent ce filtre)
-        if (typeof v === 'object' && Object.prototype.toString.call(v) === '[object Object]') {
+        // au 1er niveau on vire les propriétés préfixées par _
+        if (isFirstLevel && (key[0] === '_')) return
+        // à tous les niveaux on vire null, undefined, function et préfixe $
+        if (v === null || v === undefined || typeof v === 'function' || key[0] === '$') return
+        // on fait de la récursion sur les objets qui n'ont pas d'autre constructeur que Object
+        // (ni Regexp ni Date, les objets définis avec un constructeur classique passent ce filtre)
+        if (isPlainObject(v)) {
           dest[key] = {}
           copyCleanProps(v, dest[key])
+
+        // et chaque élément de tableau (on vire pas null et undefined)
+        } else if (Array.isArray(v) && v.length) {
+          dest[key] = cleanArray(v)
+
+        // pour les autres on prend la valeur telle quelle
         } else {
           dest[key] = v
         }
@@ -129,52 +145,81 @@ class Entity {
 
   /**
    * Construits les index d'après l'entity
+   * @private
    * @returns {Object} avec une propriété par index (elle existe toujours mais sa valeur peut être undefined, ce qui se traduira par null dans le document mongo)
    */
   buildIndexes () {
     const def = this.definition
+    const entity = this
     const indexes = {}
 
     // pas besoin de traiter les BUILT_IN_INDEXES, ils sont gérés directement dans le store
     _.forEach(def.indexes, ({callback, fieldType, useData, indexName}) => {
       if (useData) return // on utilise directement un index sur _data
+      // la cb d'index peut planter, on veut récupérer le message pour le renvoyer avec plus d'infos
+      try {
+        // valeurs retournées par la fct d'indexation si y'en a une (inclus normalizer s'il existe)
+        const value = callback ? callback.call(entity) : entity[indexName]
 
-      // valeurs retournées par la fct d'indexation
-      const value = callback.apply(this)
-      if (value === undefined || value === null) {
-        // https://docs.mongodb.com/manual/core/index-sparse/
-        // En résumé
-        // - non-sparse : tous les documents sont indexés :
-        //   => si la propriété n'existe pas dans l'objet elle sera indexée quand même avec une valeur null
-        //   => si la propriété vaut undefined elle sera indexée avec null
-        // - sparse : seulement les documents ayant la propriété (même null|undefined) sont indexés (undefined indexé avec la valeur null)
-        // Afin d'avoir un comportement homogène, buildIndexes va harmoniser les 3 cas
-        // - prop absente
-        // - prop avec valeur undefined
-        // - prop avec valeur null
-        // 1) si index non-sparse, on laisse faire mongo, les 3 se retrouvent avec un index valant null
-        // 2) si index sparse, buildIndexes supprime l'index pour null|undefined
-        //    => dans les 3 cas le doc mongo n'est pas indexé
-        //    => isNull ne remontera jamais rien, il throw pour s'assurer qu'on ne l'utilise jamais dans ce cas
-        return
-      }
+        if (value === undefined || value === null) {
+          // https://docs.mongodb.com/manual/core/index-sparse/
+          // En résumé
+          // - non-sparse : tous les documents sont indexés :
+          //   => si la propriété n'existe pas dans l'objet elle sera indexée quand même avec une valeur null
+          //   => si la propriété vaut undefined elle sera indexée avec null
+          // - sparse : seulement les documents ayant la propriété (même null|undefined) sont indexés (undefined indexé avec la valeur null)
+          //
+          // Afin d'avoir un comportement homogène, buildIndexes va harmoniser les 3 cas
+          // - prop absente
+          // - prop avec valeur undefined
+          // - prop avec valeur null
+          // 1) si index non-sparse, on ne retourne rien et on laisse faire mongo,
+          //    l'index ne sera pas dans le doc mongo mais ça revient au même qu'un null,
+          //    dans les 3 cas isNull remontera l'entity.
+          // 2) si index sparse, on supprime l'index pour null|undefined
+          //    => dans les 3 cas le doc mongo n'est pas indexé
+          //    => isNull remonte les 3
+          return
+        }
 
-      // affectation après cast dans le type indiqué
-      if (Array.isArray(value)) {
-        indexes[indexName] = value.map(x => castToType(x, fieldType))
-      } else {
-        indexes[indexName] = castToType(value, fieldType)
+        const castAndCheckNaN = (v) => {
+          // le test précédent ne gère pas les array, et dans un array on garde la valeur originale
+          // donc pour l'index ça se traduit par null (isNull remontera les entity dont la valeur contient null ou undefined)
+          // c'est pas très logique (on pourrait s'attendre à ce que isNull remonte les entities dont la valeur est un tableau vide)
+          // mais on veut le même comportement avec et sans useData (et avec mongo indexe l'objet [])
+          if (v === undefined || v === null) return null
+          if (fieldType) v = castToType(v, fieldType)
+          if (typeof v === 'number' && Number.isNaN(v)) throw Error(`${indexName} contient NaN`)
+          return v
+        }
+
+        // affectation après cast dans le type indiqué (si y'en a un)
+        if (Array.isArray(value)) indexes[indexName] = value.map(castAndCheckNaN)
+        else indexes[indexName] = castAndCheckNaN(value)
+      } catch (error) {
+        error.message = `Pb sur l’index ${indexName} de l’entity ${def.name} oid ${entity.oid}, ${error.message}`
+        throw error
       }
     })
 
     return indexes
   }
 
+  /**
+   * Idem this[att] sauf si att vaut isDeleted (retourne alors le booléen)
+   * @private
+   * @param {string} att
+   * @return {*}
+   */
   getAttributeValue (att) {
     if (att === 'isDeleted') return this.isDeleted()
     return this[att]
   }
 
+  /**
+   * Appelé après un load bdd pour stocker les valeurs des attributs suivis
+   * @private
+   */
   onLoad () {
     if (this.definition._onLoad) this.definition._onLoad.call(this)
     // Keep track of the entity state when loaded, so that we can compare when storing
@@ -185,10 +230,20 @@ class Entity {
     })
   }
 
+  /**
+   * Retourne la liste des attributs suivis qui ont changés depuis la sortie de la bdd
+   * @return {string[]}
+   */
   changedAttributes () {
     return Object.keys(this.definition._trackedAttributes).filter((att) => this.attributeHasChanged(att))
   }
 
+  /**
+   * Retourne true si l'attribut suivi a changé
+   * @throws si y'a pas eu de EntityDefinitiontrackAttribute(attribute) sur cette Entity
+   * @param {string} attribute
+   * @return {boolean} true si l'attribut a changé (toujours le cas sur une création)
+   */
   attributeHasChanged (attribute) {
     // Une nouvelle entité non sauvegardée n'a pas de "loadState", mais
     // on considère que tous ses attributs ont changés
@@ -196,6 +251,12 @@ class Entity {
     return this.attributeWas(attribute) !== this.getAttributeValue(attribute)
   }
 
+  /**
+   * Retourne la valeur de l'attribut au dernier chargement depuis la base
+   * @throws si y'a pas eu de EntityDefinition.trackAttribute(attribute) sur cette Entity pour cet attribut
+   * @param {string} attribute
+   * @return {*} null si l'entity ne sort pas de la db
+   */
   attributeWas (attribute) {
     if (!this.definition._trackedAttributes[attribute]) {
       throw new Error(`L'attribut ${attribute} n'est pas suivi`)
@@ -206,24 +267,23 @@ class Entity {
     return this.$loadState[attribute]
   }
 
+  /**
+   * Applique le beforeStore s'il y en a un puis vérifie la validité
+   * @private
+   * @param {Entity~entityCallback} cb
+   * @param {Object} [storeOptions]
+   * @param {boolean} [storeOptions.skipValidation=false]
+   */
   beforeStore (cb, storeOptions) {
     const entity = this
     const def = this.definition
-    flow()
-      .seq(function () {
-        if (def._beforeStore) {
-          def._beforeStore.call(entity, this)
-        } else {
-          this()
-        }
-      })
-      .seq(function () {
-        if (def._skipValidation || storeOptions.skipValidation) return this()
-        return entity.isValid(this, {
-          onlyChangedAttributes: true
-        })
-      })
-      .done(cb)
+    flow().seq(function () {
+      if (def._beforeStore) def._beforeStore.call(entity, this)
+      else this()
+    }).seq(function () {
+      if (def._skipValidation || storeOptions.skipValidation) cb()
+      else entity.isValid(cb, {onlyChangedAttributes: true})
+    }).catch(cb)
   }
 
   /**
@@ -249,6 +309,7 @@ class Entity {
   store (options, callback) {
     const entity = this
     const def = this.definition
+    const isNew = !entity.oid
 
     if (_.isFunction(options)) {
       callback = options
@@ -263,7 +324,6 @@ class Entity {
     flow().seq(function () {
       entity.beforeStore(this, options)
     }).seq(function () {
-      let isNew = !entity.oid
       // on génère un oid sur les créations
       if (isNew) entity.oid = ObjectID().toString()
       // les index
@@ -295,9 +355,42 @@ class Entity {
       // comme si l'entity avait été "rechargée".
       entity.onLoad()
       callback(null, entity)
-    }).catch(callback)
+    }).catch(function (error) {
+      // on veut détecter les erreurs de doublon pour rendre le message plus intelligible
+      const matches = /^E11000 duplicate key error collection: ([^ ]+) index: ([^ ]+) dup key: { : (.*) }$/.exec(error.message)
+      if (matches) {
+        const [, collectionFullName, mongoIndexName, duplicateValue] = matches
+        const entityName = collectionFullName.split('.').pop()
+
+        // cf objet retourné par EntityDefinition.defineIndex
+        const indexName = (def.indexesByMongoIndexName[mongoIndexName] && def.indexesByMongoIndexName[mongoIndexName].indexName) || mongoIndexName
+        if (indexName === mongoIndexName) {
+          console.error(Error(`pas trouvé d’index correspondant à ${collectionFullName}:${mongoIndexName}`))
+        }
+        const dupError = Error(`Impossible d’enregistrer pour cause de doublon (valeur ${duplicateValue} en doublon pour ${entityName}.${indexName})`)
+        Object.assign(dupError, {
+          original: error,
+          type: 'duplicate',
+          entityName,
+          indexName,
+          mongoIndexName
+        })
+        // l'objet n'a pas été stocké en base, faut virer l'oid si on l'avait ajouté
+        if (isNew) delete entity.oid
+        // on appelle pas onLoad, c'est onDuplicate qui fera un autre store (qui ajoutera le onLoad)
+        // ou autre chose…
+        if (def._onDuplicate) def._onDuplicate.call(entity, dupError, callback)
+        else callback(dupError)
+      } else {
+        callback(error)
+      }
+    })
   }
 
+  /**
+   * Reconstruit les index (en fait un simple store avec $byPassDuplicate)
+   * @param {Entity~entityCallback} callback
+   */
   reindex (callback) {
     // faut pouvoir réindexer d'éventuel doublons pour mieux les trouver ensuite
     this.$byPassDuplicate = true
@@ -305,8 +398,8 @@ class Entity {
   }
 
   /**
-   * Restaure un élément supprimé en soft-delete
-   * @param {SimpleCallback} callback
+   * Restaure un élément supprimé par {@link Entity#softDelete}
+   * @param {Entity~entityCallback} callback
    */
   restore (callback) {
     const entity = this
@@ -318,10 +411,12 @@ class Entity {
         def.getCollection().update({
           _id: entity.oid
         }, {
-          $unset: {__deletedAt: ''}
+          $unset: {__deletedAt: ''} // la valeur '' ne change rien, cf https://docs.mongodb.com/manual/reference/operator/update/unset/
         }, this)
       })
       .seq(function () {
+        // l'update mongo a fonctionné, il faut mettre à jour notre objet
+        entity.__deletedAt = null
         // On appelle le onLoad() car l'état de l'entité en BDD a changé,
         // comme si l'entity avait été "rechargée".
         entity.onLoad()
@@ -341,9 +436,8 @@ class Entity {
   }
 
   /**
-   * Effectue une suppression "douce" de l'entité
-   * @param {SimpleCallback} callback
-   * @see restore
+   * Effectue une suppression "douce" de l'entité ({@link Entity#restore} pour la récupérer)
+   * @param {Entity~entityCallback} callback
    */
   softDelete (callback) {
     if (!this.oid) return callback(new Error(`Impossible de softDelete une entité qui n'a pas encore été sauvegardée`))
@@ -354,26 +448,20 @@ class Entity {
   /**
    * Efface cette instance d'entité en base (et ses index) puis appelle callback
    * avec une éventuelle erreur
-   * @param {SimpleCallback} callback
+   * @param {simpleCallback} callback
    */
   delete (callback) {
     const entity = this
     // @todo activer ce throw ?
     // if (!entity.oid) throw new Error('Impossible d’effacer une entity sans oid')
+    if (!entity.oid) return callback()
     const def = this.definition
-    flow()
-      .seq(function () {
-        if (def._beforeDelete) {
-          def._beforeDelete.call(entity, this)
-        } else {
-          this()
-        }
-      })
-      .seq(function () {
-        if (!entity.oid) return this()
-        def.getCollection().remove({_id: entity.oid}, {w: 1}, this)
-      })
-      .done(callback)
+    flow().seq(function () {
+      if (def._beforeDelete) def._beforeDelete.call(entity, this)
+      else this()
+    }).seq(function () {
+      def.getCollection().remove({_id: entity.oid}, {w: 1}, callback)
+    }).catch(callback)
   }
 }
 

@@ -1,12 +1,13 @@
 {
   "name": "lassi",
-  "version": "2.3.4",
+  "version": "2.4.12",
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
   "scripts": {
     "lint": "eslint --ignore-pattern **/vendors/ .",
     "test": "mocha",
+    "test:unit": "mocha",
     "posttest": "npm run lint"
   },
   "dependencies": {
@@ -14,8 +15,8 @@
     "ajv-errors": "^1.0.0",
     "ajv-i18n": "^3.0.0",
     "ajv-keywords": "^3.1.0",
-    "an-flow": "git://src.sesamath.net/an-flow#3aa74ba",
-    "an-log": "git://src.sesamath.net/an-log#55ea104",
+    "an-flow": "git://src.sesamath.net/an-flow#3.0.1",
+    "an-log": "git://src.sesamath.net/an-log#3.1.6",
     "colors": "^1.1.2",
     "compression": "^1.7.1",
     "connect-redis": "^3.3.2",
@@ -26,7 +27,7 @@
     "express-session": "^1.15.6",
     "lodash": "^4.17.5",
     "moment": "^2.19.1",
-    "mongodb": "^2.2.33",
+    "mongodb": "^3.1.1",
     "morgan": "^1.9.1",
     "progress": "^2.0.0",
     "redis": "^2.8.0",

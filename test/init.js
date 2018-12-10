@@ -72,8 +72,8 @@ function overrideSettings () {
  * Vérifie que l'entité est de la forme attendue
  *
  * @param {TestEntity}  entity Entité
- * @param {object} values Pour chacune des propriétés fournies vérifie que la valeur est celle attendue
- * @param {object} checkers Liste de fonctions, pour chacune des propriétés fournies, appelle la fonction avec la valeur (faut mettre assert ou expect dans cette fonction)
+ * @param {object} [values] Pour chacune des propriétés fournies vérifie que la valeur est celle attendue
+ * @param {object} [checkers] Liste de fonctions, pour chacune des propriétés fournies, appelle la fonction avec la valeur (faut mettre assert ou expect dans cette fonction)
  */
 function checkEntity (entity, values, checkers) {
   // vérif des types
@@ -110,13 +110,13 @@ function checkEntity (entity, values, checkers) {
  * @param {checkMongoConnexionCallback} next
  */
 function checkMongoConnexion (next) {
-  connectToMongo((error, db) => {
+  connectToMongo((error, client) => {
     // en cas d'erreur, le process s'arrête avant d'exécuter ça…
     if (error) {
       console.error('La connexion mongoDb a échoué')
       return next(error)
     }
-    db.close()
+    client.close()
     next(null, dbSettings)
   })
 }
@@ -129,13 +129,13 @@ function checkMongoConnexion (next) {
 function connectToMongo (next) {
   const {name, host, port, authMechanism} = dbSettings
   let url = 'mongodb://'
-  // ssl prioritaire sur user/pass
   if (dbSettings.user && dbSettings.password) {
     url += `${encodeURIComponent(dbSettings.user)}:${encodeURIComponent(dbSettings.password)}@`
   }
   url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
   if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
   const {options} = dbSettings
+  options.useNewUrlParser = true
   MongoClient.connect(url, options, next)
 }
 
@@ -158,7 +158,18 @@ function initEntities (next) {
       this.s = undefined
       this.d = undefined
       this.t = undefined
+      this.wathever = undefined // pour tester un index non typé
+      this.controlled = undefined // avec un normalizer
+      this.controlledTyped = undefined // avec un normalizer + type
       this.uniqueString = `this is unique ${_.uniqueId()}`
+      this.uniqueSparseString = undefined
+      this.sparseString = undefined
+      this.bArray = undefined
+      this.dArray = undefined
+      this.iArray = undefined
+      this.sArray = undefined
+      this.controlled = undefined
+      this.controlledTyped = undefined
     })
     TestEntity.defineIndex('b', 'boolean')
     TestEntity.defineIndex('d', 'date')
@@ -167,14 +178,27 @@ function initEntities (next) {
     TestEntity.defineIndex('t', 'string')
     TestEntity.defineIndex('uniqueString', 'string', {unique: true})
     TestEntity.defineIndex('uniqueSparseString', 'string', {sparse: true, unique: true})
+    TestEntity.defineIndex('sparseString', 'string', {sparse: true})
     TestEntity.defineIndex('iPair', 'integer', function () {
-      return this.i % 2
+      if (typeof this.i === 'number') return this.i % 2
     })
     TestEntity.defineIndex('bArray', 'boolean')
     TestEntity.defineIndex('dArray', 'date')
     TestEntity.defineIndex('iArray', 'integer')
     TestEntity.defineIndex('sArray', 'string')
-    TestEntity.initialize(this)
+    TestEntity.defineIndex('created')
+    TestEntity.defineIndex('whatever')
+    // normalizer qui fait du lowerCase sur les string, round sur les number et null sur le reste
+    const normalizer = (value) => typeof value === 'string'
+      ? value.toLowerCase()
+      : typeof value === 'number'
+        ? Math.round(value)
+        : null
+    TestEntity.defineIndex('controlled', {normalizer})
+    TestEntity.defineIndex('controlledTyped', 'string', {normalizer}, function () {
+      return this.controlledTyped + 'Typed'
+    })
+    TestEntity._initialize(this)
   }).seq(function () {
     next(null, TestEntity)
   }).catch(next)
@@ -184,7 +208,7 @@ function initEntities (next) {
  * Ferme la connexion ouverte par Entities au setup
  */
 function quit () {
-  if (entities) {
+  if (isInitDone) {
     entities.close()
     isInitDone = false
   }

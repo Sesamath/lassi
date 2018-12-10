@@ -34,81 +34,85 @@ const HARD_LIMIT_GRAB = 1000
 const FOREACH_BATCH_SIZE = 200
 
 /**
- * Retourne le "matcher" en cours
- * @param {Object} entityQuery
- * @private
- */
-function lastMatch (entityQuery) {
-  return _.last(entityQuery.clauses)
-}
-
-/**
- * Helper permettant d'altérer la dernière clause.
- * @param {Object} entityQuery
+ * Helper permettant d'altérer le dernièr match.
+ * @param {EntityQuery} entityQuery
  * @param {Object} data les données à injecter.
- * @return {EntityQuery} La requête (pour chaînage)
+ * @return {EntityQuery} La requête modifiée (pour chaînage)
  * @private
  */
 function alterLastMatch (entityQuery, data) {
-  Object.assign(lastMatch(entityQuery), data)
+  Object.assign(getLastMatch(entityQuery), data)
   return entityQuery
 }
+
 /**
- * Applique les clauses pendantes à la requête courante
+ * construit record.query à partir des matches
  * @param {EntityQuery} entityQuery
  * @param {EntityQuery~record} record
  * @private
  */
 function buildQuery (entityQuery, record) {
-  var query = record.query
+  const query = record.query
 
-  entityQuery.clauses.forEach((clause) => {
-    if (!clause) throw new Error('Erreur interne, requête invalide')
-    const {path, fieldType} = clause.index
-    if (clause.type === 'sort') {
+  entityQuery.matches.forEach((match) => {
+    if (!match) throw new Error('Erreur interne, requête invalide')
+    const {path, fieldType, indexOptions} = match.index
+    if (match.type === 'sort') {
+      const order = match.order === 'desc' ? 'desc' : 'asc'
       record.options.sort = record.options.sort || []
-      record.options.sort.push([path, clause.order])
+      record.options.sort.push([path, order])
       return
     }
 
-    if (clause.type !== 'match') return
+    if (match.type !== 'match') return
+    if (!match.operator) return
 
-    const cast = x => castToType(x, fieldType)
+    const normalizer = indexOptions && indexOptions.normalizer
+    const normalize = (value) => {
+      // si y'a un normalizer on l'applique
+      if (normalizer) value = normalizer(value)
+      // et si le type d'index est précisé faut caster les valeurs passées
+      if (fieldType) return castToType(value, fieldType)
+      return value
+    }
 
-    if (!clause.operator) return
-
-    var condition
-    switch (clause.operator) {
+    let condition
+    const {value} = match
+    switch (match.operator) {
       case '=':
-        condition = {$eq: cast(clause.value)}
+        condition = {$eq: normalize(value)}
         break
 
       case '<>':
-        condition = {$ne: cast(clause.value)}
+        condition = {$ne: normalize(value)}
         break
 
       case '>':
-        condition = {$gt: cast(clause.value)}
+        condition = {$gt: normalize(value)}
         break
 
       case '<':
-        condition = {$lt: cast(clause.value)}
+        condition = {$lt: normalize(value)}
         break
 
       case '>=':
-        condition = {$gte: cast(clause.value)}
+        condition = {$gte: normalize(value)}
         break
 
       case '<=':
-        condition = {$lte: cast(clause.value)}
+        condition = {$lte: normalize(value)}
         break
 
       case 'BETWEEN':
-        condition = {$gte: cast(clause.value[0]), $lte: cast(clause.value[1])}
+        condition = {$gte: normalize(value[0]), $lte: normalize(value[1])}
         break
 
       case 'LIKE':
-        condition = {$regex: new RegExp(cast(clause.value).replace(/%/g, '.*'))}
+        condition = {$regex: new RegExp(normalize(value).replace(/%/g, '.*'))}
+        break
+
+      case 'ISEMPTY':
+        condition = {$eq: []}
         break
 
       case 'ISNULL':
@@ -120,15 +124,15 @@ function buildQuery (entityQuery, record) {
         break
 
       case 'NOT IN':
-        condition = {$nin: clause.value.map(cast)}
+        condition = {$nin: value.map(normalize)}
         break
 
       case 'IN':
-        condition = {$in: clause.value.map(cast)}
+        condition = {$in: value.map(normalize)}
         break
 
       default:
-        log.error(new Error(`operator ${clause.operator} unknown`))
+        log.error(new Error(`operator ${match.operator} unknown`))
     }
 
     // On ajoute la condition
@@ -138,11 +142,85 @@ function buildQuery (entityQuery, record) {
 
   // par défaut on prend pas les softDeleted
   if (!query.__deletedAt && !entityQuery._includeDeleted) query.__deletedAt = {$eq: null}
+
+  // on ajoute le cas fulltext
+  if (entityQuery.search) {
+    let sorts = {}
+    _.forEach(record.options.sort, ([index, order]) => {
+      sorts[index] = order === 'asc' ? 1 : -1
+    })
+    record.query = _.merge(record.query, {$text: {$search: entityQuery.search}})
+    // Le sort sur le score doit être fait avant les sorts "classiques", car on veut pas qu'un
+    // sort vienne mettre un résultat "peu pertinent" avant d'autres.
+    // On garde les sorts classique dans un searchOptions et on met le sort text seul
+    // en projection (avant c'était dans les options mais ça passe plus en 3.0 ou 3.1
+    // cf https://jira.mongodb.org/browse/NODE-1265?focusedCommentId=1767130&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1767130)
+    // grab triera tout ça
+    record.searchOptions = {
+      project: {score: {$meta: 'textScore'}},
+      sort: _.merge({score: {$meta: 'textScore'}}, sorts)
+    }
+
+    delete record.options.sort
+  }
+
   if (entityQuery.debug) log('mongoQuery', record)
 } // buildQuery
 
 /**
- * Vérifie que value n'est pas falsy (sauf qui est 0 accepté)
+ * Objet qui sera passé en 1er argument des commandes find|count de mongo
+ * Chaque propriété est un chemin dans le document, sa valeur le filtre à y appliquer
+ * @typedef EntityQuery~query
+ */
+
+/**
+ * Objet qui contient toutes les infos à passer à mongo pour exécuter la requête
+ * @typedef EntityQuery~record
+ * @property {EntityQuery~query} query
+ * @property {number} limit toujours fourni, HARD_LIMIT_GRAB par défaut
+ * @property {object} options sera passé tel quel à mongo
+ * @property {number} options.skip Offset pour un find
+ */
+/**
+ * Prépare la requête pour un find ou un delete (helper de grab ou purge)
+ * @private
+ * @param {EntityQuery} entityQuery
+ * @param {object|number} options Si number pris comme limit
+ * @param {number} options.limit
+ * @param {number} options.skip
+ * @return {EntityQuery~record}
+ */
+function buildRecord (entityQuery, options) {
+  if (options) { // null est de type object…
+    if (typeof options === 'number') {
+      options = {limit: options}
+    } else if (typeof options !== 'object') {
+      log.error(new Error('options invalides'), options)
+      options = {}
+    }
+  } else {
+    options = {}
+  }
+  const record = {query: {}, options: {}, limit: HARD_LIMIT_GRAB}
+  // on accepte offset ou skip
+  const skip = options.offset || options.skip
+  if (skip > 0) record.options.skip = skip
+  // set limit
+  if (typeof options.limit === 'number') {
+    if (options.limit >= 0 && options.limit <= HARD_LIMIT_GRAB) {
+      record.limit = options.limit
+    } else {
+      log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)
+    }
+  }
+  // on passe à record.query
+  buildQuery(entityQuery, record)
+
+  return record
+}
+
+/**
+ * Vérifie que value n'est pas falsy (sauf 0 qui est accepté)
  * @private
  * @param value
  */
@@ -167,7 +245,7 @@ function checkDate (value) {
  * Vérifie que value est un array
  * @private
  * @param value
- * @throws si value invalide
+ * @throws si value n'est pas un Array
  */
 function checkIsArray (value) {
   if (!Array.isArray(value)) throw new Error('paramètre de requête invalide (Array obligatoire)')
@@ -181,18 +259,19 @@ function checkIsArray (value) {
  * @return {Entity[]}
  * @throws Si _data n'est pas du json valide
  */
-function createEntitiesFromRows (entityQuery, rows) {
+function createEntitiesFromDocuments (entityQuery, rows) {
   // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
   const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
-  const jsonReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
+  const jsonDateReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
   return rows.map((row) => {
     let data = row._data
+    if (!data) throw new Error(`Données absentes pour ${entityQuery.entity.name}/${row._id}`)
 
     // TODO DATA: enlever ce if-bloc une fois que toutes les entités auront été ré-indexées
     //            avec un _data en objet mongo plutôt qu'un json
     if (typeof data === 'string') {
       try {
-        data = JSON.parse(data, jsonReviver)
+        data = JSON.parse(data, jsonDateReviver)
       } catch (error) {
         console.error(error, `avec les _data :\n${row._data}`)
         // on renvoie un message plus compréhensible
@@ -209,44 +288,12 @@ function createEntitiesFromRows (entityQuery, rows) {
 }
 
 /**
- * @typedef EntityQuery~record
- * @property {EntityQuery~query} query
- * @property {number} limit toujours fourni, HARD_LIMIT_GRAB par défaut
- * @property {object} options sera passé tel quel à mongo
- * @property {number} options.skip Offset pour un find
- */
-/**
- * Prépare la requête pour un find ou un delete (helper de grab ou purge)
+ * Retourne le "matcher" en cours
+ * @param {Object} entityQuery
  * @private
- * @param {EntityQuery} entityQuery
- * @param {object} options
  */
-function prepareRecord (entityQuery, options) {
-  if (options) { // null est de type object…
-    if (typeof options === 'number') {
-      options = {limit: options}
-    } else if (typeof options !== 'object') {
-      log.error(new Error('options invalides'), options)
-      options = {}
-    }
-  } else {
-    options = {}
-  }
-  const record = {query: {}, options: {}, limit: HARD_LIMIT_GRAB}
-  // on accepte offset ou skip
-  const skip = options.offset || options.skip
-  if (skip > 0) record.options.skip = skip
-  // set limit
-  if (typeof options.limit === 'number') {
-    if (options.limit >= 0 && options.limit <= HARD_LIMIT_GRAB) {
-      record.limit = options.limit
-    } else {
-      log.error(`limit ${options.limit} trop élevée, ramenée au max admis ${HARD_LIMIT_GRAB} (HARD_LIMIT_GRAB)`)
-    }
-  }
-
-  buildQuery(entityQuery, record)
-  return record
+function getLastMatch (entityQuery) {
+  return _.last(entityQuery.matches)
 }
 
 /**
@@ -268,17 +315,9 @@ class EntityQuery {
      * @type {EntityDefinition}
      */
     this.entity = entityDefinition
-    this.clauses = []
+    this.matches = []
     this.search = null
     this._includeDeleted = false
-  }
-
-  /**
-   * Racourci vers Entity#getIndex
-   * @param {String} indexName
-   */
-  getIndex (indexName) {
-    return this.entity.getIndex(indexName)
   }
 
   /**
@@ -329,15 +368,12 @@ class EntityQuery {
    * @return {undefined}
    */
   count (callback) {
-    var self = this
-    var record = {query: {}, options: {}}
-
-    flow()
-      .seq(function () {
-        buildQuery(self, record)
-        self.entity.getCollection().count(record.query, record.options, this)
-      })
-      .done(callback)
+    const self = this
+    const record = {query: {}, options: {}}
+    flow().seq(function () {
+      buildQuery(self, record)
+      self.entity.getCollection().countDocuments(record.query, record.options, this)
+    }).done(callback)
   }
 
   /**
@@ -354,37 +390,22 @@ class EntityQuery {
   countBy (index, callback) {
     const {path} = this.getIndex(index)
 
-    var self = this
-    var record = {query: {}, options: {}}
-
-    flow()
-      .seq(function () {
-        buildQuery(self, record)
-        const query = [
-          {$match: record.query},
-          {$group: {_id: `$${path}`, count: {$sum: 1}}}
-        ]
-        self.entity.getCollection().aggregate(query, this)
+    const entityQuery = this
+    const record = {query: {}, options: {}}
+    buildQuery(entityQuery, record)
+    // Cf https://docs.mongodb.com/manual/reference/method/db.collection.aggregate/
+    const pipeline = [
+      {$match: record.query},
+      {$group: {_id: `$${path}`, count: {$sum: 1}}}
+    ]
+    const groupes = {}
+    entityQuery.entity.getCollection().aggregate(pipeline).toArray((error, results) => {
+      if (error) return callback(error)
+      results.forEach(({_id, count}) => {
+        groupes[_id] = count
       })
-      .seq(function (_groupes) {
-        const groupes = {}
-        _.forEach(_groupes, (groupe) => {
-          groupes[groupe._id] = groupe.count
-        })
-        callback(null, groupes)
-      })
-      .catch(callback)
-  }
-
-  /**
-   * Ajoute (ou enlève) le mode debug qui log les params de la requête
-   * (qui peuvent être passé tels quels dans un mongo-shell)
-   * @param {boolean} [status=true]
-   * @return {EntityQuery} La requête (pour chaînage)
-   */
-  setDebug (status = true) {
-    this.debug = status
-    return this
+      callback(null, groupes)
+    })
   }
 
   /**
@@ -394,7 +415,7 @@ class EntityQuery {
    */
   deletedAfter (when) {
     checkDate(when)
-    this.clauses.push({type: 'match', index: this.getIndex('__deletedAt'), operator: '>', value: when})
+    this.matches.push({type: 'match', index: this.getIndex('__deletedAt'), operator: '>', value: when})
     return this
   }
 
@@ -405,7 +426,7 @@ class EntityQuery {
    */
   deletedBefore (when) {
     checkDate(when)
-    this.clauses.push({type: 'match', index: this.getIndex('__deletedAt'), operator: '<', value: when})
+    this.matches.push({type: 'match', index: this.getIndex('__deletedAt'), operator: '<', value: when})
     return this
   }
 
@@ -415,95 +436,18 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur cherchée
    * @return {EntityQuery} La requête (pour chaînage)
    */
-  equals (value, fieldValue) {
-    if (typeof fieldValue !== 'undefined') {
-      this.match(value)
-      value = fieldValue
-    }
+  equals (value) {
     return alterLastMatch(this, {value: value, operator: '='})
   }
 
   /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est fausse.
+   * raccourci pour .equals(false)
    * @return {EntityQuery} La requête (pour chaînage)
    */
   false () {
     return this.equals(false)
   }
 
-  /**
-   * Callback d'exécution d'une requête grab
-   * @callback EntityQuery~GrabCallback
-   * @param {Error} error
-   * @param {Array} entities La liste des entités remontées
-   */
-  /**
-   * Récupère des entités
-   * @param {number|object}           [options]      Si seulement un nombre est fourni, il sera traité comme options.limit
-   * @param {number}                   options.limit Entier >0 et < 1000
-   * @param {number}                   options.skip  Entier >0, pour démarrer avec un offset
-   * @param {EntityQuery~GrabCallback} callback rappelée avec l'erreur ou les résultats
-   */
-  grab (options, callback) {
-    if (_.isFunction(options)) {
-      callback = options
-      options = {}
-    }
-    const record = prepareRecord(this, options)
-    // mongo n'a pas l'air de gérer query.limit(0) correctement, donc on le fait manuellement
-    if (record.limit === 0) return callback(null, [])
-    let query
-
-    if (this.search) {
-      let sorts = {}
-      _.forEach(record.options.sort, (sort) => {
-        sorts[sort[0]] = sort[1] === 'asc' ? 1 : -1
-      })
-      // Le sort sur le score doit être fait avant les sorts "classiques"
-      let recordSort = _.merge({score: {$meta: 'textScore'}}, sorts)
-      delete record.options.sort
-
-      let recordQuery = _.merge(record.query, {$text: {$search: this.search}})
-      let recordOptions = _.merge(record.options, {score: {$meta: 'textScore'}})
-
-      query = this.entity.getCollection()
-        .find(recordQuery, recordOptions)
-        .sort(recordSort)
-    } else {
-      query = this.entity.getCollection()
-        .find(record.query, record.options)
-    }
-
-    query.limit(record.limit)
-      .toArray((error, rows) => {
-        if (error) return callback(error)
-        // on râle si on atteint la limite, sauf si on avait demandé cette limite
-        if (rows.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
-        try {
-          callback(null, createEntitiesFromRows(this, rows))
-        } catch (error) {
-          callback(error)
-        }
-      })
-  }
-
-  /**
-   * Callback d'exécution d'une requête grabOne
-   * @callback EntityQuery~GrabOneCallback
-   * @param {Error} error Une erreur est survenue.
-   * @param {Entity} entites L'objet trouvé (ou null)
-   */
-  /**
-   * Renvoie un objet liés à la requête
-   * @param {EntityQuery~GrabOneCallback} callback La callback.
-   */
-  grabOne (callback) {
-    this.grab({limit: 1}, function (error, entities) {
-      if (error) return callback(error)
-      if (entities.length === 0) return callback()
-      callback(null, entities[0])
-    })
-  }
   /**
    * Callback d'exécution d'une requête forEachEntity, appelé sur chaque résultat de la requête
    * @callback EntityQuery~ForEachEntityOnEachEntityCallback
@@ -527,7 +471,7 @@ class EntityQuery {
    * @param {boolean} [options.continueOnError] Passer true pour continuer en cas d'erreur (qui sera alors affichée dans console.error avec l'oid concerné)
    */
   forEachEntity (onEachEntity, done, options = {}) {
-    const query = this
+    const entityQuery = this
     const globalLimit = options.limit
 
     let skip = 0
@@ -557,8 +501,13 @@ class EntityQuery {
 
           if (error) {
             nbErrors++
-            if (options.continueOnError) console.error(`Erreur sur ${entities[0].oid}`, error)
-            else return cb(error)
+            if (options.continueOnError) {
+              console.error(`Erreur sur ${entities[0].oid}`, error)
+            } else {
+              // on ajoute l'oid de l'entity dans le message
+              error.message += ` (sur ${entities[0].oid})`
+              return cb(error)
+            }
           }
           nbTreated++
 
@@ -572,23 +521,24 @@ class EntityQuery {
     }
 
     const nextBatch = () => {
-      query.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
+      entityQuery.grab({limit: FOREACH_BATCH_SIZE, skip}, (err, entities) => {
         if (err) return finalCb(err)
 
         processEntities(entities, (e) => {
           if (e) return finalCb(e)
-          if (entities.length < FOREACH_BATCH_SIZE) return finalCb() // dernier batch
-
           if (progressBar) progressBar.tick(entities.length)
+          if (entities.length < FOREACH_BATCH_SIZE) return finalCb() // dernier batch
           skip += FOREACH_BATCH_SIZE
           process.nextTick(nextBatch)
         })
       })
     }
 
-    query.count((err, count) => {
+    entityQuery.count((err, count) => {
       if (err) return finalCb(err)
-      if (options.progressBar) {
+      // en test progress plante parfois avec une largeur dispo NaN
+      const isTestEnv = process.argv[1].includes('mocha') || process.env.NODE_ENV === 'test'
+      if (options.progressBar && !isTestEnv) {
         const format = 'progress: :percent [:bar] :current/:total (~:etas left)'
         const options = {
           total: globalLimit ? Math.min(count, globalLimit) : count
@@ -599,7 +549,79 @@ class EntityQuery {
       // Start batching
       nextBatch()
     })
+  } // forEachEntity
+
+  /**
+   * Racourci vers Entity#getIndex
+   * @param {String} indexName
+   */
+  getIndex (indexName) {
+    return this.entity.getIndex(indexName)
   }
+
+  /**
+   * Callback d'exécution d'une requête grab
+   * @callback EntityQuery~GrabCallback
+   * @param {Error} error
+   * @param {Array} entities La liste des entités remontées
+   */
+  /**
+   * Récupère des entités
+   * @param {number|object}           [options]      Si seulement un nombre est fourni, il sera traité comme options.limit
+   * @param {number}                   options.limit Entier >0 et < 1000
+   * @param {number}                   options.skip  Entier >0, pour démarrer avec un offset
+   * @param {EntityQuery~GrabCallback} callback rappelée avec l'erreur ou les résultats
+   */
+  grab (options, callback) {
+    const entityQuery = this
+    if (_.isFunction(options)) {
+      callback = options
+      options = {}
+    }
+    const record = buildRecord(entityQuery, options)
+    // mongo n'a pas l'air de gérer query.limit(0) correctement, donc on le fait manuellement
+    if (record.limit === 0) return callback(null, [])
+
+    const query = entityQuery.entity.getCollection()
+      .find(record.query, record.options)
+    if (record.searchOptions) {
+      // faut ajouter project + 2e sort (si fulltext, cf buildQuery)
+      query
+        .project(record.searchOptions.project)
+        .sort(record.searchOptions.sort)
+    }
+    query
+      .limit(record.limit)
+      .toArray((error, documents) => {
+        if (error) return callback(error)
+        // on râle si on atteint la limite, sauf si on avait demandé cette limite
+        if (documents.length === HARD_LIMIT_GRAB && options.limit !== HARD_LIMIT_GRAB) log.error('HARD_LIMIT_GRAB atteint avec', record)
+        try {
+          callback(null, createEntitiesFromDocuments(entityQuery, documents))
+        } catch (error) {
+          callback(error)
+        }
+      })
+  }
+
+  /**
+   * Callback d'exécution d'une requête grabOne
+   * @callback EntityQuery~GrabOneCallback
+   * @param {Error} error Une erreur est survenue.
+   * @param {Entity} entites L'objet trouvé (ou null)
+   */
+  /**
+   * Renvoie un objet liés à la requête
+   * @param {EntityQuery~GrabOneCallback} callback La callback.
+   */
+  grabOne (callback) {
+    this.grab({limit: 1}, function (error, entities) {
+      if (error) return callback(error)
+      if (entities.length === 0) return callback()
+      callback(null, entities[0])
+    })
+  }
+
   /**
    * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est supérieure à une
    * valeur donnée.
@@ -633,7 +655,7 @@ class EntityQuery {
   in (values) {
     checkIsArray(values)
     // cette vérif est souvent oubliée avant l'appel, on throw plus pour ça mais faudrait toujours le tester avant l'appel
-    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), 'appelé avec :\n', this.clauses)
+    if (!values.length) console.error(new Error('paramètre de requête invalide (in veut un Array non vide)'), 'appelé avec :\n', this.matches)
     return alterLastMatch(this, {value: values, operator: 'IN'})
   }
 
@@ -647,7 +669,19 @@ class EntityQuery {
   }
 
   /**
+   * Filtre sur un index multiple ne contenant aucune valeur (fait du $eq: [])
+   * (car isNull sur un index multiple remonte les entites ayant une valeur null ou undefined dans le tableau d'origine)
+   * @return {EntityQuery}
+   */
+  isEmpty () {
+    return alterLastMatch(this, {operator: 'ISEMPTY'})
+  }
+
+  /**
    * Limite aux entities ayant l'index précédent non null
+   * (ATTENTION, sur un index multiple ce n'est pas le complément de isNull : la même entity
+   * remonte dans les deux cas si la valeur est un array avec un élément null|undefined
+   * et un autre élément non null|undefined)
    * @return {EntityQuery} La requête (pour chaînage)
    */
   isNotNull () {
@@ -656,12 +690,14 @@ class EntityQuery {
 
   /**
    * Limite aux entities ayant l'index précédent null (ou undefined)
+   * Attention, pour les index multiple ça remonte les entity dont l'array contient au moins un null|undefined
+   * Pour remonter les entities ayant une valeur [] il faut utiliser isEmpty, ou alors utiliser une callback
+   * d'index qui retourne null si le tableau est vide
    * @return {EntityQuery} La requête (pour chaînage)
    */
   isNull () {
-    if (lastMatch(this).index.indexOptions.sparse) {
-      throw new Error('isNull() ne peut pas être appelé sur un index sparse')
-    }
+    const lastMatch = getLastMatch(this)
+    if (!lastMatch) throw Error('isNull appelé sans match précédent')
     return alterLastMatch(this, {operator: 'ISNULL'})
   }
 
@@ -726,7 +762,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (pour chaînage)
    */
   match (indexName) {
-    this.clauses.push({type: 'match', index: this.getIndex(indexName)})
+    this.matches.push({type: 'match', index: this.getIndex(indexName)})
     return this
   }
 
@@ -736,11 +772,7 @@ class EntityQuery {
    * @param {String|Integer|Date} value La valeur cherchée
    * @return {EntityQuery} La requête (pour chaînage)
    */
-  notEquals (value, fieldValue) {
-    if (typeof fieldValue !== 'undefined') {
-      this.match(value)
-      value = fieldValue
-    }
+  notEquals (value) {
     return alterLastMatch(this, {value: value, operator: '<>'})
   }
 
@@ -751,7 +783,9 @@ class EntityQuery {
    */
   notIn (values) {
     checkIsArray(values)
-    return alterLastMatch(this, {value: values, operator: 'NOT IN'})
+    if (values.length) alterLastMatch(this, {value: values, operator: 'NOT IN'})
+    else console.error(Error(`notIn avec un array vide ne sert à rien, ignoré`))
+    return this
   }
 
   /**
@@ -759,7 +793,7 @@ class EntityQuery {
    * @return {EntityQuery} La requête (pour chaînage)
    */
   onlyDeleted () {
-    this.clauses.push({type: 'match', index: this.getIndex('__deletedAt'), operator: 'ISNOTNULL'})
+    this.matches.push({type: 'match', index: this.getIndex('__deletedAt'), operator: 'ISNOTNULL'})
     return this
   }
 
@@ -773,7 +807,7 @@ class EntityQuery {
    * @param {purgeCallback} callback
    */
   purge (callback) {
-    const record = prepareRecord(this)
+    const record = buildRecord(this)
     this.entity.getCollection()
       .deleteMany(record.query, null, function (error, result) {
         if (error) return callback(error)
@@ -789,6 +823,17 @@ class EntityQuery {
   }
 
   /**
+   * Ajoute (ou enlève) le mode debug qui log les params de la requête
+   * (qui peuvent être passé tels quels dans un mongo-shell)
+   * @param {boolean} [status=true]
+   * @return {EntityQuery} La requête (pour chaînage)
+   */
+  setDebug (status = true) {
+    this.debug = status
+    return this
+  }
+
+  /**
    * @callback softPurgeCallback
    * @param {Error} error
    * @param {number} nbSoftDeleted le nb d'objets softDeleted
@@ -798,7 +843,7 @@ class EntityQuery {
    * @param {softPurgeCallback} callback
    */
   softPurge (callback) {
-    const record = prepareRecord(this)
+    const record = buildRecord(this)
     const today = new Date()
     this.entity.getCollection()
       // @see http://mongodb.github.io/node-mongodb-native/2.2/api/Collection.html#updateMany
@@ -821,7 +866,7 @@ class EntityQuery {
    */
   sort (indexName, order) {
     order = order || 'asc'
-    this.clauses.push({type: 'sort', index: this.getIndex(indexName), order: order})
+    this.matches.push({type: 'sort', index: this.getIndex(indexName), order: order})
     return this
   }
 
@@ -831,27 +876,22 @@ class EntityQuery {
    * @return {EntityQuery} La requête (pour chaînage)
    */
   textSearch (search) {
-    this.search = search
+    if (this.search) {
+      if (search.includes(' ') && !search.includes('"')) this.search += ` "${search}"`
+      else this.search += ` ${search}`
+    } else {
+      this.search = search
+    }
     return this
   }
 
   /**
-   * Limite les enregistrements dont la valeur (de l'index imposé précédemment) est vraie.
+   * raccourci pour .equals(true)
    *
    * @return {EntityQuery} La requête (pour chaînage)
    */
   true () {
     return this.equals(true)
-  }
-
-  /**
-   * @alias equals
-   *
-   * @param {String|Integer|Date} value La valeur à faire correspondre.
-   * @return {EntityQuery} La requête (pour chaînage)
-   */
-  with (value) {
-    return alterLastMatch(this, {value: value, operator: '='})
   }
 }
 

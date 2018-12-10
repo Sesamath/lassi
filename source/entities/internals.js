@@ -30,7 +30,7 @@
  */
 'use strict'
 
-const INDEX_TYPES = ['boolean', 'date', 'integer', 'string']
+const INDEX_TYPES = ['boolean', 'date', 'integer', 'number', 'string']
 
 /**
  * cast de value en type
@@ -45,7 +45,8 @@ function castToType (value, type) {
   switch (type) {
     case 'boolean': value = !!value; break
     case 'string': value = String(value); break
-    case 'integer': value = Math.round(Number(value)); break
+    case 'integer': value = Math.round(value); break
+    case 'number': value = Number(value); break
     case 'date':
       if (!(value instanceof Date)) {
         value = new Date(value)

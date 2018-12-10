@@ -51,7 +51,7 @@ function HtmlTransport (lassi) {
 * Helper de rendu d'une vue via un composant.
 *
 * @param {Object} data les données à rendre
-* @param {SimpleCallback} next la callback de retour
+* @param {simpleCallback} next la callback de retour
 * @private
 */
 HtmlTransport.prototype.process = function (data, next) {
