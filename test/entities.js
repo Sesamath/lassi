@@ -61,7 +61,7 @@ describe('Entity', () => {
       // En version 2.2.17, _data contenait un JSON
       flow()
         .seq(function () {
-          TestEntity.getCollection().insert({
+          TestEntity.getCollection().insertOne({
             _id: '1',
             _data: JSON.stringify({test: 'a', oid: '1'})
           }, this)

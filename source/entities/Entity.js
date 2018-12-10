@@ -405,24 +405,22 @@ class Entity {
     const entity = this
     const def = this.definition
 
-    flow()
-      .seq(function () {
-        if (!entity.oid) return this('Impossible de restaurer une entité sans oid')
-        def.getCollection().update({
-          _id: entity.oid
-        }, {
-          $unset: {__deletedAt: ''} // la valeur '' ne change rien, cf https://docs.mongodb.com/manual/reference/operator/update/unset/
-        }, this)
-      })
-      .seq(function () {
-        // l'update mongo a fonctionné, il faut mettre à jour notre objet
-        entity.__deletedAt = null
-        // On appelle le onLoad() car l'état de l'entité en BDD a changé,
-        // comme si l'entity avait été "rechargée".
-        entity.onLoad()
-        callback(null, entity)
-      })
-      .catch(callback)
+    flow().seq(function () {
+      if (!entity.oid) return this('Impossible de restaurer une entité sans oid')
+      def.getCollection().updateOne({
+        _id: entity.oid
+      }, {
+        // la valeur '' ne change rien, cf https://docs.mongodb.com/manual/reference/operator/update/unset/
+        $unset: {__deletedAt: ''}
+      }, this)
+    }).seq(function () {
+      // l'update mongo a fonctionné, il faut mettre à jour notre objet
+      entity.__deletedAt = null
+      // On appelle le onLoad() car l'état de l'entité en BDD a changé,
+      // comme si l'entity avait été "rechargée".
+      entity.onLoad()
+      callback(null, entity)
+    }).catch(callback)
   }
 
   /**
@@ -460,7 +458,7 @@ class Entity {
       if (def._beforeDelete) def._beforeDelete.call(entity, this)
       else this()
     }).seq(function () {
-      def.getCollection().remove({_id: entity.oid}, {w: 1}, callback)
+      def.getCollection().deleteOne({_id: entity.oid}, {w: 1}, callback)
     }).catch(callback)
   }
 }
