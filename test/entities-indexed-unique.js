@@ -1,17 +1,12 @@
 /* eslint-env mocha */
 'use strict'
 const flow = require('an-flow')
-const chai = require('chai')
-const sinon = require('sinon')
-const sinonChai = require('sinon-chai')
+const {expect} = require('chai')
 
 const {quit, setup} = require('./init')
 
 const log = require('an-log')('$cache')
 log.setLogLevel('warning')
-
-chai.use(sinonChai)
-const {expect} = chai
 
 let TestEntity
 
