@@ -3,7 +3,7 @@ dependencies:
   ajv-errors: 1.0.0
   ajv-i18n: 3.3.0
   ajv-keywords: 3.2.0
-  an-flow: src.sesamath.net/an-flow/118c52817e521ca6bb2e7a7b3e2a7b2063084237
+  an-flow: src.sesamath.net/an-flow/cb06dacf3593f363ce98525a415bca650cfffc1a
   an-log: src.sesamath.net/an-log/56cf46a8756190a1dab5ec8f98470dbba1b18355
   colors: 1.3.2
   compression: 1.7.3
@@ -3203,14 +3203,14 @@ packages:
       repo: 'git://src.sesamath.net/an-ansi'
       type: git
     version: 2.0.4
-  src.sesamath.net/an-flow/118c52817e521ca6bb2e7a7b3e2a7b2063084237:
+  src.sesamath.net/an-flow/cb06dacf3593f363ce98525a415bca650cfffc1a:
     dev: false
     name: an-flow
     resolution:
-      commit: 118c52817e521ca6bb2e7a7b3e2a7b2063084237
+      commit: cb06dacf3593f363ce98525a415bca650cfffc1a
       repo: 'git://src.sesamath.net/an-flow'
       type: git
-    version: 3.0.1
+    version: 3.0.2
   src.sesamath.net/an-format-date/a76218a71134029ac10b33398ba96510cef962cd:
     dev: false
     name: an-format-date
@@ -3238,7 +3238,7 @@ specifiers:
   ajv-errors: ^1.0.0
   ajv-i18n: ^3.0.0
   ajv-keywords: ^3.1.0
-  an-flow: 'git://src.sesamath.net/an-flow#3.0.1'
+  an-flow: 'git://src.sesamath.net/an-flow#3.0.2'
   an-log: 'git://src.sesamath.net/an-log#3.1.6'
   chai: ^4.1.2
   colors: ^1.1.2
@@ -3260,7 +3260,7 @@ specifiers:
   mocha: ^2.5.3
   moment: ^2.19.1
   mongodb: ^3.1.1
-  morgan: ^1.9.0
+  morgan: ^1.9.1
   pre-push: ^0.1.1
   progress: ^2.0.0
   redis: ^2.8.0

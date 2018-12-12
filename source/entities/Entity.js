@@ -398,7 +398,10 @@ class Entity {
   }
 
   /**
-   * Restaure un élément supprimé par {@link Entity#softDelete}
+   * Restore un élément supprimé par {@link Entity#softDelete}.
+   * ATTENTION, cela n'affecte que la propriété __deletedAt et n'enregistre pas
+   * d'éventuelle modifications faites sur l'entity (dans ce cas
+   * il faut faire un {@link Entity#markToRestore} suivi d'un {@link Entity#store}
    * @param {Entity~entityCallback} callback
    */
   restore (callback) {
