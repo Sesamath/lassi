@@ -25,7 +25,7 @@
     "dustjs-linkedin": "^2.7.5",
     "express": "^4.16.2",
     "express-session": "^1.15.6",
-    "lodash": "^4.17.5",
+    "lodash": "^4.17.11",
     "moment": "^2.19.1",
     "mongodb": "^3.1.1",
     "morgan": "^1.9.1",
