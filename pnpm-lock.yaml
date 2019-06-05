@@ -3311,7 +3311,7 @@ specifiers:
   mongodb: ^3.1.1
   morgan: ^1.9.1
   pre-push: ^0.1.1
-  progress: ^2.0.0
+  progress: ^2.0.3
   redis: ^2.8.0
   serve-static: ^1.13.1
   sesajstools: 'git+https://framagit.org/Sesamath/sesajstools.git'

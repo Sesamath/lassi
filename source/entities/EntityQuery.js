@@ -538,7 +538,8 @@ class EntityQuery {
       if (err) return finalCb(err)
       // en test progress plante parfois avec une largeur dispo NaN
       const isTestEnv = process.argv[1].includes('mocha') || process.env.NODE_ENV === 'test'
-      if (options.progressBar && !isTestEnv) {
+      // Attention, ProgressBar plante si le total est nul, cf https://github.com/visionmedia/node-progress/issues/166#issuecomment-498989236
+      if (count && options.progressBar && !isTestEnv) {
         const format = 'progress: :percent [:bar] :current/:total (~:etas left)'
         const options = {
           total: globalLimit ? Math.min(count, globalLimit) : count
