@@ -260,25 +260,9 @@ function checkIsArray (value) {
  * @throws Si _data n'est pas du json valide
  */
 function createEntitiesFromDocuments (entityQuery, rows) {
-  // on veut des objets date à partir de strings qui matchent ce pattern de date.toString()
-  const dateRegExp = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/
-  const jsonDateReviver = (key, value) => (typeof value === 'string' && dateRegExp.test(value) && new Date(value)) || value
   return rows.map((row) => {
     let data = row._data
     if (!data) throw new Error(`Données absentes pour ${entityQuery.entity.name}/${row._id}`)
-
-    // TODO DATA: enlever ce if-bloc une fois que toutes les entités auront été ré-indexées
-    //            avec un _data en objet mongo plutôt qu'un json
-    if (typeof data === 'string') {
-      try {
-        data = JSON.parse(data, jsonDateReviver)
-      } catch (error) {
-        console.error(error, `avec les _data :\n${row._data}`)
-        // on renvoie un message plus compréhensible
-        throw new Error(`Données corrompues pour ${entityQuery.entity.name}/${row._id}`)
-      }
-    }
-
     data.oid = row._id.toString()
     // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
     if (row.__deletedAt) data.__deletedAt = row.__deletedAt
