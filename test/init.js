@@ -3,9 +3,9 @@
 
 const MongoClient = require('mongodb').MongoClient
 const anLog = require('an-log')
-const assert = require('assert')
 const flow = require('an-flow')
 const _ = require('lodash')
+const {expect} = require('chai')
 const Entities = require('../source/entities')
 
 let dbSettings = {
@@ -43,7 +43,7 @@ function overrideSettings () {
       case '--verbose':
       case '--debug':
         isVerbose = true
-        i-- // y'a du +2 à la fin
+        i-- // y'a du +2 à la fin, on ne veut ici décaler que de 1
         break
 
       // ceux avec valeur qui suit
@@ -61,8 +61,7 @@ function overrideSettings () {
       case '--auth-source': dbSettings.authSource = process.argv[i + 1]; break
       case '--pool-size': dbSettings.poolSize = process.argv[i + 1]; break
       default:
-        console.error(`argument ${a} ignoré car non géré`)
-        i--
+        i-- // pour que ça ne fasse que +1 ci-dessous
     }
     i += 2
   }
@@ -77,26 +76,26 @@ function overrideSettings () {
  */
 function checkEntity (entity, values, checkers) {
   // vérif des types
-  assert.equal(typeof entity.i, 'number')
-  assert.equal(entity.d.constructor.name, 'Date')
-  assert.equal(typeof entity.s, 'string')
-  assert(Array.isArray(entity.sArray))
-  assert(Array.isArray(entity.iArray))
-  assert(Array.isArray(entity.dArray))
+  expect(typeof entity.i).to.equal('number')
+  expect(entity.d).to.be.a('Date')
+  expect(typeof entity.s).to.equal('string')
+  expect(Array.isArray(entity.sArray)).to.be.true
+  expect(Array.isArray(entity.iArray)).to.be.true
+  expect(Array.isArray(entity.dArray)).to.be.true
   // type du contenu des tableaux
-  entity.dArray.every(value => assert.equal(true, typeof value === 'object' && value.constructor.name === 'Date'))
-  entity.iArray.every(value => assert.equal(true, typeof value === 'number'))
-  entity.sArray.every(value => assert.equal(true, typeof value === 'string'))
+  entity.dArray.every(value => expect(value).to.be.a('Date'))
+  entity.iArray.every(value => expect(value).to.be.a('number'))
+  entity.sArray.every(value => expect(value).to.be.a('string'))
   // vérif des valeurs éventuelles
   if (values) {
-    Object.keys(values).forEach(k => assert.equal(entity[k], values[k]))
+    Object.keys(values).forEach(k => expect(entity[k]).to.equal(values[k]))
   }
   // appels des checkers éventuels
   if (checkers) {
     Object.keys(checkers).forEach(k => checkers[k](entity[k]))
   }
-  assert.equal(entity.created.constructor.name, 'Date')
-  if (entity.oid) assert.equal(entity.oid.length, 24)
+  expect(entity.created.constructor.name).to.equal('Date')
+  if (entity.oid) expect(entity.oid.length).to.equal(24)
 }
 
 /**

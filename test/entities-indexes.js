@@ -1,7 +1,6 @@
 /* eslint-env mocha */
 'use strict'
 
-const assert = require('assert')
 const {expect} = require('chai')
 const flow = require('an-flow')
 const Entities = require('../source/entities')
@@ -109,7 +108,7 @@ describe('Test entities-indexes', function () {
       SimpleEntity.getMongoIndexes(function (error, indexes) {
         if (error) return done(error)
         const index = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
-        assert.equal(index.key.index1, 1)
+        expect(index.key.index1).to.equal(1)
         done()
       })
     })
@@ -128,7 +127,7 @@ describe('Test entities-indexes', function () {
         SimpleEntity.getMongoIndexes(function (error, indexes) {
           if (error) return done(error)
           const index = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
-          assert.equal(index, undefined)
+          expect(index).to.equal(undefined)
           done()
         })
       })
@@ -149,8 +148,8 @@ describe('Test entities-indexes', function () {
           if (error) return done(error)
           const oldIndex = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})
           const newIndex = _.find(indexes, {name: SimpleEntity.getMongoIndexName('anotherIndexedAttribute')})
-          assert(!!oldIndex)
-          assert.equal(newIndex.key.anotherIndexedAttribute, 1)
+          expect(oldIndex).to.be.an('object')
+          expect(newIndex.key.anotherIndexedAttribute).to.equal(1)
           done()
         })
       })
@@ -173,10 +172,10 @@ describe('Test entities-indexes', function () {
           const oldIndex2 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index2')})
           const newIndex1 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1-unique')})
           const newIndex2 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index2-unique-sparse')})
-          assert(!oldIndex1)
-          assert(!oldIndex2)
-          assert(!!newIndex1)
-          assert(!!newIndex2)
+          expect(oldIndex1).to.be.undefined
+          expect(oldIndex2).to.be.undefined
+          expect(newIndex1).to.be.an('object')
+          expect(newIndex2).to.be.an('object')
 
           done()
         })

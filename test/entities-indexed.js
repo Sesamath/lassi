@@ -1,6 +1,5 @@
 /* eslint-env mocha */
 'use strict'
-const assert = require('assert')
 const flow = require('an-flow')
 const chai = require('chai')
 const {expect} = chai
@@ -62,131 +61,132 @@ describe('Test entities-queries', function () {
     flow(entities).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 10)
+      expect(entities.length).to.equal(10)
       TestEntity.match('b').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities[0].s, 'boolean null')
-      assert.equal(entities[1].s, 'boolean undefined')
+      expect(entities.length).to.equal(2)
+      expect(entities[0].s).to.equal('boolean null')
+      expect(entities[1].s).to.equal('boolean undefined')
       TestEntity.match('b').isNotNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 8)
-      assert.equal(entities[0].s, 'boolean true')
-      assert.equal(entities[1].s, 'boolean false')
-      assert.equal(entities[2].s, 'boolean zéro')
-      assert.equal(entities[3].s, 'boolean empty string')
-      assert.equal(entities[4].s, 'boolean truthy int')
-      assert.equal(entities[5].s, 'boolean truthy string')
-      assert.equal(entities[6].s, 'boolean truthy obj')
-      assert.equal(entities[7].s, 'boolean truthy date')
+      expect(entities.length).to.equal(8)
+      expect(entities[0].s).to.equal('boolean true')
+      expect(entities[1].s).to.equal('boolean false')
+      expect(entities[2].s).to.equal('boolean zéro')
+      expect(entities[3].s).to.equal('boolean empty string')
+      expect(entities[4].s).to.equal('boolean truthy int')
+      expect(entities[5].s).to.equal('boolean truthy string')
+      expect(entities[6].s).to.equal('boolean truthy obj')
+      expect(entities[7].s).to.equal('boolean truthy date')
       TestEntity.match('b').equals(true).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 5)
-      assert.equal(entities[0].s, 'boolean true')
-      assert.equal(entities[1].s, 'boolean truthy int')
-      assert.equal(entities[2].s, 'boolean truthy string')
-      assert.equal(entities[3].s, 'boolean truthy obj')
-      assert.equal(entities[4].s, 'boolean truthy date')
+      expect(entities.length).to.equal(5)
+      expect(entities[0].s).to.equal('boolean true')
+      expect(entities[1].s).to.equal('boolean truthy int')
+      expect(entities[2].s).to.equal('boolean truthy string')
+      expect(entities[3].s).to.equal('boolean truthy obj')
+      expect(entities[4].s).to.equal('boolean truthy date')
       TestEntity.match('b').equals(false).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 3)
-      assert.equal(entities[0].s, 'boolean false')
-      assert.equal(entities[1].s, 'boolean zéro')
-      assert.equal(entities[2].s, 'boolean empty string')
+      expect(entities.length).to.equal(3)
+      expect(entities[0].s).to.equal('boolean false')
+      expect(entities[1].s).to.equal('boolean zéro')
+      expect(entities[2].s).to.equal('boolean empty string')
       TestEntity.match().purge(this)
     }).done(done)
   })
 
   it('Indexe un integer null|undefined comme null, 0 comme 0, false comme 0 - verifie isNull|isNotNull', function (done) {
-    flow().seq(function () {
-      TestEntity.create({i: null, s: 'int null'}).store(this)
-    }).seq(function () {
-      TestEntity.create({i: undefined, s: 'int undefined'}).store(this)
-    }).seq(function () {
-      TestEntity.create({i: 42, s: 'int'}).store(this)
-    }).seq(function () {
-      TestEntity.create({i: 0, s: 'int zéro'}).store(this)
-    }).seq(function () {
-      TestEntity.create({i: false, s: 'int false'}).store(this)
+    const entities = [
+      {i: null, s: 'int null'},
+      {i: undefined, s: 'int undefined'},
+      {i: 42, s: 'int'},
+      {i: 0, s: 'int zéro'},
+      {i: false, s: 'int false'}
+    ]
+    flow(entities).seqEach(function (entityData) {
+      TestEntity.create(entityData).store(this)
     }).seq(function () {
       TestEntity.match('i').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'int null')
-      assert.equal(entities[1].s, 'int undefined')
+      expect(entities.length).to.equal(2)
+      expect(entities[0].s).to.equal('int null')
+      expect(entities[1].s).to.equal('int undefined')
       TestEntity.match('i').isNotNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 3)
-      assert.equal(entities[0].s, 'int')
-      assert.equal(entities[0].i, 42)
-      assert.equal(entities[1].s, 'int zéro')
-      assert.equal(entities[1].i, 0)
-      assert.equal(entities[2].s, 'int false')
-      assert.equal(entities[2].i, 0)
+      expect(entities.length).to.equal(3)
+      expect(entities[0].s).to.equal('int')
+      expect(entities[0].i).to.equal(42)
+      expect(entities[1].s).to.equal('int zéro')
+      expect(entities[1].i).to.equal(0)
+      expect(entities[2].s).to.equal('int false')
+      expect(entities[2].i).to.equal(false) // y'a un cast sur l'index mais pas sur la valeur
       TestEntity.match('i').equals(0).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'int zéro')
-      assert.equal(entities[1].s, 'int false')
+      expect(entities.length).to.equal(2)
+      expect(entities[0].s).to.equal('int zéro')
+      expect(entities[1].s).to.equal('int false')
       TestEntity.match().purge(this)
     }).done(done)
   })
 
   it('Indexe une string null|undefined comme null - verifie isNull|isNotNull', function (done) {
-    flow().seq(function () {
-      TestEntity.create({s: '', i: 1}).store(this)
-    }).seq(function () {
-      TestEntity.create({s: null, i: 2}).store(this)
-    }).seq(function () {
-      TestEntity.create({s: undefined, i: 3}).store(this)
-    }).seq(function () {
-      TestEntity.create({s: 'une string', i: 4}).store(this)
+    const entities = [
+      {s: '', i: 1},
+      {s: null, i: 2},
+      {s: undefined, i: 3},
+      {s: 'une string', i: 4}
+    ]
+    flow(entities).seqEach(function (entityData) {
+      TestEntity.create(entityData).store(this)
     }).seq(function () {
       TestEntity.match('s').isNull().sort('oid', 'asc').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, null)
-      assert.equal(entities[0].i, 2)
-      assert.equal(entities[1].s, null)
-      assert.equal(entities[1].i, 3)
+      expect(entities.length).to.equal(2)
+      // (mongo ne distingue pas null|undefined, lassi ne les stocke pas et les deux remontent undefined)
+      expect(entities[0].s).to.equal(undefined) // cast sur l'index, pas la valeur
+      expect(entities[0].i).to.equal(2)
+      expect(entities[1].s).to.equal(undefined)
+      expect(entities[1].i).to.equal(3)
       // on cherche aussi les notNull
       TestEntity.match('s').isNotNull().sort('oid', 'asc').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, '')
-      assert.equal(entities[0].i, 1)
-      assert.equal(entities[1].s, 'une string')
-      assert.equal(entities[1].i, 4)
+      expect(entities.length).to.equal(2)
+      expect(entities[0].s).to.equal('')
+      expect(entities[0].i).to.equal(1)
+      expect(entities[1].s).to.equal('une string')
+      expect(entities[1].i).to.equal(4)
       // et on purge avant de sortir
       TestEntity.match().purge(this)
     }).done(done)
   })
 
   it('Indexe une date null|undefined comme null - verifie isNull|isNotNull', function (done) {
-    flow().seq(function () {
-      TestEntity.create({d: null, s: 'date null'}).store(this)
-    }).seq(function () {
-      TestEntity.create({d: undefined, s: 'date undefined'}).store(this)
-    }).seq(function () {
-      TestEntity.create({d: new Date(), s: 'date'}).store(this)
-    }).seq(function () {
-      TestEntity.create({d: '2017-01-02', s: 'date string'}).store(this)
+    const entities = [
+      {d: null, s: 'date null'},
+      {d: undefined, s: 'date undefined'},
+      {d: new Date(), s: 'date'},
+      {d: '2017-01-02', s: 'date string'}
+    ]
+    flow(entities).seqEach(function (entityData) {
+      TestEntity.create(entityData).store(this)
     }).seq(function () {
       TestEntity.match('d').isNull().sort('oid', 'asc').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'date null')
-      assert.equal(entities[1].s, 'date undefined')
+      expect(entities.length).to.equal(2)
+      expect(entities[0].s).to.equal('date null')
+      expect(entities[1].s).to.equal('date undefined')
       TestEntity.match('d').isNotNull().sort('oid', 'asc').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 2)
-      assert.equal(entities[0].s, 'date')
-      assert.equal(entities[1].s, 'date string')
+      expect(entities.length).to.equal(2)
+      expect(entities[0].s).to.equal('date')
+      expect(entities[1].s).to.equal('date string')
       TestEntity.match().purge(this)
     }).done(done)
   })
 
   it('Indexe un tableau de booleans', function (done) {
-    let data = [
+    let entities = [
       {bArray: [true], s: 'boolean true', i: 0},
       {bArray: [null], s: 'boolean null', i: 1},
       {bArray: [undefined], s: 'boolean undefined', i: 2},
@@ -199,19 +199,20 @@ describe('Test entities-queries', function () {
       {bArray: [new Date()], s: 'boolean truthy date', i: 9},
       {bArray: [], s: 'boolean empty', i: 10}
     ]
-    flow(data).seqEach(function (entity) {
+    flow(entities).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 11)
+      expect(entities.length).to.equal(11)
 
       // filtre null
       TestEntity.match('bArray').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
       expect(entities.map(e => e.i).join(',')).to.equals('1,2')
       entities.forEach(e => {
-        // FIXME pourquoi [undefined] devient [null]
+        // dans les index, les undefined sont sauvegardés et transformés en null par mongo (il distingue pas),
+        // (mais dans les valeurs ils sont pas sauvegardés et remontent undefined)
         if (e.i === 2) expect(e.bArray).to.deep.equal([null])
-        else expect(e.bArray).to.deep.equal(data[e.i].bArray, `Pb avec ${e.s}`)
+        else expect(e.bArray).to.deep.equal(entities[e.i].bArray, `Pb avec ${e.s}`)
       })
 
       // filtre notNull
@@ -233,7 +234,7 @@ describe('Test entities-queries', function () {
       TestEntity.match().purge(this)
     }).seq(function () {
       // on recommence avec un tableau à plusieurs boolean
-      data = [
+      entities = [
         {bArray: [true, 42, true], i: 1},
         {bArray: [null, false], i: 2},
         {bArray: [false, undefined], i: 3},
@@ -242,23 +243,23 @@ describe('Test entities-queries', function () {
         {bArray: [null, undefined], i: 6},
         {bArray: [], i: 7}
       ]
-      this(null, data)
+      this(null, entities)
     }).seqEach(function (entity) {
       TestEntity.create(entity).store(this)
     }).seq(function (entities) {
-      assert.equal(entities.length, 7)
+      expect(entities.length).to.equal(7)
       TestEntity.match('bArray').isNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '2,3,5,6')
+      expect(entities.map(e => e.i).join(',')).to.equal('2,3,5,6')
       TestEntity.match('bArray').isNotNull().sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '1,4,7')
+      expect(entities.map(e => e.i).join(',')).to.equal('1,4,7')
       TestEntity.match('bArray').equals(false).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '2,3,4,5')
+      expect(entities.map(e => e.i).join(',')).to.equal('2,3,4,5')
       TestEntity.match('bArray').equals(true).sort('oid').grab(this)
     }).seq(function (entities) {
-      assert.equal(entities.map(e => e.i).join(','), '1,4,5')
+      expect(entities.map(e => e.i).join(',')).to.equal('1,4,5')
       TestEntity.match().purge(this)
     }).done(done)
   })
