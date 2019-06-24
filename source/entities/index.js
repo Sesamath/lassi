@@ -53,11 +53,13 @@ class Entities extends EventEmitter {
    * Ferme la connexion ouverte dans initialize
    * (reset this.db mais pas this.entities)
    */
-  close () {
+  close (next) {
     if (this.client) {
       this.client.close(false, (error) => {
         if (error) console.error(error)
+        if (next) next(error)
       })
+      // on met ça à null tout de suite, pas très grave si qqun relançait un client alors que close n'avait pas terminé
       this.client = null
       this.db = null
     }
@@ -89,37 +91,38 @@ class Entities extends EventEmitter {
    * @param {simpleCallback} cb
    */
   initialize (cb) {
-    const settings = this.settings.database
     const self = this
-    const {name, host, port, user, password, authSource} = settings
-    const authMechanism = settings.authMechanism || 'DEFAULT'
-    // cf http://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect pour les options possibles
-    const options = settings.options || {}
-    options.useNewUrlParser = true
-    // pour compatibilité ascendante, poolSize était mis directement dans les settings
-    if (settings.poolSize && !options.poolSize) {
-      console.error(`poolsize doit désormais être indiqué dans database.options.poolsize (defaut : ${defaultPoolSize})`)
-      options.poolSize = settings.poolSize
-    }
-    if (!options.poolSize) options.poolSize = defaultPoolSize
-    // on pourra virer ça dans les prochaines versions de mongodb, avec le driver 3.0 & 3.1
-    // si on le met pas ça affiche un avertissement
-    options.useNewUrlParser = true
-    // construction de l'url de connexion, cf docs.mongodb.org/manual/reference/connection-string/
-    let url = 'mongodb://'
-    if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
-    url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
-    if (authSource) url += `&authSource=${authSource}`
-    // on peut connecter
-    MongoClient.connect(url, options, function (error, mongoClient) {
-      if (error) return cb(error)
+    if (self.client) return cb(Error('entities.initialize a déjà été appelé'))
+    flow().seq(function () {
+      const settings = self.settings.database
+      const {name, host, port, user, password, authSource} = settings
+      const authMechanism = settings.authMechanism || 'DEFAULT'
+      // cf http://mongodb.github.io/node-mongodb-native/2.2/api/MongoClient.html#connect pour les options possibles
+      const options = settings.options || {}
+      options.useNewUrlParser = true
+      // pour compatibilité ascendante, poolSize était mis directement dans les settings
+      if (settings.poolSize && !options.poolSize) {
+        console.error(`poolsize doit désormais être indiqué dans database.options.poolsize (defaut : ${defaultPoolSize})`)
+        options.poolSize = settings.poolSize
+      }
+      if (!options.poolSize) options.poolSize = defaultPoolSize
+      // on pourra virer ça dans les prochaines versions de mongodb, avec le driver 3.0 & 3.1
+      // si on le met pas ça affiche un avertissement
+      options.useNewUrlParser = true
+      // construction de l'url de connexion, cf docs.mongodb.org/manual/reference/connection-string/
+      let url = 'mongodb://'
+      if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
+      url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
+      if (authSource) url += `&authSource=${authSource}`
+      MongoClient.connect(url, options, this)
+    }).seq(function (mongoClient) {
       self.client = mongoClient
       self.db = mongoClient.db()
       // on passe à l'init de toutes les entities
-      flow(Object.values(self.entities)).seqEach(function (entityDefinition) {
-        entityDefinition._initialize(this)
-      }).done(cb)
-    })
+      this(null, Object.values(self.entities))
+    }).seqEach(function (entityDefinition) {
+      entityDefinition._initialize(this)
+    }).empty().done(cb)
   }
 
   /**
