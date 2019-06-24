@@ -37,7 +37,7 @@ describe('Test $entities-cli', function () {
     }).done(done)
   })
 
-  after('ferme la connexion', quit)
+  after('nettoie en sortant', quit)
 
   describe('.purgeDeleted()', () => {
     it('Throw Error en cas d’usage incorrect', () => {

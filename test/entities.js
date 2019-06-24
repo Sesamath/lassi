@@ -4,9 +4,8 @@
 const _ = require('lodash')
 const expect = require('chai').expect
 const flow = require('an-flow')
-const Entities = require('../source/entities')
 const Entity = require('../source/entities/Entity')
-const {quit, setup} = require('./init')
+const {initEntities, quit} = require('./init')
 
 let entities
 let TestEntity
@@ -15,46 +14,40 @@ let TestEntity
 //       ou ramener les tests qui sont dans entities-queries.js
 describe('Entity', () => {
   before(function (done) {
-    this.timeout(60000)
-    flow()
-      .seq(function () {
-        setup(this)
-      })
-      .seq(function (Entity, dbSettings) {
-        entities = new Entities({database: dbSettings})
-        entities.initialize(done)
-      })
-      .catch(done)
+    // this.timeout(6000)
+    flow().seq(function () {
+      initEntities(this)
+    }).seq(function (_entities) {
+      entities = _entities
+      done()
+    }).catch(done)
   })
 
-  after(() => {
-    entities.close()
-    quit()
+  after('Vire la collection en partant', function (done) {
+    flow().seq(function () {
+      if (!TestEntity) return this()
+      TestEntity.flush(this)
+    }).seq(function () {
+      quit(this)
+    }).done(done)
   })
 
   describe('_data', () => {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
-      TestEntity.flush((err) => {
-        if (err) return done(err)
-        TestEntity._initialize(done)
-      })
+      TestEntity._initialize(done)
     })
 
-    it('contient un objet mongo', (done) => {
-      flow()
-        .seq(function () {
-          TestEntity.create({oid: '1', test: 'a'}).store(this)
-        })
-        .seq(function () {
-          TestEntity.getCollection().findOne({_id: '1'}, this)
-        })
-        .seq(function (result) {
-          expect(result._data).to.be.an('object')
-          expect(result._data.test).to.equal('a')
-          this()
-        })
-        .done(done)
+    it('contient un objet mongo', function (done) {
+      flow().seq(function () {
+        TestEntity.create({oid: '1', test: 'a'}).store(this)
+      }).seq(function () {
+        TestEntity.getCollection().findOne({_id: '1'}, this)
+      }).seq(function (result) {
+        expect(result._data).to.be.an('object')
+        expect(result._data.test).to.equal('a')
+        done()
+      }).catch(done)
     })
   })
 
@@ -66,7 +59,8 @@ describe('Entity', () => {
       TestEntity.onLoad(function () {
         this.$loaded = `load-${++count}`
       })
-      TestEntity.flush(() => {
+      TestEntity.flush((error) => {
+        if (error) return done(error)
         TestEntity._initialize(done)
       })
     })
@@ -129,7 +123,8 @@ describe('Entity', () => {
   describe('Entity#store', function () {
     beforeEach(function (done) {
       TestEntity = entities.define('TestEntity')
-      TestEntity.flush(() => {
+      TestEntity.flush((error) => {
+        if (error) return done(error)
         TestEntity._initialize(done)
       })
     })
@@ -173,42 +168,37 @@ describe('Entity', () => {
       }
       const entity = TestEntity.create(entityData)
 
-      flow()
-        .seq(function () {
-          entity.store(this)
+      flow().seq(function () {
+        entity.store(this)
+      }).seq(function ({oid}) {
+        TestEntity.match('oid').equals(oid).grabOne(this)
+      }).seq(function (dbEntity) {
+        // Test de l'entité provenant de la BDD
+        expect(dbEntity.nonTemporaire).to.equal(1)
+
+        expect(dbEntity).to.not.have.property('nullValue')
+        expect(dbEntity).to.not.have.property('undefinedValue')
+        expect(dbEntity.child).to.not.have.property('deepFunction')
+        expect(dbEntity.child).to.not.have.property('deepNull')
+        expect(dbEntity.child).to.not.have.property('deepUndefined')
+
+        expect(dbEntity.child.deepArray).to.deep.equals(deepArray)
+        // avec la serialisation / désérialisation mongo on perd l'égalité stricte d'objet Date
+        expect(dbEntity.child.deepDate.toString()).to.equals(deepDate.toString())
+        expect(dbEntity.child.deepNumber).to.equal(6)
+        // idem pour regex
+        expect(dbEntity.child.deepRegexp.source).to.equals(deepRegexp.source)
+
+        // Vérifie que le store n'a pas modifié l'objet original
+        expect(entity).to.have.property('nullValue')
+        expect(entity).to.have.property('undefinedValue')
+        expect(entity.child).to.have.property('deepFunction')
+        expect(entity.child).to.have.property('deepUndefined')
+        Object.keys(entityData).forEach(k => {
+          expect(entity[k]).to.deep.equals(entityData[k])
         })
-        .seq(function ({oid}) {
-          TestEntity.match('oid').equals(oid).grabOne(this)
-        })
-        .seq(function (dbEntity) {
-          // Test de l'entité provenant de la BDD
-          expect(dbEntity.nonTemporaire).to.equal(1)
-
-          expect(dbEntity).to.not.have.property('nullValue')
-          expect(dbEntity).to.not.have.property('undefinedValue')
-          expect(dbEntity.child).to.not.have.property('deepFunction')
-          expect(dbEntity.child).to.not.have.property('deepNull')
-          expect(dbEntity.child).to.not.have.property('deepUndefined')
-
-          expect(dbEntity.child.deepArray).to.deep.equals(deepArray)
-          // avec la serialisation / désérialisation mongo on perd l'égalité stricte d'objet Date
-          expect(dbEntity.child.deepDate.toString()).to.equals(deepDate.toString())
-          expect(dbEntity.child.deepNumber).to.equal(6)
-          // idem pour regex
-          expect(dbEntity.child.deepRegexp.source).to.equals(deepRegexp.source)
-
-          // Vérifie que le store n'a pas modifié l'objet original
-          expect(entity).to.have.property('nullValue')
-          expect(entity).to.have.property('undefinedValue')
-          expect(entity.child).to.have.property('deepFunction')
-          expect(entity.child).to.have.property('deepUndefined')
-          Object.keys(entityData).forEach(k => {
-            expect(entity[k]).to.deep.equals(entityData[k])
-          })
-
-          this()
-        })
-        .done(done)
+        done()
+      }).catch(done)
     })
 
     describe('.afterStore', () => {
@@ -241,8 +231,9 @@ describe('Entity', () => {
       TestEntity.defineMethod('toJSON', function () {
         return _.omit(this.values(), ['password'])
       })
-      TestEntity.flush(() => {
-        entities.initialize(done)
+      TestEntity.flush((error) => {
+        if (error) return done(error)
+        TestEntity._initialize(done)
       })
     })
     it('ajoute une méthode à chaque instance', (done) => {
@@ -252,18 +243,18 @@ describe('Entity', () => {
       // password masqué
       expect(JSON.stringify(entity)).to.equal('{"name":"John"}')
 
-      flow()
-        .seq(function () { entity.store(this) })
-        .seq(function () { TestEntity.match().grabOne(this) })
-        .seq(function (dbEntity) {
-          expect(dbEntity.who()).to.equal('My name is John')
-          // password en bdd
-          expect(dbEntity.password).to.equal('secret')
-          // mais toujours masqué en json
-          expect(JSON.stringify(dbEntity)).to.equal(`{"name":"John","oid":"${dbEntity.oid}"}`)
-          done()
-        })
-        .catch(done)
+      flow().seq(function () {
+        entity.store(this)
+      }).seq(function () {
+        TestEntity.match().grabOne(this)
+      }).seq(function (dbEntity) {
+        expect(dbEntity.who()).to.equal('My name is John')
+        // password en bdd
+        expect(dbEntity.password).to.equal('secret')
+        // mais toujours masqué en json
+        expect(JSON.stringify(dbEntity)).to.equal(`{"name":"John","oid":"${dbEntity.oid}"}`)
+        done()
+      }).catch(done)
     })
 
     it("n'affecte pas les autres types d'entité", () => {
@@ -296,6 +287,15 @@ describe('Entity', () => {
   })
 
   describe('EntityDefinition#count et countBy', () => {
+    const init = () => new Promise((resolve, reject) => {
+      TestEntity.flush((err) => {
+        if (err) return reject(err)
+        TestEntity._initialize((err) => {
+          if (err) return reject(err)
+          resolve()
+        })
+      })
+    })
     const saveOne = (data) => new Promise((resolve, reject) => {
       TestEntity.create(data).store((error, entity) => {
         if (error) return reject(error)
@@ -306,17 +306,8 @@ describe('Entity', () => {
     beforeEach(() => {
       TestEntity = entities.define('TestEntity')
       TestEntity.defineIndex('nom', 'string')
-      const init = () => new Promise((resolve, reject) => {
-        TestEntity.flush((err) => {
-          if (err) return reject(err)
-          TestEntity._initialize((err) => {
-            if (err) return reject(err)
-            resolve()
-          })
-        })
-      })
-
-      return init().then(() => Promise.all([{nom: 'foo'}, {nom: 'bar'}, {nom: 'foo'}].map(saveOne)))
+      const values = [{nom: 'foo'}, {nom: 'bar'}, {nom: 'foo'}]
+      return init().then(() => Promise.all(values.map(saveOne)))
     })
 
     it('count compte le nb d’entities', (done) => {

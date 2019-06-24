@@ -26,7 +26,7 @@ if (!process.env.CIRCLE_CI) {
 let isInitDone = false
 let isVerbose = false
 
-let entities
+let entities // en global ici pour close
 let TestEntity
 
 /**
@@ -139,15 +139,14 @@ function connectToMongo (next) {
 }
 
 /**
- * Initialisation de l'entité de test
+ * Initialisation de TestEntity
  *
- * @param {Callback} next
+ * @param {Callback} next appelé avec (error, TestEntity)
  */
-function initEntities (next) {
-  entities = new Entities({database: dbSettings})
+function initTestEntity (next) {
   flow().seq(function () {
-    entities.initialize(this)
-  }).seq(function () {
+    initEntities(this)
+  }).seq(function (entities) {
     TestEntity = entities.define('TestEntity')
     TestEntity.flush(this)
   }).seq(function () {
@@ -204,13 +203,22 @@ function initEntities (next) {
 }
 
 /**
- * Ferme la connexion ouverte par Entities au setup
+ * Supprime la collection TestEntity si on l'avait créée et
+ * ferme la connexion à la db si elle avait été ouverte (par setup ou initEntities)
  */
-function quit () {
-  if (isInitDone) {
-    entities.close()
-    isInitDone = false
-  }
+function quit (next) {
+  if (isInitDone) isInitDone = false
+  flow().seq(function () {
+    if (!TestEntity) return this()
+    TestEntity.flush(this)
+  }).seq(function () {
+    if (!entities) return this()
+    entities.close(this)
+    // on affecte null tout de suite au cas où y'aurait un appel à initEntities
+    entities = null
+  }).seq(function () {
+    next()
+  }).catch(next)
 }
 
 /**
@@ -225,7 +233,7 @@ function setup (next) {
   anLog('EntityDefinition').setLogLevel('error')
   checkMongoConnexion(error => {
     if (error) return next(error)
-    initEntities((error, Entity) => {
+    initTestEntity((error, Entity) => {
       if (error) return next(error)
       isInitDone = true
       next(null, Entity, dbSettings)
@@ -233,11 +241,27 @@ function setup (next) {
   })
 }
 
+/**
+ * Init entities connectées à la base, pour pouvoir ensuite faire du entities.define(…)
+ * @param next
+ * @return {*}
+ */
+function initEntities (next) {
+  if (entities) return next(null, entities)
+  if (!dbSettings) overrideSettings()
+  // pour les tests on veut qu'ils se taisent
+  anLog('EntityDefinition').setLogLevel('error')
+  entities = new Entities({database: dbSettings})
+  entities.initialize((error) => {
+    if (error) return next(error)
+    next(null, entities)
+  })
+}
+
 module.exports = {
   checkEntity,
   connectToMongo,
-  getDbSettings: () => dbSettings,
-  getTestEntity: () => TestEntity,
+  initEntities,
   quit,
   setup
 }

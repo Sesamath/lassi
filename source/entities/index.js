@@ -87,7 +87,7 @@ class Entities extends EventEmitter {
   }
 
   /**
-   * Initialisation de l'espace de stockage
+   * Initialisation de l'espace de stockage puis appel de chaque _initialize des entity déjà définies
    * @param {simpleCallback} cb
    */
   initialize (cb) {

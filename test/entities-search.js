@@ -4,10 +4,8 @@
 const {expect} = require('chai')
 const flow = require('an-flow')
 
-const Entities = require('../source/entities')
-const {quit, setup} = require('./init')
+const {initEntities, quit} = require('./init')
 
-let entities
 let TestEntity
 
 const testEntities = [
@@ -21,34 +19,31 @@ const testEntities = [
   { i: 42007, text2: 'baz', type: 'bar' }
 ]
 
-function initEntities (dbSettings, next) {
-  entities = new Entities({database: dbSettings})
-  flow().seq(function () {
-    entities.initialize(this)
-  }).seq(function () {
-    TestEntity = entities.define('TestEntity')
-    TestEntity.flush(this)
-  }).seq(function () {
-    TestEntity.defineIndex('type', 'string')
-    TestEntity.defineIndex('text1', 'string')
-    TestEntity.defineTextSearchFields([['text1', 2], 'text2'])
-    TestEntity._initialize(this)
-  }).done(next)
-}
-
 describe('Test entities-search', function () {
   before('Connexion à Mongo et initialisation des entités', function (done) {
     this.timeout(60000)
+    let entities
     flow().seq(function () {
-      setup(this)
-    }).seq(function (Entity, dbSettings) {
-      initEntities(dbSettings, this)
+      initEntities(this)
+    }).seq(function (_entities) {
+      entities = _entities
+      TestEntity = entities.define('TestEntity')
+      TestEntity.flush(this)
+    }).seq(function () {
+      TestEntity.defineIndex('type', 'string')
+      TestEntity.defineIndex('text1', 'string')
+      TestEntity.defineTextSearchFields([['text1', 2], 'text2'])
+      TestEntity._initialize(this)
     }).done(done)
   })
 
-  after(() => {
-    entities.close()
-    quit()
+  after('Supprime la collection en partant', (done) => {
+    flow().seq(function () {
+      if (!TestEntity) return this()
+      TestEntity.flush(this)
+    }).seq(function () {
+      quit(this)
+    }).done(done)
   })
 
   describe('.textSearch()', function () {

@@ -3,8 +3,7 @@
 
 const expect = require('chai').expect
 const flow = require('an-flow')
-const Entities = require('../source/entities')
-const {quit, setup} = require('./init')
+const {initEntities, quit} = require('./init')
 
 let entities
 let TestEntity
@@ -56,21 +55,24 @@ const resetTestEntity = (overrides, done) => {
 }
 
 describe('Entity#validateJsonSchema', () => {
-  before((done) => {
-    flow()
-      .seq(function () {
-        setup(this)
-      })
-      .seq(function (Entity, dbSettings) {
-        entities = new Entities({database: dbSettings})
-        entities.initialize(done)
-      })
-      .catch(done)
+  before('Connexion à Mongo et initialisation des entités', function (done) {
+    // Evite les erreurs de timeout sur une machine lente (ou circleCI)
+    this.timeout(60000)
+    flow().seq(function () {
+      initEntities(this)
+    }).seq(function (_entities) {
+      entities = _entities
+      done()
+    }).catch(done)
   })
 
-  after(() => {
-    entities.close()
-    quit()
+  after('Supprime la collection en partant', (done) => {
+    flow().seq(function () {
+      if (!TestEntity) return this()
+      TestEntity.flush(this)
+    }).seq(function () {
+      quit(this)
+    }).done(done)
   })
 
   describe('rejette un objet invalide', function () {

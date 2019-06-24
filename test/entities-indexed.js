@@ -23,7 +23,7 @@ describe('Test entities-queries', function () {
     }).catch(done)
   })
 
-  after('ferme la connexion', quit)
+  after('nettoie en sortant', quit)
 
   // Normalement déjà testé par entities-indexes, mais ça mange pas de pain de le vérifier de nouveau
   // dans cette entity plus complète

@@ -129,15 +129,7 @@ describe('Test entities-queries', function () {
     }).done(done)
   })
 
-  after('Efface tous les documents', function (done) {
-    // on pourrait passer un purge natif mongo du genre
-    // TestEntity.getCollection().deleteMany({}, done)
-    // mais c'est plus lisible, même si on devrait pas tester purge ici
-    TestEntity.match().purge((error) => {
-      quit()
-      done(error)
-    })
-  })
+  after('nettoie en sortant', quit)
 
   describe('.beforeDelete()', function () {
     it('Déclenche le beforeDelete', function (done) {

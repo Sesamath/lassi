@@ -3,71 +3,45 @@
 
 const {expect} = require('chai')
 const flow = require('an-flow')
-const Entities = require('../source/entities')
-const {connectToMongo, quit, setup} = require('./init')
+const {initEntities, quit} = require('./init')
 const _ = require('lodash')
 
 let entities
 let SimpleEntity
 
-/**
- * Initialisation des entités
- *
- * @param {Callback} next
- */
-function initEntities (dbSettings, next) {
-  entities = new Entities({database: dbSettings})
-  flow().seq(function () {
-    entities.initialize(this)
-  }).seq(function () {
-    SimpleEntity = entities.define('SimpleEntity')
-    SimpleEntity.flush(this)
-  }).seq(function () {
-    SimpleEntity.defineIndex('index1', 'integer')
-    SimpleEntity.defineIndex('index2', 'string')
-    SimpleEntity.defineIndex('indexTypeless')
-    SimpleEntity.defineIndex('indexUnique', {unique: true})
-    SimpleEntity.defineIndex('indexSparse', {sparse: true})
-    SimpleEntity.defineIndex('indexUniqueSparse', {unique: true, sparse: true})
-
-    SimpleEntity._initialize(this)
-  }).done(next)
-}
-
 describe('Test entities-indexes', function () {
-  let db
-  let client
-
   before('Connexion à Mongo et initialisation des entités', function (done) {
     // Evite les erreurs de timeout sur une machine lente (ou circleCI)
     this.timeout(60000)
-    let dbSettings
     flow().seq(function () {
-      setup(this)
-    }).seq(function (TestEntity, _dbSettings) {
-      dbSettings = _dbSettings
-      // on laisse tomber le TestEntity pour notre SimpleEntity, mais avant on crée la collection
-      // si elle n'existe pas pour lui ajouter des index et vérifier qu'ils sont virés ensuite
-      connectToMongo(this)
-    }).seq(function (_client) {
-      client = _client
-      db = client.db()
-      db.createCollection('SimpleEntity', this)
+      initEntities(this)
+    }).seq(function (_entities) {
+      entities = _entities
+      SimpleEntity = entities.define('SimpleEntity')
+      SimpleEntity.flush(this)
     }).seq(function () {
-      db.createIndex('SimpleEntity', 'indexToDrop', this)
+      SimpleEntity.defineIndex('index1', 'integer')
+      SimpleEntity.defineIndex('index2', 'string')
+      SimpleEntity.defineIndex('indexTypeless')
+      SimpleEntity.defineIndex('indexUnique', {unique: true})
+      SimpleEntity.defineIndex('indexSparse', {sparse: true})
+      SimpleEntity.defineIndex('indexUniqueSparse', {unique: true, sparse: true})
+      SimpleEntity._initialize(done)
+    }).catch(done)
+  })
+
+  after('Supprime la collection en partant', (done) => {
+    flow().seq(function () {
+      if (!SimpleEntity) return this()
+      SimpleEntity.flush(this)
     }).seq(function () {
-      initEntities(dbSettings, this)
+      quit(this)
     }).done(done)
   })
 
-  after('ferme la connexion parallèle (pour check en direct sur mongo)', (done) => {
-    client.close(done) // notre connexion ouverte dans before
-    entities.close() // la connexion ouverte par initEntities
-    quit() // la connexion ouverte par setup
-  })
-
-  describe("l'initialisation d'une nouvelle collecion par une Entity - créée dans initEntities", function () {
+  describe("l'initialisation d'une nouvelle collecion par une Entity - créée dans initSimpleEntity", function () {
     it('vire les index non lassi', function (done) {
+      const db = SimpleEntity.getDb()
       const coll = db.collection('SimpleEntity')
       coll.listIndexes().toArray((error, indexes) => {
         if (error) return done(error)
