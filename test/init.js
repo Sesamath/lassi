@@ -23,14 +23,17 @@ if (!process.env.CIRCLE_CI) {
   dbSettings.user = dbSettings.password = 'mocha'
 }
 
-let isInitDone = false
 let isVerbose = false
 
-let entities // en global ici pour close
+// variables en global ici pour quit (pour savoir ce qui a été créé)
+// init par initEntities, reset par quit
+let entities
+// init par initTestEntity (via setup), reset par quit
 let TestEntity
 
 /**
  * Override dbSettings with argv
+ * @private
  */
 function overrideSettings () {
   let i = 3
@@ -123,6 +126,7 @@ function checkMongoConnexion (next) {
 /**
  * File une connexion à next
  * @see http://mongodb.github.io/node-mongodb-native/2.0/api/Db.html
+ * @private
  * @param {MongoClient~connectCallback} next
  */
 function connectToMongo (next) {
@@ -140,7 +144,7 @@ function connectToMongo (next) {
 
 /**
  * Initialisation de TestEntity
- *
+ * @private
  * @param {Callback} next appelé avec (error, TestEntity)
  */
 function initTestEntity (next) {
@@ -207,10 +211,10 @@ function initTestEntity (next) {
  * ferme la connexion à la db si elle avait été ouverte (par setup ou initEntities)
  */
 function quit (next) {
-  if (isInitDone) isInitDone = false
   flow().seq(function () {
     if (!TestEntity) return this()
     TestEntity.flush(this)
+    TestEntity = null
   }).seq(function () {
     if (!entities) return this()
     entities.close(this)
@@ -222,23 +226,25 @@ function quit (next) {
 }
 
 /**
- * Teste la connexion à Mongo et passe les settings à next
+ * @callback setupCallback
+ * @param {Error} [error]
+ * @param {EntityDefinition} Entity L'entity de test (4 champs, 7 indexes, cf init pour le détail)
+ */
+/**
+ * Teste la connexion à Mongo et initialise TestEntity
  * @param {setupCallback} next
  */
 function setup (next) {
-  if (isInitDone) return next(null, TestEntity, dbSettings)
+  if (TestEntity) return next(null, TestEntity)
   overrideSettings()
   if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
   // pour les tests on veut qu'ils se taisent
   anLog('EntityDefinition').setLogLevel('error')
-  checkMongoConnexion(error => {
-    if (error) return next(error)
-    initTestEntity((error, Entity) => {
-      if (error) return next(error)
-      isInitDone = true
-      next(null, Entity, dbSettings)
-    })
-  })
+  flow().seq(function () {
+    checkMongoConnexion(this)
+  }).seq(function () {
+    initTestEntity(this)
+  }).done(next)
 }
 
 /**
@@ -260,15 +266,7 @@ function initEntities (next) {
 
 module.exports = {
   checkEntity,
-  connectToMongo,
   initEntities,
   quit,
   setup
 }
-
-/**
- * @callback setupCallback
- * @param {Error} [error]
- * @param {EntityDefinition} Entity L'entity de test (4 champs, 7 indexes, cf init pour le détail)
- * @param {object} dbSettings Au cas où ça interesse pour attaquer mongo directement
- */
