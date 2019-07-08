@@ -132,7 +132,6 @@ class Lassi extends EventEmitter {
           if (service.postSetup) postSetupable.push(service)
         }
         // pour mémoriser les services déjà ajoutés
-        /* global Set */
         const added = new Set()
         // liste des setup à lancer
         const setupables = []

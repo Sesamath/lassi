@@ -22,8 +22,6 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-
-var parse = require('url').parse
 var _ = require('lodash')
 var Context = require('../Context')
 var EventEmitter = require('events').EventEmitter
@@ -75,7 +73,7 @@ class Controllers extends EventEmitter {
       }
 
       // Parsing de l'url
-      if (!request.parsedUrl) request.parsedUrl = parse(request.url)
+      if (!request.parsedUrl) request.parsedUrl = new URL(request.url)
 
       // Génération du contexte
       var context = new Context(request, response)

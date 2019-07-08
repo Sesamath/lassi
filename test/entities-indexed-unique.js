@@ -22,7 +22,7 @@ describe('Entity avec index uniques', function () {
     }).catch(done)
   })
 
-  after('ferme la connexion', quit)
+  after('nettoie en sortant', quit)
 
   describe('options.unique', () => {
     it('empêche d’avoir deux fois la même valeur', (done) => {

@@ -1,7 +1,6 @@
 /* eslint-env mocha */
 'use strict'
 const _ = require('lodash')
-const assert = require('assert')
 const flow = require('an-flow')
 const chai = require('chai')
 const {expect} = chai
@@ -130,15 +129,7 @@ describe('Test entities-queries', function () {
     }).done(done)
   })
 
-  after('Efface tous les documents', function (done) {
-    // on pourrait passer un purge natif mongo du genre
-    // TestEntity.getCollection().deleteMany({}, done)
-    // mais c'est plus lisible, même si on devrait pas tester purge ici
-    TestEntity.match().purge((error) => {
-      quit()
-      done(error)
-    })
-  })
+  after('nettoie en sortant', quit)
 
   describe('.beforeDelete()', function () {
     it('Déclenche le beforeDelete', function (done) {
@@ -152,7 +143,7 @@ describe('Test entities-queries', function () {
       }).seq(function (entity) {
         entity.delete(this)
       }).seq(function () {
-        assert.equal(deleted, 'oui!')
+        expect(deleted).to.equal('oui!')
         TestEntity.beforeDelete(function (cb) { cb() })
         this()
       }).done(done)
@@ -161,19 +152,19 @@ describe('Test entities-queries', function () {
 
   describe('.match()', function () {
     it(`jette une exception si le champ n'est pas indexé`, function () {
-      assert.throws(function () {
+      expect(function () {
         TestEntity.match('nonIndexed').equals(1).grab(function () {
           // devrait throw avant d'arriver là, on le vérifie avec une assertion toujours fausse
-          assert.equal('On aurait pas dû arriver là', '')
+          expect('On aurait pas dû arriver là').to.equal('')
         })
-      })
+      }).to.throw('L’entity TestEntity n’a pas d’index nonIndexed')
     })
     let oid
     it(`Recherche avec l'opérateur AFTER sur une date`, function (done) {
       const d = new Date(bt + seconde * (nbEntities - 760))
       TestEntity.match('d').after(d).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 759)
+        expect(result.length).to.equal(759)
         oid = result[0].oid
         done()
       })
@@ -185,7 +176,7 @@ describe('Test entities-queries', function () {
         if (error) return done(error)
         // cas intéressant, on a un résultat en plus car l'entité dont entity.d === d
         // a aussi une valeur dans son dArray qui est "after" d.
-        assert.equal(result.length, 760)
+        expect(result.length).to.equal(760)
         oid = result[0].oid
         done()
       })
@@ -194,7 +185,7 @@ describe('Test entities-queries', function () {
     it(`Recherche exacte sur l'oid`, function (done) {
       TestEntity.match('oid').equals(oid).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
+        expect(result.length).to.equal(1)
         done()
       })
     })
@@ -202,8 +193,8 @@ describe('Test entities-queries', function () {
     it('Recherche exacte sur une string', function (done) {
       TestEntity.match('s').equals(STRING_PREFIX + '198').grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].i, 198)
+        expect(result.length).to.equal(1)
+        expect(result[0].i).to.equal(198)
         done()
       })
     })
@@ -211,8 +202,8 @@ describe('Test entities-queries', function () {
     it('Recherche exacte sur un entier', function (done) {
       TestEntity.match('i').equals(198).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].i, 198)
+        expect(result.length).to.equal(1)
+        expect(result[0].i).to.equal(198)
         done()
       })
     })
@@ -220,8 +211,8 @@ describe('Test entities-queries', function () {
     it('Recherche exacte sur une date', function (done) {
       TestEntity.match('d').equals(new Date(bt + seconde * 198)).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].i, 198)
+        expect(result.length).to.equal(1)
+        expect(result[0].i).to.equal(198)
         done()
       })
     })
@@ -229,8 +220,8 @@ describe('Test entities-queries', function () {
     it(`Recherche exacte sur une element d'un tableau de string`, function (done) {
       TestEntity.match('sArray').equals(STRING_PREFIX + (198 * 3 + 1)).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].i, 198)
+        expect(result.length).to.equal(1)
+        expect(result[0].i).to.equal(198)
         done()
       })
     })
@@ -238,8 +229,8 @@ describe('Test entities-queries', function () {
     it(`Recherche exacte sur un element d'un tableau d’entiers`, function (done) {
       TestEntity.match('iArray').equals(198 * 3 + 1).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].i, 198)
+        expect(result.length).to.equal(1)
+        expect(result[0].i).to.equal(198)
         done()
       })
     })
@@ -247,8 +238,8 @@ describe('Test entities-queries', function () {
     it(`Recherche exacte sur un element d'un tableau de dates`, function (done) {
       TestEntity.match('dArray').equals(new Date((bt + seconde * 198) + 100)).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 1)
-        assert.equal(result[0].i, 198)
+        expect(result.length).to.equal(1)
+        expect(result[0].i).to.equal(198)
         done()
       })
     })
@@ -256,7 +247,7 @@ describe('Test entities-queries', function () {
     it(`Recherche avec l'opérateur IN pour une string`, function (done) {
       TestEntity.match('s').in([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 2)
+        expect(result.length).to.equal(2)
         done()
       })
     })
@@ -268,7 +259,7 @@ describe('Test entities-queries', function () {
         expect(console.error).to.have.been.calledOnce
         console.error.restore()
         if (error) return done(error)
-        assert.equal(result.length, 0)
+        expect(result.length).to.equal(0)
         done()
       })
     })
@@ -280,7 +271,7 @@ describe('Test entities-queries', function () {
       }
       TestEntity.match('s').notIn(notInArray).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 750)
+        expect(result.length).to.equal(750)
         done()
       })
     })
@@ -293,7 +284,7 @@ describe('Test entities-queries', function () {
           .match('i').lowerThanOrEquals(9)
           .count(this)
       }).seq(function (count) {
-        assert.equal(count, 5)
+        expect(count).to.equal(5)
         this()
       }).seq(function () {
         // On teste une combinaison impossible
@@ -302,7 +293,7 @@ describe('Test entities-queries', function () {
           .match('i').equals(5)
           .grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.length, 0)
+        expect(entities.length).to.equal(0)
         this()
       }).seq(function () {
         // On teste un "écrasement"
@@ -311,8 +302,8 @@ describe('Test entities-queries', function () {
           .match('i').equals(5)
           .grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.length, 1)
-        assert.equal(entities[0].i, 5)
+        expect(entities.length).to.equal(1)
+        expect(entities[0].i).to.equal(5)
         this()
       }).done(done)
     })
@@ -323,8 +314,8 @@ describe('Test entities-queries', function () {
         .match('s').notIn([STRING_PREFIX + '200', STRING_PREFIX + '198'])
         .grab((error, result) => {
           if (error) return done(error)
-          assert.equal(result.length, 1)
-          assert.equal(result[0].s, STRING_PREFIX + '196')
+          expect(result.length).to.equal(1)
+          expect(result[0].s).to.equal(STRING_PREFIX + '196')
           done()
         })
     })
@@ -332,7 +323,7 @@ describe('Test entities-queries', function () {
     it(`Recherche avec l'opérateur IN pour un tableau de string`, function (done) {
       TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 2)
+        expect(result.length).to.equal(2)
         done()
       })
     })
@@ -344,7 +335,7 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match('iPair').equals(0).grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.length, nbEntities / 2)
+        expect(entities.length).to.equal(nbEntities / 2)
         entities.forEach(entity => assertEntity(entity.i, entity))
         this()
       }).done(done)
@@ -355,7 +346,7 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().grab({offset: 100, limit: 100}, this)
       }).seq(function (entities) {
-        assert.equal(entities.length, 100)
+        expect(entities.length).to.equal(100)
         entities.forEach(function (entity, i) {
           assertEntity(100 + i, entity)
         })
@@ -368,7 +359,7 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().grab({offset: 100, limit: 0}, this)
       }).seq(function (entities) {
-        assert.equal(entities.length, 0)
+        expect(entities.length).to.equal(0)
         this()
       }).done(done)
     })
@@ -384,7 +375,7 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.length, 1000)
+        expect(entities.length).to.equal(1000)
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/HARD_LIMIT_GRAB atteint/))
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
@@ -395,7 +386,7 @@ describe('Test entities-queries', function () {
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/limit 1200 trop élevée/))
         expect(console.error).to.have.been.calledWith(sinon.match.any, sinon.match.any, sinon.match(/HARD_LIMIT_GRAB atteint/))
       }).seq(function (entities) {
-        assert.equal(entities.length, 1000)
+        expect(entities.length).to.equal(1000)
         entities.forEach(function (entity, i) {
           assertEntity(i, entity)
         })
@@ -406,7 +397,7 @@ describe('Test entities-queries', function () {
     it('Recherche simple ne donnant rien', function (done) {
       TestEntity.match('iPair').equals(666).grabOne(function (error, result) {
         if (error) return done(error)
-        assert(result === undefined)
+        expect(result).to.be.undefined
         done()
       })
     })
@@ -414,7 +405,7 @@ describe('Test entities-queries', function () {
     it('Recherche multiple ne donnant rien', function (done) {
       TestEntity.match('iPair').equals(666).grab(function (error, result) {
         if (error) return done(error)
-        assert(result.length === 0)
+        expect(result.length).to.equal(0)
         done()
       })
     })
@@ -426,24 +417,24 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().sort('i', 'asc').grab({limit: 10}, this)
       }).seq(function (entities) {
-        assert.equal(entities[0].i, 0)
-        assert.equal(entities[1].i, 1)
+        expect(entities[0].i).to.equal(0)
+        expect(entities[1].i).to.equal(1)
 
         TestEntity.match().sort('i', 'desc').grab({limit: 10}, this)
       }).seq(function (entities) {
-        assert.equal(entities[0].i, nbEntities - 1)
-        assert.equal(entities[1].i, nbEntities - 2)
+        expect(entities[0].i).to.equal(nbEntities - 1)
+        expect(entities[1].i).to.equal(nbEntities - 2)
 
         // on vérifie que ça fonctionne aussi pour oid
         TestEntity.match().sort('oid', 'asc').grab({limit: 10}, this)
       }).seq(function (entities) {
-        assert.equal(entities[0].i, 0)
-        assert.equal(entities[1].i, 1)
+        expect(entities[0].i).to.equal(0)
+        expect(entities[1].i).to.equal(1)
 
         TestEntity.match().sort('oid', 'desc').grab({limit: 10}, this)
       }).seq(function (entities) {
-        assert.equal(entities[0].i, nbEntities - 1)
-        assert.equal(entities[1].i, nbEntities - 2)
+        expect(entities[0].i).to.equal(nbEntities - 1)
+        expect(entities[1].i).to.equal(nbEntities - 2)
         done()
       }).catch(done)
     })
@@ -454,13 +445,13 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match('i').equals(1).count(this)
       }).seq(function (count) {
-        assert.equal(count, 1)
+        expect(count).to.equal(1)
         this()
       }).seq(function () {
         // Test avec un matcher plus complexe
         TestEntity.match('i').lowerThanOrEquals(9).count(this)
       }).seq(function (count) {
-        assert.equal(count, 10)
+        expect(count).to.equal(10)
         this()
       }).done(done)
     })
@@ -480,12 +471,12 @@ describe('Test entities-queries', function () {
           TestEntity.match().countBy('t', this)
         }).seq(function (data) {
           _.forEach(groupedEntities, (value, key) => {
-            assert.equal(data[key], value)
+            expect(data[key]).to.equal(value)
           })
           // on teste que ça remonte aussi le nb de non indexés (index undefined ou null)
           TestEntity.match().countBy('bArray', this)
         }).seq(function (data) {
-          assert.equal(data.null, nbEntities)
+          expect(data.null).to.equal(nbEntities)
           // on teste aussi que le groupBy sur un index qui n'existe pas remonte une erreur
           try {
             TestEntity.match().countBy('y', () => {})
@@ -510,8 +501,8 @@ describe('Test entities-queries', function () {
       }).seq(function () {
         TestEntity.match('s').like('%cherche%').grab(this)
       }).seq(function (resultats) {
-        assert.equal(resultats.length, 1)
-        assert.equal(resultats[0].s, 'texte à chercher')
+        expect(resultats.length).to.equal(1)
+        expect(resultats[0].s).to.equal('texte à chercher')
         resultats[0].s = texteOriginal
         resultats[0].store(this)
       }).done(done)
@@ -558,7 +549,7 @@ describe('Test entities-queries', function () {
 
     describe('Deleted entity', function () {
       it('Renvoie true pour isDeleted()', function () {
-        assert.equal(deletedEntity.isDeleted(), true)
+        expect(deletedEntity.isDeleted()).to.equal(true)
       })
       it(`N'apparaît plus dans le grab par defaut`, function (done) {
         flow()
@@ -566,7 +557,7 @@ describe('Test entities-queries', function () {
             TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity, undefined)
+            expect(entity).to.equal(undefined)
             this()
           })
           .done(done)
@@ -577,7 +568,7 @@ describe('Test entities-queries', function () {
             TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.oid, deletedEntity.oid)
+            expect(entity.oid).to.equal(deletedEntity.oid)
             this()
           })
           .done(done)
@@ -588,7 +579,7 @@ describe('Test entities-queries', function () {
             TestEntity.match('oid').equals(deletedEntity.oid).includeDeleted().grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.oid, deletedEntity.oid)
+            expect(entity.oid).to.equal(deletedEntity.oid)
             this()
           })
           .done(done)
@@ -615,11 +606,11 @@ describe('Test entities-queries', function () {
             TestEntity.match().deletedBefore(new Date(Date.now() + 1000)).grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.oid, deletedEntity.oid)
+            expect(entity.oid).to.equal(deletedEntity.oid)
             TestEntity.match().deletedBefore(started).grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity, undefined)
+            expect(entity).to.equal(undefined)
             this()
           })
           .done(done)
@@ -651,13 +642,13 @@ describe('Test entities-queries', function () {
           })
           .seq(function (entity) {
           // Elle doit toujours etre "deleted"
-            assert.equal(entity.isDeleted(), true)
+            expect(entity.isDeleted()).to.equal(true)
             // On vérifie en bdd
             TestEntity.match('oid').equals(deletedEntity.oid).onlyDeleted().grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.isDeleted(), true)
-            assert.equal(entity.oid, deletedEntity.oid)
+            expect(entity.isDeleted()).to.equal(true)
+            expect(entity.oid).to.equal(deletedEntity.oid)
             this()
           })
           .done(done)
@@ -666,7 +657,7 @@ describe('Test entities-queries', function () {
 
     describe('Non-deleted entity', function () {
       it('Renvoie false pour isDeleted()', function () {
-        assert.equal(nonDeletedEntity.isDeleted(), false)
+        expect(nonDeletedEntity.isDeleted()).to.equal(false)
       })
       it(`N'apparaît pas avec onlyDeleted()`, function (done) {
         flow()
@@ -674,7 +665,7 @@ describe('Test entities-queries', function () {
             TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity, undefined)
+            expect(entity).to.equal(undefined)
             this()
           })
           .done(done)
@@ -685,7 +676,7 @@ describe('Test entities-queries', function () {
             TestEntity.match('oid').equals(nonDeletedEntity.oid).includeDeleted().grabOne(this)
           })
           .seq(function (entity) {
-            assert.equal(entity.oid, nonDeletedEntity.oid)
+            expect(entity.oid).to.equal(nonDeletedEntity.oid)
             this()
           })
           .done(done)
@@ -699,7 +690,7 @@ describe('Test entities-queries', function () {
         .seq(function () {
           TestEntity.match('iPair').equals(1).grab(this)
         }).seq(function (entities) {
-          assert.equal(entities.length, nbEntities / 2)
+          expect(entities.length).to.equal(nbEntities / 2)
           this(null, entities)
         }).seqEach(function (entity) {
           entity.delete(this)
@@ -709,7 +700,7 @@ describe('Test entities-queries', function () {
     it('Vérification des suppressions', function (done) {
       TestEntity.match('iPair').equals(1).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, 0)
+        expect(result.length).to.equal(0)
         done()
       })
     })
@@ -717,7 +708,7 @@ describe('Test entities-queries', function () {
     it('Vérification des non suppressions', function (done) {
       TestEntity.match('iPair').equals(0).grab(function (error, result) {
         if (error) return done(error)
-        assert.equal(result.length, nbEntities / 2)
+        expect(result.length).to.equal(nbEntities / 2)
         done()
       })
     })
@@ -746,12 +737,12 @@ describe('Test entities-queries', function () {
       }
 
       function check (entity) {
-        assert.equal(entity.i, data.i)
-        assert.equal(entity.s, data.s)
-        assert.equal(entity.d, data.d)
-        assert.equal(typeof entity.i, 'string')
-        assert.equal(typeof entity.s, 'number')
-        assert.equal(typeof entity.d, 'string')
+        expect(entity.i).to.equal(data.i)
+        expect(entity.s).to.equal(data.s)
+        expect(entity.d).to.equal(data.d)
+        expect(typeof entity.i).to.equal('string')
+        expect(typeof entity.s).to.equal('number')
+        expect(typeof entity.d).to.equal('string')
       }
 
       flow().seq(function () {
@@ -832,22 +823,22 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().count(this)
       }).seq(function (nb) {
-        assert.equal(nb, nbEntities)
+        expect(nb).to.equal(nbEntities)
         TestEntity.match('i').lowerThan(8).purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, 8)
+        expect(nbDeleted).to.equal(8)
         TestEntity.match('s').equals(STRING_PREFIX + 42).purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, 1)
+        expect(nbDeleted).to.equal(1)
         TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, 3) // 41, 43, 44
+        expect(nbDeleted).to.equal(3) // 41, 43, 44
         TestEntity.match().purge(this)
       }).seq(function (nbDeleted) {
-        assert.equal(nbDeleted, nbEntities - 12)
+        expect(nbDeleted).to.equal(nbEntities - 12)
         TestEntity.match().count(this)
       }).seq(function (count) {
-        assert.equal(count, 0)
+        expect(count).to.equal(0)
         this()
       }).done(done)
     })
@@ -875,22 +866,22 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().count(this)
       }).seq(function (nb) {
-        assert.equal(nb, nbEntities)
+        expect(nb).to.equal(nbEntities)
         TestEntity.match('i').lowerThan(8).softPurge(this)
       }).seq(function (nbSoftDeleted) {
-        assert.equal(nbSoftDeleted, 8)
+        expect(nbSoftDeleted).to.equal(8)
         TestEntity.match('s').equals(STRING_PREFIX + 42).softPurge(this)
       }).seq(function (nbSoftDeleted) {
-        assert.equal(nbSoftDeleted, 1)
+        expect(nbSoftDeleted).to.equal(1)
         TestEntity.match('i').lowerThan(45).match('i').greaterThan(40).softPurge(this)
       }).seq(function (nbSoftDeleted) {
-        assert.equal(nbSoftDeleted, 3) // 41, 43, 44
+        expect(nbSoftDeleted).to.equal(3) // 41, 43, 44
         TestEntity.match().softPurge(this)
       }).seq(function (nbSoftDeleted) {
-        assert.equal(nbSoftDeleted, nbEntities - 12)
+        expect(nbSoftDeleted).to.equal(nbEntities - 12)
         TestEntity.match().count(this)
       }).seq(function (count) {
-        assert.equal(count, 0)
+        expect(count).to.equal(0)
         this()
       }).done(done)
     })
@@ -915,19 +906,19 @@ describe('Test entities-queries', function () {
       flow().seq(function () {
         TestEntity.match().grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.map(e => e.i).join(','), '2,3,1') // dans l'ordre d'insertion par défaut
+        expect(entities.map(e => e.i).join(',')).to.equal('2,3,1') // dans l'ordre d'insertion par défaut
         TestEntity.match().sort('oid').grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par oid
+        expect(entities.map(e => e.i).join(',')).to.equal('1,2,3') // par oid
         TestEntity.match().sort('i').grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par i
+        expect(entities.map(e => e.i).join(',')).to.equal('1,2,3') // par i
         TestEntity.match().sort('s').grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.map(e => e.i).join(','), '2,3,1') // par string
+        expect(entities.map(e => e.i).join(',')).to.equal('2,3,1') // par string
         TestEntity.match().sort('sArray').grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.map(e => e.i).join(','), '1,2,3') // par sArray
+        expect(entities.map(e => e.i).join(',')).to.equal('1,2,3') // par sArray
         this()
       }).done(done)
     })
