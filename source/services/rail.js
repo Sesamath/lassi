@@ -226,6 +226,7 @@ module.exports = function ($maintenance, $settings) {
       // car dans ce cas ça suit la chaîne jusqu'au transport (cf source/controllers/index.js)
       // cf http://expressjs.com/en/guide/error-handling.html
       _rail.use(function railErrorHandler (error, req, res, next) {
+        if (error) console.error(error)
         res.status(error.status || 500)
         const errorMessage = error.toString()
         // la réponse avec res.format(html, json, default)
