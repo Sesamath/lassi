@@ -8,9 +8,7 @@
     "lint": "eslint --ignore-pattern **/vendors/ .",
     "test": "mocha",
     "test:unit": "mocha",
-    "posttest": "npm run lint",
-    "snyk-protect": "snyk protect",
-    "prepublish": "npm run snyk-protect"
+    "posttest": "npm run lint"
   },
   "dependencies": {
     "ajv": "^6.10.0",
@@ -48,8 +46,7 @@
     "mocha": "^6.1.4",
     "pre-push": "^0.1.1",
     "sinon": "^7.3.2",
-    "sinon-chai": "^3.3.0",
-    "snyk": "^1.189.0"
+    "sinon-chai": "^3.3.0"
   },
   "repository": {
     "type": "git",
@@ -84,6 +81,5 @@
     "rules": {
       "object-curly-spacing": 0
     }
-  },
-  "snyk": true
+  }
 }
