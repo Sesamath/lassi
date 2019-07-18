@@ -8,7 +8,9 @@
     "lint": "eslint --ignore-pattern **/vendors/ .",
     "test": "mocha",
     "test:unit": "mocha",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "snyk-protect": "snyk protect",
+    "prepublish": "npm run snyk-protect"
   },
   "dependencies": {
     "ajv": "^6.1.1",
@@ -32,7 +34,8 @@
     "progress": "^2.0.3",
     "redis": "^2.8.0",
     "serve-static": "^1.13.1",
-    "sesajstools": "git+https://framagit.org/Sesamath/sesajstools.git"
+    "sesajstools": "git+https://framagit.org/Sesamath/sesajstools.git",
+    "snyk": "^1.189.0"
   },
   "devDependencies": {
     "chai": "^4.1.2",
@@ -94,5 +97,6 @@
         }
       }
     ]
-  }
+  },
+  "snyk": true
 }
