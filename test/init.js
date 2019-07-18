@@ -3,9 +3,9 @@
 
 const MongoClient = require('mongodb').MongoClient
 const anLog = require('an-log')
-const assert = require('assert')
 const flow = require('an-flow')
 const _ = require('lodash')
+const {expect} = require('chai')
 const Entities = require('../source/entities')
 
 let dbSettings = {
@@ -23,14 +23,17 @@ if (!process.env.CIRCLE_CI) {
   dbSettings.user = dbSettings.password = 'mocha'
 }
 
-let isInitDone = false
 let isVerbose = false
 
+// variables en global ici pour quit (pour savoir ce qui a été créé)
+// init par initEntities, reset par quit
 let entities
+// init par initTestEntity (via setup), reset par quit
 let TestEntity
 
 /**
  * Override dbSettings with argv
+ * @private
  */
 function overrideSettings () {
   let i = 3
@@ -43,7 +46,7 @@ function overrideSettings () {
       case '--verbose':
       case '--debug':
         isVerbose = true
-        i-- // y'a du +2 à la fin
+        i-- // y'a du +2 à la fin, on ne veut ici décaler que de 1
         break
 
       // ceux avec valeur qui suit
@@ -61,8 +64,7 @@ function overrideSettings () {
       case '--auth-source': dbSettings.authSource = process.argv[i + 1]; break
       case '--pool-size': dbSettings.poolSize = process.argv[i + 1]; break
       default:
-        console.error(`argument ${a} ignoré car non géré`)
-        i--
+        i-- // pour que ça ne fasse que +1 ci-dessous
     }
     i += 2
   }
@@ -77,26 +79,26 @@ function overrideSettings () {
  */
 function checkEntity (entity, values, checkers) {
   // vérif des types
-  assert.equal(typeof entity.i, 'number')
-  assert.equal(entity.d.constructor.name, 'Date')
-  assert.equal(typeof entity.s, 'string')
-  assert(Array.isArray(entity.sArray))
-  assert(Array.isArray(entity.iArray))
-  assert(Array.isArray(entity.dArray))
+  expect(typeof entity.i).to.equal('number')
+  expect(entity.d).to.be.a('Date')
+  expect(typeof entity.s).to.equal('string')
+  expect(Array.isArray(entity.sArray)).to.be.true
+  expect(Array.isArray(entity.iArray)).to.be.true
+  expect(Array.isArray(entity.dArray)).to.be.true
   // type du contenu des tableaux
-  entity.dArray.every(value => assert.equal(true, typeof value === 'object' && value.constructor.name === 'Date'))
-  entity.iArray.every(value => assert.equal(true, typeof value === 'number'))
-  entity.sArray.every(value => assert.equal(true, typeof value === 'string'))
+  entity.dArray.every(value => expect(value).to.be.a('Date'))
+  entity.iArray.every(value => expect(value).to.be.a('number'))
+  entity.sArray.every(value => expect(value).to.be.a('string'))
   // vérif des valeurs éventuelles
   if (values) {
-    Object.keys(values).forEach(k => assert.equal(entity[k], values[k]))
+    Object.keys(values).forEach(k => expect(entity[k]).to.equal(values[k]))
   }
   // appels des checkers éventuels
   if (checkers) {
     Object.keys(checkers).forEach(k => checkers[k](entity[k]))
   }
-  assert.equal(entity.created.constructor.name, 'Date')
-  if (entity.oid) assert.equal(entity.oid.length, 24)
+  expect(entity.created.constructor.name).to.equal('Date')
+  if (entity.oid) expect(entity.oid.length).to.equal(24)
 }
 
 /**
@@ -124,6 +126,7 @@ function checkMongoConnexion (next) {
 /**
  * File une connexion à next
  * @see http://mongodb.github.io/node-mongodb-native/2.0/api/Db.html
+ * @private
  * @param {MongoClient~connectCallback} next
  */
 function connectToMongo (next) {
@@ -140,15 +143,14 @@ function connectToMongo (next) {
 }
 
 /**
- * Initialisation de l'entité de test
- *
- * @param {Callback} next
+ * Initialisation de TestEntity
+ * @private
+ * @param {Callback} next appelé avec (error, TestEntity)
  */
-function initEntities (next) {
-  entities = new Entities({database: dbSettings})
+function initTestEntity (next) {
   flow().seq(function () {
-    entities.initialize(this)
-  }).seq(function () {
+    initEntities(this)
+  }).seq(function (entities) {
     TestEntity = entities.define('TestEntity')
     TestEntity.flush(this)
   }).seq(function () {
@@ -205,47 +207,66 @@ function initEntities (next) {
 }
 
 /**
- * Ferme la connexion ouverte par Entities au setup
+ * Supprime la collection TestEntity si on l'avait créée et
+ * ferme la connexion à la db si elle avait été ouverte (par setup ou initEntities)
  */
-function quit () {
-  if (isInitDone) {
-    entities.close()
-    isInitDone = false
-  }
-}
-
-/**
- * Teste la connexion à Mongo et passe les settings à next
- * @param {setupCallback} next
- */
-function setup (next) {
-  if (isInitDone) return next(null, TestEntity, dbSettings)
-  overrideSettings()
-  if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
-  // pour les tests on veut qu'ils se taisent
-  anLog('EntityDefinition').setLogLevel('error')
-  checkMongoConnexion(error => {
-    if (error) return next(error)
-    initEntities((error, Entity) => {
-      if (error) return next(error)
-      isInitDone = true
-      next(null, Entity, dbSettings)
-    })
-  })
-}
-
-module.exports = {
-  checkEntity,
-  connectToMongo,
-  getDbSettings: () => dbSettings,
-  getTestEntity: () => TestEntity,
-  quit,
-  setup
+function quit (next) {
+  flow().seq(function () {
+    if (!TestEntity) return this()
+    TestEntity.flush(this)
+    TestEntity = null
+  }).seq(function () {
+    if (!entities) return this()
+    entities.close(this)
+    // on affecte null tout de suite au cas où y'aurait un appel à initEntities
+    entities = null
+  }).seq(function () {
+    next()
+  }).catch(next)
 }
 
 /**
  * @callback setupCallback
  * @param {Error} [error]
  * @param {EntityDefinition} Entity L'entity de test (4 champs, 7 indexes, cf init pour le détail)
- * @param {object} dbSettings Au cas où ça interesse pour attaquer mongo directement
  */
+/**
+ * Teste la connexion à Mongo et initialise TestEntity
+ * @param {setupCallback} next
+ */
+function setup (next) {
+  if (TestEntity) return next(null, TestEntity)
+  overrideSettings()
+  if (isVerbose) console.log('Lancement avec les paramètres de connexion\n', dbSettings)
+  // pour les tests on veut qu'ils se taisent
+  anLog('EntityDefinition').setLogLevel('error')
+  flow().seq(function () {
+    checkMongoConnexion(this)
+  }).seq(function () {
+    initTestEntity(this)
+  }).done(next)
+}
+
+/**
+ * Init entities connectées à la base, pour pouvoir ensuite faire du entities.define(…)
+ * @param next
+ * @return {*}
+ */
+function initEntities (next) {
+  if (entities) return next(null, entities)
+  if (!dbSettings) overrideSettings()
+  // pour les tests on veut qu'ils se taisent
+  anLog('EntityDefinition').setLogLevel('error')
+  entities = new Entities({database: dbSettings})
+  entities.initialize((error) => {
+    if (error) return next(error)
+    next(null, entities)
+  })
+}
+
+module.exports = {
+  checkEntity,
+  initEntities,
+  quit,
+  setup
+}

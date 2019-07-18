@@ -585,6 +585,7 @@ class EntityDefinition {
    * @param {simpleCallback} cb
    */
   flush (cb) {
+    if (!this.entities.db) return cb(Error('entities n’a pas été initialisé, flush impossible'))
     // Si la collection n'existe pas, getCollection renvoie quand même un objet
     // mais "MongoError: ns not found" est renvoyé sur le drop
     this.getCollection().drop(function (error) {
@@ -602,7 +603,7 @@ class EntityDefinition {
    * @return {Collection}
    */
   getCollection () {
-    if (!this.entities.db) throw Error('entities n’a pas été initialisé')
+    if (!this.entities.db) throw Error('entities n’a pas été initialisé, impossible de retourner la collection')
     let coll = this.entities.db.collection(this.name)
     if (!coll) coll = this.entities.db.createCollection(this.name)
     return coll

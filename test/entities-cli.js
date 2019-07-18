@@ -1,8 +1,7 @@
 /* eslint-env mocha */
 'use strict'
 
-const assert = require('assert')
-const expect = require('chai').expect
+const {expect} = require('chai')
 const flow = require('an-flow')
 const moment = require('moment')
 const EntitiesCli = require('../source/services/entities-cli')()
@@ -38,7 +37,7 @@ describe('Test $entities-cli', function () {
     }).done(done)
   })
 
-  after('ferme la connexion', quit)
+  after('nettoie en sortant', quit)
 
   describe('.purgeDeleted()', () => {
     it('Throw Error en cas d’usage incorrect', () => {
@@ -60,14 +59,14 @@ describe('Test $entities-cli', function () {
       flow().seq(function () {
         TestEntity.match().onlyDeleted().count(this)
       }).seq(function (count) {
-        assert.equal(count, 3)
+        expect(count).to.equal(3)
         EntitiesCli.commands().purgeDeleted(TestEntity, 13, this)
       }).seq(function () {
         TestEntity.match().onlyDeleted().sort('i', 'asc').grab(this)
       }).seq(function (entities) {
-        assert.equal(entities.length, 2)
-        assert.equal(entities[0].i, 1000)
-        assert.equal(entities[1].i, 1001)
+        expect(entities.length).to.equal(2)
+        expect(entities[0].i).to.equal(1000)
+        expect(entities[1].i).to.equal(1001)
         this()
       }).done(done)
     })
