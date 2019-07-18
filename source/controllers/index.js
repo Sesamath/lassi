@@ -72,9 +72,6 @@ class Controllers extends EventEmitter {
         })
       }
 
-      // Parsing de l'url
-      if (!request.parsedUrl) request.parsedUrl = new URL(request.url)
-
       // Génération du contexte
       var context = new Context(request, response)
 
@@ -85,7 +82,11 @@ class Controllers extends EventEmitter {
       const isBadParam = (param) => ['undefined', 'null'].includes(param)
       // on parse les actions pour affecter actionnables
       _.forEach(self.actions, function (action) {
-        params = action.match(request.method, request.parsedUrl.pathname)
+        // on veut pas le search
+        const pos = request.url.indexOf('?')
+        // on a une url qui démarre toujours avec /, donc si y'a du search, pos sera au minimum à 1
+        const pathname = (pos > 0) ? request.url.substr(0, pos) : request.url
+        params = action.match(request.method, pathname)
         if (params) {
           actionnables.push({action: action, params: params})
           // si on rencontre un param foireux on arrête là, pas la peine d'ajouter les actionnables suivants
