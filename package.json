@@ -1,14 +1,12 @@
 {
   "name": "lassi",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "private": true,
   "license": "GPL-3.0",
   "main": "./source/Lassi",
   "scripts": {
     "lint": "eslint --ignore-pattern **/vendors/ .",
-    "test": "mocha",
-    "test:unit": "mocha",
-    "posttest": "npm run lint"
+    "test": "mocha"
   },
   "dependencies": {
     "ajv": "^6.10.0",
