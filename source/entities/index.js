@@ -25,10 +25,12 @@
 
 const _ = require('lodash')
 const flow = require('an-flow')
-const EntityDefinition = require('./EntityDefinition')
 const EventEmitter = require('events').EventEmitter
 const MongoClient = require('mongodb').MongoClient
+const { hasProp } = require('sesajstools')
+
 // const log              = require('an-log')('$entities');
+const EntityDefinition = require('./EntityDefinition')
 
 const defaultPoolSize = 10
 
@@ -114,6 +116,9 @@ class Entities extends EventEmitter {
       if (user && password) url += `${encodeURIComponent(user)}:${encodeURIComponent(password)}@`
       url += `${host}:${port}/${name}?authMechanism=${authMechanism}`
       if (authSource) url += `&authSource=${authSource}`
+      // à partir de la version 3.1 il faut passer ça pour éviter un warning
+      if (!hasProp(options, 'useNewUrlParser')) options.useNewUrlParser = true
+      if (!hasProp(options, 'useUnifiedTopology')) options.useUnifiedTopology = true
       MongoClient.connect(url, options, this)
     }).seq(function (mongoClient) {
       self.client = mongoClient

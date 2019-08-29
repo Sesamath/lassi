@@ -6,9 +6,11 @@ const anLog = require('an-log')
 const flow = require('an-flow')
 const _ = require('lodash')
 const {expect} = require('chai')
+const { hasProp } = require('sesajstools')
+
 const Entities = require('../source/entities')
 
-let dbSettings = {
+const dbSettings = {
   name: 'testLassi',
   host: 'localhost',
   port: 27017,
@@ -139,6 +141,9 @@ function connectToMongo (next) {
   if (dbSettings.authSource) url += `&authSource=${dbSettings.authSource}`
   const {options} = dbSettings
   options.useNewUrlParser = true
+  // à partir de la version 3.1 il faut passer ça pour éviter un warning
+  if (!hasProp(options, 'useNewUrlParser')) options.useNewUrlParser = true
+  if (!hasProp(options, 'useUnifiedTopology')) options.useUnifiedTopology = true
   MongoClient.connect(url, options, next)
 }
 
