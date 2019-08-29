@@ -151,7 +151,7 @@ describe('Test entities-queries', function () {
   })
 
   describe('.match()', function () {
-    it(`jette une exception si le champ n'est pas indexé`, function () {
+    it('jette une exception si le champ n\'est pas indexé', function () {
       expect(function () {
         TestEntity.match('nonIndexed').equals(1).grab(function () {
           // devrait throw avant d'arriver là, on le vérifie avec une assertion toujours fausse
@@ -160,7 +160,7 @@ describe('Test entities-queries', function () {
       }).to.throw('L’entity TestEntity n’a pas d’index nonIndexed')
     })
     let oid
-    it(`Recherche avec l'opérateur AFTER sur une date`, function (done) {
+    it('Recherche avec l\'opérateur AFTER sur une date', function (done) {
       const d = new Date(bt + seconde * (nbEntities - 760))
       TestEntity.match('d').after(d).grab(function (error, result) {
         if (error) return done(error)
@@ -170,7 +170,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche avec l'opérateur AFTER pour un tableau de dates`, function (done) {
+    it('Recherche avec l\'opérateur AFTER pour un tableau de dates', function (done) {
       const d = new Date(bt + seconde * (nbEntities - 760))
       TestEntity.match('dArray').after(d).grab(function (error, result) {
         if (error) return done(error)
@@ -182,7 +182,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche exacte sur l'oid`, function (done) {
+    it('Recherche exacte sur l\'oid', function (done) {
       TestEntity.match('oid').equals(oid).grab(function (error, result) {
         if (error) return done(error)
         expect(result.length).to.equal(1)
@@ -217,7 +217,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche exacte sur une element d'un tableau de string`, function (done) {
+    it('Recherche exacte sur une element d\'un tableau de string', function (done) {
       TestEntity.match('sArray').equals(STRING_PREFIX + (198 * 3 + 1)).grab(function (error, result) {
         if (error) return done(error)
         expect(result.length).to.equal(1)
@@ -226,7 +226,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche exacte sur un element d'un tableau d’entiers`, function (done) {
+    it('Recherche exacte sur un element d\'un tableau d’entiers', function (done) {
       TestEntity.match('iArray').equals(198 * 3 + 1).grab(function (error, result) {
         if (error) return done(error)
         expect(result.length).to.equal(1)
@@ -235,7 +235,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche exacte sur un element d'un tableau de dates`, function (done) {
+    it('Recherche exacte sur un element d\'un tableau de dates', function (done) {
       TestEntity.match('dArray').equals(new Date((bt + seconde * 198) + 100)).grab(function (error, result) {
         if (error) return done(error)
         expect(result.length).to.equal(1)
@@ -244,7 +244,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche avec l'opérateur IN pour une string`, function (done) {
+    it('Recherche avec l\'opérateur IN pour une string', function (done) {
       TestEntity.match('s').in([STRING_PREFIX + '198', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
         expect(result.length).to.equal(2)
@@ -252,7 +252,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche avec l'opérateur IN sur un tableau vide (râle en console et ne remonte rien)`, function (done) {
+    it('Recherche avec l\'opérateur IN sur un tableau vide (râle en console et ne remonte rien)', function (done) {
       // attention, mocha utilise la console donc on le rend muet le temps de cet appel
       sinon.stub(console, 'error')
       TestEntity.match('s').in([]).grab(function (error, result) {
@@ -264,8 +264,8 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`Recherche avec l'opérateur NOT IN pour une string`, function (done) {
-      let notInArray = []
+    it('Recherche avec l\'opérateur NOT IN pour une string', function (done) {
+      const notInArray = []
       for (let i = 0; i < nbEntities / 2; i++) {
         notInArray.push(STRING_PREFIX + i)
       }
@@ -308,7 +308,7 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
 
-    it(`Double match sur le même attribut avec les opérateurs IN et NOT IN pour une string`, function (done) {
+    it('Double match sur le même attribut avec les opérateurs IN et NOT IN pour une string', function (done) {
       TestEntity
         .match('s').in([STRING_PREFIX + '200', STRING_PREFIX + '198', STRING_PREFIX + '196'])
         .match('s').notIn([STRING_PREFIX + '200', STRING_PREFIX + '198'])
@@ -320,7 +320,7 @@ describe('Test entities-queries', function () {
         })
     })
 
-    it(`Recherche avec l'opérateur IN pour un tableau de string`, function (done) {
+    it('Recherche avec l\'opérateur IN pour un tableau de string', function (done) {
       TestEntity.match('sArray').in([STRING_PREFIX + '199', STRING_PREFIX + '196']).grab(function (error, result) {
         if (error) return done(error)
         expect(result.length).to.equal(2)
@@ -330,7 +330,7 @@ describe('Test entities-queries', function () {
   })
 
   describe('.grab()', function () {
-    it(`Sélection d'entités`, function (done) {
+    it('Sélection d\'entités', function (done) {
       this.timeout(10000)
       flow().seq(function () {
         TestEntity.match('iPair').equals(0).grab(this)
@@ -341,7 +341,7 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
 
-    it(`Sélection d'entités avec limit`, function (done) {
+    it('Sélection d\'entités avec limit', function (done) {
       this.timeout(10000)
       flow().seq(function () {
         TestEntity.match().grab({offset: 100, limit: 100}, this)
@@ -354,7 +354,7 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
 
-    it(`Sélection d'entités avec limit 0`, function (done) {
+    it('Sélection d\'entités avec limit 0', function (done) {
       this.timeout(10000)
       flow().seq(function () {
         TestEntity.match().grab({offset: 100, limit: 0}, this)
@@ -364,7 +364,7 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
 
-    it(`Sélection d'entités avec hard limit`, function (done) {
+    it('Sélection d\'entités avec hard limit', function (done) {
       function last (error) {
         expect(console.error).to.have.been.calledThrice
         console.error.restore()
@@ -412,7 +412,7 @@ describe('Test entities-queries', function () {
   })
 
   describe('.sort()', function () {
-    it(`Tri d'entités`, function (done) {
+    it('Tri d\'entités', function (done) {
       // on ajoute une limite pour pas tomber sur le hardLimit
       flow().seq(function () {
         TestEntity.match().sort('i', 'asc').grab({limit: 10}, this)
@@ -441,7 +441,7 @@ describe('Test entities-queries', function () {
   })
 
   describe('.count()', function () {
-    it(`Compte d'entités`, function (done) {
+    it('Compte d\'entités', function (done) {
       flow().seq(function () {
         TestEntity.match('i').equals(1).count(this)
       }).seq(function (count) {
@@ -458,7 +458,7 @@ describe('Test entities-queries', function () {
   })
 
   describe('.countBy()', function () {
-    it(`Compte d'entités groupés`, function (done) {
+    it('Compte d\'entités groupés', function (done) {
       let groupedEntities
       let nbEntities
       flow()
@@ -482,7 +482,7 @@ describe('Test entities-queries', function () {
             TestEntity.match().countBy('y', () => {})
             done(new Error('countBy sur un index inexistant n’a pas planté'))
           } catch (e) {
-            expect(e.message).to.equal(`L’entity TestEntity n’a pas d’index y`)
+            expect(e.message).to.equal('L’entity TestEntity n’a pas d’index y')
             done()
           }
         }).catch(done)
@@ -508,7 +508,7 @@ describe('Test entities-queries', function () {
       }).done(done)
     })
   })
-  describe(`Suppression "douce" d'une entité()`, function () {
+  describe('Suppression "douce" d\'une entité()', function () {
     var createdEntities
     var deletedEntity
     var nonDeletedEntity
@@ -551,7 +551,7 @@ describe('Test entities-queries', function () {
       it('Renvoie true pour isDeleted()', function () {
         expect(deletedEntity.isDeleted()).to.equal(true)
       })
-      it(`N'apparaît plus dans le grab par defaut`, function (done) {
+      it('N\'apparaît plus dans le grab par defaut', function (done) {
         flow()
           .seq(function () {
             TestEntity.match('oid').equals(deletedEntity.oid).grabOne(this)
@@ -659,7 +659,7 @@ describe('Test entities-queries', function () {
       it('Renvoie false pour isDeleted()', function () {
         expect(nonDeletedEntity.isDeleted()).to.equal(false)
       })
-      it(`N'apparaît pas avec onlyDeleted()`, function (done) {
+      it('N\'apparaît pas avec onlyDeleted()', function (done) {
         flow()
           .seq(function () {
             TestEntity.match('oid').equals(nonDeletedEntity.oid).onlyDeleted().grabOne(this)
@@ -940,7 +940,7 @@ describe('Test entities-queries', function () {
       TestEntity.match('s').equals('forEachEntity').purge(done)
     })
 
-    it(`traite toutes les entités d'une requête`, (done) => {
+    it('traite toutes les entités d\'une requête', (done) => {
       let count = 0
       flow()
         .seq(function () {
@@ -967,7 +967,7 @@ describe('Test entities-queries', function () {
         .done(done)
     })
 
-    it(`empêche onEachEntity d'appeller plusieurs fois son callback`, (done) => {
+    it('empêche onEachEntity d\'appeller plusieurs fois son callback', (done) => {
       let treated = 0
       sinon.stub(console, 'error')
 
@@ -1004,7 +1004,7 @@ describe('Test entities-queries', function () {
         .done(done)
     })
 
-    it(`remonte l'erreur est arrête le traitement si une entité échoue`, (done) => {
+    it('remonte l\'erreur est arrête le traitement si une entité échoue', (done) => {
       let treated = 0
       const onEach = (entity, cb) => {
         if (treated === 2) return cb(Error('Ooops la 3ème entité échoue !'))
@@ -1023,7 +1023,7 @@ describe('Test entities-queries', function () {
       })
     })
 
-    it(`traite un petit (< 200) sous-ensemble des entités d'une requête`, (done) => {
+    it('traite un petit (< 200) sous-ensemble des entités d\'une requête', (done) => {
       flow()
         .seq(function () {
           TestEntity.match('s').equals('forEachEntity').forEachEntity(
@@ -1052,7 +1052,7 @@ describe('Test entities-queries', function () {
         .done(done)
     })
 
-    it(`traite un grand (> 200, le batch size) sous-ensemble des entités d'une requête`, (done) => {
+    it('traite un grand (> 200, le batch size) sous-ensemble des entités d\'une requête', (done) => {
       flow()
         .seq(function () {
           TestEntity.match('s').equals('forEachEntity').forEachEntity(
@@ -1081,7 +1081,7 @@ describe('Test entities-queries', function () {
         .done(done)
     })
 
-    it(`traite un sous-ensemble de 200 éléments (batch size) des entités d'une requête`, (done) => {
+    it('traite un sous-ensemble de 200 éléments (batch size) des entités d\'une requête', (done) => {
       flow()
         .seq(function () {
           TestEntity.match('s').equals('forEachEntity').forEachEntity(

@@ -27,6 +27,8 @@ const log = require('an-log')('EntityQuery')
 const _ = require('lodash')
 const flow = require('an-flow')
 const ProgressBar = require('progress')
+const { hasProp } = require('sesajstools')
+
 const {castToType} = require('./internals')
 
 // une limite hard pour grab
@@ -145,7 +147,7 @@ function buildQuery (entityQuery, record) {
 
   // on ajoute le cas fulltext
   if (entityQuery.search) {
-    let sorts = {}
+    const sorts = {}
     _.forEach(record.options.sort, ([index, order]) => {
       sorts[index] = order === 'asc' ? 1 : -1
     })
@@ -261,7 +263,7 @@ function checkIsArray (value) {
  */
 function createEntitiesFromDocuments (entityQuery, rows) {
   return rows.map((row) => {
-    let data = row._data
+    const data = row._data
     if (!data) throw new Error(`Données absentes pour ${entityQuery.entity.name}/${row._id}`)
     data.oid = row._id.toString()
     // __deletedAt n'est pas une propriété de _data, c'est un index ajouté seulement quand il existe (par softDelete)
@@ -769,7 +771,7 @@ class EntityQuery {
   notIn (values) {
     checkIsArray(values)
     if (values.length) alterLastMatch(this, {value: values, operator: 'NOT IN'})
-    else console.error(Error(`notIn avec un array vide ne sert à rien, ignoré`))
+    else console.error(Error('notIn avec un array vide ne sert à rien, ignoré'))
     return this
   }
 
@@ -799,7 +801,7 @@ class EntityQuery {
         // on ajoute ça pour comprendre dans quel cas deleteMany ne remonte pas de deletedCount
         if (!result) {
           console.error('deleteMany ne remonte pas de result dans purge, avec', record.query)
-        } else if (!result.hasOwnProperty('deletedCount')) {
+        } else if (!hasProp(result, 'deletedCount')) {
           console.error('deleteMany remonte un result sans propriété deletedCount', result, 'avec la query', record.query)
         }
         const deletedCount = (result && result.deletedCount) || (result && result.result && result.result.n) || 0

@@ -8,7 +8,7 @@ const anLog = require('an-log')('lassi-cli')
  * @param {errorCallback} done
  */
 function setMaintenance (mode, done) {
-  if (arguments.length === 1) throw new Error(`Vous devez passer un argument (on|off) à cette commande`)
+  if (arguments.length === 1) throw new Error('Vous devez passer un argument (on|off) à cette commande')
   lassi.service('$maintenance').setMaintenance(mode.toLowerCase(), 'manuel', done)
 }
 setMaintenance.help = function setMaintenanceHelp () {

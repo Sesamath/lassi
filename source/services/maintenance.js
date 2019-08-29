@@ -71,8 +71,8 @@ module.exports = function ($settings) {
 
     const done = (error) => {
       if (error) return cb(error)
-      let etat = mode === 'on' ? 'activée' : 'désactivée'
-      let sDelay = Math.round(DELAY_BETWEEN_LOCK_FILE_CHECKS / 1000)
+      const etat = mode === 'on' ? 'activée' : 'désactivée'
+      const sDelay = Math.round(DELAY_BETWEEN_LOCK_FILE_CHECKS / 1000)
       log(`Page de maintenance ${etat} (effectif dans ${sDelay}s)`)
       // Si cette instance déclenche elle même ce changement il sera instantané,
       // mais si c'est via un cli faudra attendre le délai

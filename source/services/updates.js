@@ -319,7 +319,7 @@ module.exports = function (LassiUpdate, $maintenance, $settings) {
         log.error(`Une erreur est survenue dans l’update ${dbVersion + 1}`)
         log.error(err)
         if (maintenanceReason === 'update') {
-          log.error(`Le mode maintenance sera automatiquement désactivé une fois l'update correctement terminée`)
+          log.error('Le mode maintenance sera automatiquement désactivé une fois l\'update correctement terminée')
         }
       }
       unlockUpdates()

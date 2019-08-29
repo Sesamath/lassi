@@ -184,7 +184,7 @@ class EntityDefinition {
       coll.dropIndex(mongoIndexName, this)
     }).seq(function () {
       // et on regarde ce qui manque
-      let indexesToAdd = []
+      const indexesToAdd = []
       // par commodité, on ajoute __deletedAt aux index ici et l'enlève juste après le forEach
       def.indexes.__deletedAt = BUILT_IN_INDEXES.__deletedAt
       _.forEach(def.indexes, ({path, mongoIndexName, indexOptions}) => {
@@ -504,7 +504,7 @@ class EntityDefinition {
     // - l'index n'est pas sparse, car dans ce cas si sa valeur est null|undefined buildIndexes()
     //   ne met pas la propriété d'index dans le doc mongo (cf commentaire dans cette fonction)
     //   (le risque serait qu'un bout de code qui fait du `if (entity.prop === null)` ou
-    //    `if (entity.hasOwnProperty('prop'))` ne fonctionne plus lorsque l'index prop prend
+    //    `if (hasProp(entity, 'prop'))` ne fonctionne plus lorsque l'index prop prend
     //    l'attribut sparse)
     // - l'index n'a pas de fieldType car buildIndexes() et buildQuery() font du cast sur la valeur indexée
     //

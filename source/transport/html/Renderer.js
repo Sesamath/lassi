@@ -22,9 +22,10 @@
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
 
-var pathlib = require('path')
-var fs = require('fs')
-var _ = require('lodash')
+const pathlib = require('path')
+const fs = require('fs')
+const _ = require('lodash')
+const { hasProp } = require('sesajstools')
 
 // pas vraiment la peine de le require, c'est là pour montrer qu'on en a besoin
 // car dustjs-helpers en a besoin mais ce n'est que dans ses devDependencies
@@ -40,7 +41,7 @@ function Renderer (options) {
   this.cache = true
   this.cacheStore = {}
   this.keepWhiteSpace = false
-  for (var key in options) this[key] = options[key]
+  for (const key in options) this[key] = options[key]
   this.dust = dust
 }
 
@@ -51,7 +52,7 @@ function Renderer (options) {
  * @param {function} callback La callback (cf doc pour les arguments)
  */
 Renderer.prototype.helper = function (name, callback) {
-  var self = this
+  const self = this
   this.dust.helpers[name] = function () {
     callback.apply(self.dust, Array.prototype.slice.call(arguments))
   }
@@ -64,7 +65,7 @@ Renderer.prototype.helper = function (name, callback) {
  * @param {function} callback La callback qui reçoit la valeur et devra la retournée filtrée (contexte dust)
  */
 Renderer.prototype.addFilter = function (name, callback) {
-  var self = this
+  const self = this
   this.dust.filters[name] = function (value) {
     return callback.call(self.dust, value)
   }
@@ -79,7 +80,7 @@ Renderer.prototype.addFilter = function (name, callback) {
  */
 Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals, callback) {
   // Normalize
-  var path = unresolvedPath
+  let path = unresolvedPath
   // ajout de l'extension si elle n'y est pas
   if (pathlib.extname(path) === '') path += '.dust'
 
@@ -104,7 +105,7 @@ Renderer.prototype.resolveTemplate = function (viewsPath, unresolvedPath, locals
  * @param callback
  */
 Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, callback) {
-  var self = this
+  const self = this
   if (self.cache && self.cacheStore[unresolvedPath]) {
     callback(null, self.cacheStore[unresolvedPath])
   } else {
@@ -127,15 +128,15 @@ Renderer.prototype.readTemplate = function (viewsPath, unresolvedPath, locals, c
  * @param callback
  */
 Renderer.prototype.render = function (viewsPath, unresolvedPath, locals, callback) {
-  var self = this
-  var template = (this.cache && this.cacheStore[unresolvedPath]) || null
+  const self = this
+  let template = (this.cache && this.cacheStore[unresolvedPath]) || null
   if (template) {
     template(locals, callback)
   } else {
     self.dust.onLoad = function (path, callback) {
       // lassi.settings.application.partialsPath peut être une chaîne vide
-      var partialsPath
-      if (lassi.settings.application.hasOwnProperty('partialsPath')) partialsPath = lassi.settings.application.partialsPath
+      let partialsPath
+      if (hasProp(lassi.settings.application, 'partialsPath')) partialsPath = lassi.settings.application.partialsPath
       else partialsPath = '/partials'
       self.readTemplate(viewsPath + partialsPath, path, locals, callback)
     }

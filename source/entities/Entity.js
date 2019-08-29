@@ -39,8 +39,9 @@ class Entity {
   constructor () {
     // Warning: ne rien implémenter ici, car ce constructeur n'est pas
     // appelé dans EntityDefinition#create
-    throw new Error(`Une entité n'est jamais instanciée directement. Utiliser EntityDefinition#create`)
+    throw new Error('Une entité n\'est jamais instanciée directement. Utiliser EntityDefinition#create')
   }
+
   setDefinition (entityDefinition) {
     Object.defineProperty(this, 'definition', {value: entityDefinition})
   }
@@ -52,6 +53,7 @@ class Entity {
   isNew () {
     return !this.oid
   }
+
   /**
    * Répond true si l'instance de cette Entity est "soft deleted"
    * @return {boolean}
@@ -69,7 +71,7 @@ class Entity {
    * @param {boolean} [options.onlyChangedAttributes=false] passer true pour ne tester que les attributs modifiés
    */
   isValid (cb, {schema = true, onlyChangedAttributes = false} = {}) {
-    let validators = [].concat(
+    const validators = [].concat(
 
       // Json-schema validation
       schema ? [function (cb) { this.definition._validateEntityWithSchema(this, cb) }] : [],
@@ -441,7 +443,7 @@ class Entity {
    * @param {Entity~entityCallback} callback
    */
   softDelete (callback) {
-    if (!this.oid) return callback(new Error(`Impossible de softDelete une entité qui n'a pas encore été sauvegardée`))
+    if (!this.oid) return callback(new Error('Impossible de softDelete une entité qui n\'a pas encore été sauvegardée'))
     this.__deletedAt = new Date()
     this.store(callback)
   }

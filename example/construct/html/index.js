@@ -72,7 +72,8 @@ lassi.component('example-html')
           '<a href="/redirect">redirect</a>',
           '<a href="/api/toto">json</a>',
           '<a href="/api/person">entities</a>'
-        ]}
+        ]
+      }
       return data
     }
 
@@ -80,7 +81,7 @@ lassi.component('example-html')
       var data = {
         $metas: {
           title: $appSettings.title(),
-          css: [ 'aaa' ]
+          css: ['aaa']
         },
         content: {
           $view: 'home',

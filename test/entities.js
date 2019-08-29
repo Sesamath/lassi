@@ -202,7 +202,7 @@ describe('Entity', () => {
     })
 
     describe('.afterStore', () => {
-      it(`est appelée avec un oid lors d'une création`, (done) => {
+      it('est appelée avec un oid lors d\'une création', (done) => {
         // Cas d'utilisation principale du afterStore :
         // faire des opérations qui ont besoin de l'oid, identiques pour la création et la mise à jour
         const testEntity = TestEntity.create({})
@@ -361,7 +361,7 @@ describe('Entity', () => {
     })
 
     describe('à la création', () => {
-      it(`renvoie toujours has changed true et was null`, () => {
+      it('renvoie toujours has changed true et was null', () => {
         [
           TestEntity.create({nom: 'foo'}),
           // Ces cas sont important, car on s'appuiera souvent souvent sur attributeHasChanged
@@ -492,7 +492,7 @@ describe('Entity', () => {
           done()
         })
       })
-      it(`appelle un validateur commun qu'une seule fois même si les deux attributs ont changé`, (done) => {
+      it('appelle un validateur commun qu\'une seule fois même si les deux attributs ont changé', (done) => {
         const entity = TestEntity.create({nom: 'foobar', a: 'a', b: 'b'})
         entity.store((err) => {
           expect(err).to.not.exist
@@ -533,7 +533,7 @@ describe('Entity', () => {
         })
       })
 
-      it(`appelle un validateur commun qu'une seule fois même si les deux attributs ont changé`, (done) => {
+      it('appelle un validateur commun qu\'une seule fois même si les deux attributs ont changé', (done) => {
         entity.a = 'a'
         entity.b = 'b'
         entity.store((err) => {
@@ -602,7 +602,7 @@ describe('Entity', () => {
             },
             text: {type: 'string'}
           },
-          required: [ 'num', 'text' ]
+          required: ['num', 'text']
         }
         const date = new Date()
         it('données complètes', testValidationSuccess(schema, {bool: true, date, num: 1, mixed: 'foo', text: 'hello'}))
@@ -613,13 +613,13 @@ describe('Entity', () => {
       })
     })
 
-    describe(`erreur de validation`, () => {
+    describe('erreur de validation', () => {
       // On teste quelques cas basiques
       it('si champ requis manquant', testValidationError(
         // Schema
         {
           properties: {num: {type: 'number'}},
-          required: [ 'num' ],
+          required: ['num'],
           errorMessage: {
             required: {
               // on vérifie aussi la sucharge du message d'erreur
@@ -641,14 +641,14 @@ describe('Entity', () => {
         // Data
         {other: 'Hey?'},
         // Expected error
-        {message: `ne doit pas contenir de propriétés additionnelles : "other"`, dataPath: ''}
+        {message: 'ne doit pas contenir de propriétés additionnelles : "other"', dataPath: ''}
       ))
 
       it('si type number incorrect', testValidationError(
         // Schema
         {
           properties: {num: {type: 'number'}},
-          required: [ 'num' ],
+          required: ['num'],
           errorMessage: {
             properties: { // on vérifie aussi la sucharge du message d'erreur
               num: 'Num doit contenir un entier'
@@ -717,7 +717,7 @@ describe('Entity', () => {
         else: {required: ['classe']}
       }
 
-      it(`retourne une erreur si l'élève n'a pas de classe`, testValidationError(
+      it('retourne une erreur si l\'élève n\'a pas de classe', testValidationError(
         // Par exemple, un élève a des champs requis que n'a pas un prof
         // Schema
         schemaUtilisateur,
@@ -726,7 +726,7 @@ describe('Entity', () => {
         {message: 'requiert la propriété classe (oid: undefined value: {"nom":"Foo","type":"eleve"})', dataPath: ''} //
       ))
 
-      it(`retourne une erreur si le prof n'a pas de mail`, testValidationError(
+      it('retourne une erreur si le prof n\'a pas de mail', testValidationError(
         // Par exemple, un élève a des champs requis que n'a pas un prof
         // Schema
         schemaUtilisateur,
@@ -735,7 +735,7 @@ describe('Entity', () => {
         {message: 'requiert la propriété mail (oid: undefined value: {"nom":"Foo","type":"prof"})', dataPath: ''} //
       ))
 
-      it(`ne retourne pas d'erreur si le prof n'a pas de classe`, testValidationSuccess(
+      it('ne retourne pas d\'erreur si le prof n\'a pas de classe', testValidationSuccess(
         // Par exemple, un élève a des champs requis que n'a pas un prof
         // Schema
         schemaUtilisateur,
@@ -743,7 +743,7 @@ describe('Entity', () => {
         {nom: 'Foo', type: 'prof', mail: 'aa@aa.com'}
       ))
 
-      it(`valide quand même les autres champs`, testValidationError(
+      it('valide quand même les autres champs', testValidationError(
         // Par exemple, un élève a des champs requis que n'a pas un prof
         // Schema
         schemaUtilisateur,
@@ -773,11 +773,11 @@ describe('Entity', () => {
             properties: {
               num: {type: 'number'}
             },
-            required: [ 'num' ]
+            required: ['num']
           })
         })
 
-        it(`lance une validation au store par défaut (et ne store pas si ça passe pas)`, (done) => {
+        it('lance une validation au store par défaut (et ne store pas si ça passe pas)', (done) => {
           const entity = TestEntity.create({num: 'not a number'})
           entity.store((err, entityStored) => {
             expect(err.errors.length).to.equal(1)
@@ -786,7 +786,7 @@ describe('Entity', () => {
             done()
           })
         })
-        it(`store si ça valide`, (done) => {
+        it('store si ça valide', (done) => {
           const entity = TestEntity.create({num: 42})
           entity.store((err, entityStored) => {
             expect(err).to.not.exist

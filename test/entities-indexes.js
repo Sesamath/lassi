@@ -66,10 +66,10 @@ describe('Test entities-indexes', function () {
         expect(indexUnique.name).to.equal('entity_index_indexUnique-data-unique')
 
         // Par contre l'index sparse passe par un index dédié
-        expect(indexSparse.key).to.deep.equal({ 'indexSparse': 1 })
+        expect(indexSparse.key).to.deep.equal({ indexSparse: 1 })
         expect(indexSparse.name).to.equal('entity_index_indexSparse-sparse')
 
-        expect(indexUniqueSparse.key).to.deep.equal({ 'indexUniqueSparse': 1 })
+        expect(indexUniqueSparse.key).to.deep.equal({ indexUniqueSparse: 1 })
         expect(indexUniqueSparse.name).to.equal('entity_index_indexUniqueSparse-unique-sparse')
         // et l'index __deletedAt en dernier
         expect(indexDeleted.key).to.deep.equal({ __deletedAt: 1 })
@@ -129,7 +129,7 @@ describe('Test entities-indexes', function () {
       })
     })
 
-    describe(`on change les options d'un index`, function () {
+    describe('on change les options d\'un index', function () {
       before(function (done) {
         // Plus d'index
         SimpleEntity = entities.define('SimpleEntity')
@@ -139,7 +139,7 @@ describe('Test entities-indexes', function () {
         SimpleEntity._initialize(done)
       })
 
-      it(`supprime l'ancien et crée un nouvel index mongo`, function (done) {
+      it('supprime l\'ancien et crée un nouvel index mongo', function (done) {
         SimpleEntity.getMongoIndexes(function (error, indexes) {
           if (error) return done(error)
           const oldIndex1 = _.find(indexes, {name: SimpleEntity.getMongoIndexName('index1')})

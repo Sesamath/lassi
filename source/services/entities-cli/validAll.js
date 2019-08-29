@@ -3,7 +3,7 @@
 const flow = require('an-flow')
 const anLog = require('an-log')('lassi-cli')
 // sera redéfini par chaque commande pour avoir le bon préfixe
-let log = (...args) => anLog('entities-cli validAll', ...args)
+const log = (...args) => anLog('entities-cli validAll', ...args)
 
 /**
  * Passe en revue toutes les entités entityName pour vérifier la validation (schema + beforeStore),
@@ -29,7 +29,7 @@ function validAll (entityName, done) {
     if (error) return done(error)
     if (total) {
       log(`Début de la vérification de validité de ${total} entités ${entityName}`)
-      let oidsWithError = []
+      const oidsWithError = []
       const forEachCb = (e, cb) => {
         // attention, l'appel de e.beforeStore lance la validation mais avec onlyChangedAttributes: true
         // on refait ici le chaînage de l'appel de beforeStore seul puis de la validation du schema

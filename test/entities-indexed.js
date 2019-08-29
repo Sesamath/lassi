@@ -277,7 +277,7 @@ describe('Test entities-queries', function () {
 
     it('conserve la valeur initiale dans data et normalise l’index', function (done) {
       flow().seq(function () {
-        TestEntity.getCollection().find().sort({'_id': 1}).toArray(this)
+        TestEntity.getCollection().find().sort({_id: 1}).toArray(this)
       }).seq(function (docs) {
         expect(docs).to.have.length(1)
         const doc = docs[0]

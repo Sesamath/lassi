@@ -1,7 +1,7 @@
 'use strict'
 const flow = require('an-flow')
 const anLog = require('an-log')('lassi-cli')
-let log = (...args) => anLog('entities-cli', ...args)
+const log = (...args) => anLog('entities-cli', ...args)
 
 /**
  * Parse une string json et retourne le résultat ou undefined si le parsing a planté
@@ -30,7 +30,7 @@ function addConditions (Entity, wheres) {
   if (wheres) {
     const filters = parse(wheres)
     if (!filters || !Array.isArray(filters)) throw new Error('le 3e arguments where doit être un tableau (string JSON) dont chaque élément est un tableau [champ, condition, valeur]')
-    filters.forEach(([ field, condition, value ]) => {
+    filters.forEach(([field, condition, value]) => {
       if (!field) throw new Error('filtre invalide')
       if (condition === 'isNull') {
         query = query.match(field).isNull()

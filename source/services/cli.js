@@ -87,7 +87,7 @@ Options :
       // Appelle pour chaque service *-cli sa méthode commands ou lui-même
       cliServices.forEach((service) => {
         const serviceCommands = service.commands ? service.commands() : service
-        for (let name in serviceCommands) {
+        for (const name in serviceCommands) {
           commands[name] = serviceCommands[name]
           if (typeof serviceCommands[name].help !== 'function') {
             serviceCommands[name].help = () => log.error(`La commande ${name} ne fournit pas d’aide sur son usage`)

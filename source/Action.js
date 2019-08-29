@@ -21,11 +21,13 @@
 * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 */
-var _ = require('lodash')
-var log = require('an-log')('lassi-actions')
-var constantes = require('./constantes')
+const _ = require('lodash')
+const log = require('an-log')('lassi-actions')
+const { hasProp } = require('sesajstools')
+
+const constantes = require('./constantes')
 // sera initialisé d'après les settings au 1er appel d'un contrôleur
-var maxTimeout
+let maxTimeout
 
 /**
  * Fonction fauchée ici : http://forbeslindesay.github.io/express-route-tester/
@@ -34,8 +36,8 @@ var maxTimeout
  */
 function pathtoRegexp (path, keys, options) {
   options = options || {}
-  var sensitive = options.sensitive
-  var strict = options.strict
+  const sensitive = options.sensitive
+  const strict = options.strict
   keys = keys || []
 
   if (path instanceof RegExp) return path
@@ -90,7 +92,7 @@ class Action {
     this.methods = methods
     if (this.path && this.path.trim() === '') this.path = undefined
 
-    if (typeof this.path === 'undefined') {
+    if (typeof this.path !== 'string') {
       this.path = controller.path
     } else if (this.path.charAt(0) !== '/') {
       this.path = controller.path + '/' + this.path
@@ -101,18 +103,18 @@ class Action {
     }
 
     if (this.middleware) {
-      var express = require('express')
-      var options = {}
+      const express = require('express')
+      const options = {}
       if (lassi.settings && lassi.settings.pathProperties && lassi.settings.pathProperties[this.path]) {
         Object.assign(options, lassi.settings.pathProperties[this.path])
       }
       // par défaut, express met un max-age à 0 (cf http://expressjs.com/en/4x/api.html#express.static)
       // si l'appli ne précise rien on le met à 1h sur le statique
-      if (!options.hasOwnProperty('maxAge')) options.maxAge = '1h'
-      var serveStatic = express.static(this.fsPath, options)
+      if (!hasProp(options, 'maxAge')) options.maxAge = '1h'
+      const serveStatic = express.static(this.fsPath, options)
       this.middleware = (function (base) {
         return function (request, response, next) {
-          var saveUrl = request.url
+          const saveUrl = request.url
           request.url = request.url.substr(base.length)
           if (request.url.length === 0 || request.url.charAt(0) !== '/') request.url = '/' + request.url
           serveStatic(request, response, function () {
@@ -139,24 +141,24 @@ class Action {
    * @returns {Object} Les paramètres de la route qui correspondent au pattern du contrôleur
    */
   match (method, path) {
-    var params = {}
-    var key
-    var val
+    const params = {}
+    let key
+    let val
 
     method = method.toLowerCase()
     if (this.methods && !this.methods.includes(method)) return null
-    var match = this.pathRegexp.exec(path)
+    const match = this.pathRegexp.exec(path)
     // console.log(path, this.pathRegexp, match);
     if (!match) return null
 
-    var paramIndex = 0
-    var len = match.length
-    for (var i = 1; i < len; ++i) {
+    let paramIndex = 0
+    const len = match.length
+    for (let i = 1; i < len; ++i) {
       key = this.keys[i - 1]
       try {
         val = typeof match[i] === 'string' ? decodeURIComponent(match[i]) : match[i]
       } catch (e) {
-        var err = new Error("Failed to decode param '" + match[i] + "'")
+        const err = new Error("Failed to decode param '" + match[i] + "'")
         err.status = 400
         throw err
       }
@@ -177,8 +179,8 @@ class Action {
    * @param {Function} next
    */
   execute (context, next) {
-    var timer = false
-    var isCbCompleted = false
+    let timer = false
+    let isCbCompleted = false
 
     function fooProtect () {
       console.error(new Error('Attention, un résultat est arrivé de manière inattendue (un appel de next en trop ?).'))
@@ -199,7 +201,7 @@ class Action {
       // on ne peut pas appeler $settings ou lassi.service en dehors de la classe car ce fichier est requis
       // avant bootstrap, on initialise donc maxTimeout lors du 1er appel d'un controleur après le boot
       if (!maxTimeout) {
-        var $settings = lassi.service('$settings')
+        const $settings = lassi.service('$settings')
         maxTimeout = $settings.get('$server.maxTimeout', constantes.maxTimeout - constantes.minDiffTimeout)
       }
       context.next = processResult
@@ -208,7 +210,7 @@ class Action {
 
       // Timeout de 1s par défaut après le retour synchrone
       // (ça permet aussi à l'action de modifier son timeout pendant son exécution)
-      var timeout = context.timeout || this.callback.timeout || constantes.defaultTimeout
+      let timeout = context.timeout || this.callback.timeout || constantes.defaultTimeout
       if (timeout > maxTimeout) {
         console.error(new Error(`timeout ${timeout} supérieur au maximum autorisé dans cette application ${maxTimeout}, il sera ramené à ${maxTimeout - constantes.minDiffTimeout}`))
         // pour laisser le timeout ci-dessous prendre la main sur celui de node

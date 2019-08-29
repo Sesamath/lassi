@@ -174,7 +174,7 @@ module.exports = function ($maintenance, $settings) {
         try {
           const fd = fs.openSync(conf.logFile, 'a')
           log(`adding access.log (${conf.logFile})`)
-          const writeStream = fs.createWriteStream(null, {fd, 'flags': 'a'})
+          const writeStream = fs.createWriteStream(null, {fd, flags: 'a'})
           // on a notre fichier, on met un listener pour le fermer
           lassi.on('shutdown', () => writeStream.end())
           // cf https://www.npmjs.com/package/morgan

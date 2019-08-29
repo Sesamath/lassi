@@ -43,7 +43,7 @@ class Controller extends EventEmitter {
       callback = path
       path = undefined
     }
-    if (methods && !_.isArray(methods)) methods = [ methods ]
+    if (methods && !_.isArray(methods)) methods = [methods]
     this.actions.push(new Action(this, methods, path, callback))
     return this
   }

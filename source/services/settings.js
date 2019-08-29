@@ -1,5 +1,6 @@
 'use strict'
 const _ = require('lodash')
+const { hasProp } = require('sesajstools')
 
 let isInitialized = false
 /**
@@ -41,7 +42,7 @@ module.exports = function () {
       let current = lassi.settings
       while (path.length) {
         const part = path.shift()
-        if (current.hasOwnProperty(part)) {
+        if (hasProp(current, part)) {
           current = current[part]
         } else {
           current = def
