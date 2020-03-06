@@ -359,7 +359,7 @@ class Entity {
       callback(null, entity)
     }).catch(function (error) {
       // on veut détecter les erreurs de doublon pour rendre le message plus intelligible
-      const matches = /^E11000 duplicate key error collection: ([^ ]+) index: ([^ ]+) dup key: { : (.*) }$/.exec(error.message)
+      const matches = /^E11000 duplicate key error collection: ([^ ]+) index: ([^ ]+) dup key: { [^:]*: (.*) }$/.exec(error.message)
       if (matches) {
         const [, collectionFullName, mongoIndexName, duplicateValue] = matches
         const entityName = collectionFullName.split('.').pop()
